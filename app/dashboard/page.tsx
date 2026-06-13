@@ -21,8 +21,8 @@ export default function Dashboard() {
   const { address } = useWallet();
   const [loading, setLoading] = useState(false);
 
-  const isClient = address?.startsWith("G...Client");
-  const isFreelancer = address?.startsWith("G...Freelancer");
+  const isClient = !!address?.startsWith("G...Client");
+  const isFreelancer = !!address?.startsWith("G...Freelancer");
 
   const handleMarkDelivered = async (i: number) => {
     setLoading(true);
