@@ -3,6 +3,7 @@ import Navbar from "@/app/components/Navbar";
 import Link from "next/link";
 import { useWallet } from "@/app/context/WalletContext";
 
+// Landing page for Milesto Escrow Platform
 export default function Home() {
   const { address } = useWallet();
 
