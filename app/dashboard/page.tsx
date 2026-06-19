@@ -56,8 +56,8 @@ export default function Dashboard() {
     fetchJob();
   }, [address]);
 
-  const isClient = job && address === job.client;
-  const isFreelancer = job && address === job.freelancer;
+  const isClient = !!(job && address === job.client);
+  const isFreelancer = !!(job && address === job.freelancer);
 
   const handleMarkDelivered = async (i: number) => {
     setLoading(true);
