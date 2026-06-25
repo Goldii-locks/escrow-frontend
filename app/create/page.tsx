@@ -81,9 +81,9 @@ export default function CreateJob() {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <Navbar />
-      <main className="max-w-xl mx-auto px-6 py-12">
-        <h1 className="text-2xl font-bold mb-8">Create New Job</h1>
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <main className="max-w-xl mx-auto px-4 sm:px-6 py-6 sm:py-12">
+        <h1 className="text-xl sm:text-2xl font-bold mb-6 sm:mb-8">Create New Job</h1>
+        <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
           <div>
             <label className="block text-sm text-gray-400 mb-1">Freelancer Address</label>
             <input
@@ -131,7 +131,7 @@ export default function CreateJob() {
               {milestones.map((m, i) => (
                 <div key={i} className="flex gap-2 items-center">
                   <input
-                    className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-indigo-500"
+                    className="flex-1 min-w-0 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-indigo-500"
                     value={m.amount}
                     onChange={(e) => updateMilestone(i, e.target.value)}
                     placeholder={`Milestone ${i + 1} amount (stroops)`}
@@ -141,7 +141,7 @@ export default function CreateJob() {
                     <button
                       type="button"
                       onClick={() => removeMilestone(i)}
-                      className="text-red-400 hover:text-red-300 text-sm px-2"
+                      className="text-red-400 hover:text-red-300 text-sm px-2 shrink-0"
                     >
                       ✕
                     </button>
