@@ -32,39 +32,59 @@ export default function MilestoneCard({
   onDispute,
 }: Props) {
   return (
-    <div className="border border-gray-800 rounded-lg p-4 bg-gray-900 flex items-center justify-between gap-4">
-      <div>
+    <div
+      data-testid="milestone-card"
+      className="
+        border border-gray-800 rounded-lg p-4 bg-gray-900
+        flex flex-col gap-3
+        sm:flex-row sm:items-center sm:justify-between sm:gap-4
+      "
+    >
+      {/* Milestone info */}
+      <div className="min-w-0">
         <p className="text-sm text-gray-400">Milestone {milestone.index + 1}</p>
-        <p className="font-mono text-white text-sm mt-1">{milestone.amount} stroops</p>
+        <p className="font-mono text-white text-sm mt-1 truncate">
+          {milestone.amount} stroops
+        </p>
       </div>
-      <div className="flex items-center gap-3">
-        <span className={`text-xs px-2 py-1 rounded-full border ${statusColor[milestone.status] || "bg-gray-800 text-gray-400"}`}>
+
+      {/* Status badge + action buttons */}
+      <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-3">
+        <span
+          className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${
+            statusColor[milestone.status] ?? "bg-gray-800 text-gray-400"
+          }`}
+        >
           {milestone.status}
         </span>
+
         {isFreelancer && milestone.status === "Pending" && (
           <button
             onClick={() => onMarkDelivered?.(milestone.index)}
-            className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-lg transition"
+            className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition whitespace-nowrap"
           >
             Mark Delivered
           </button>
         )}
+
         {isClient && milestone.status === "Delivered" && (
           <button
             onClick={() => onApprove?.(milestone.index)}
-            className="text-xs bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded-lg transition"
+            className="text-xs bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-lg transition whitespace-nowrap"
           >
             Approve
           </button>
         )}
-        {(isClient || isFreelancer) && ["Pending", "Delivered"].includes(milestone.status) && (
-          <button
-            onClick={() => onDispute?.(milestone.index)}
-            className="text-xs bg-red-800 hover:bg-red-700 text-white px-3 py-1 rounded-lg transition"
-          >
-            Dispute
-          </button>
-        )}
+
+        {(isClient || isFreelancer) &&
+          ["Pending", "Delivered"].includes(milestone.status) && (
+            <button
+              onClick={() => onDispute?.(milestone.index)}
+              className="text-xs bg-red-800 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg transition whitespace-nowrap"
+            >
+              Dispute
+            </button>
+          )}
       </div>
     </div>
   );
