@@ -91,121 +91,58 @@ export default function MilestoneCard({
 
   return (
     <div
-      className={`border rounded-lg p-4 bg-gray-900 flex flex-col gap-3 ${
-        hasErrors ? "border-red-500/50" : "border-gray-800"
-      }`}
-      role="region"
-      aria-label={`Milestone ${milestone.index + 1}`}
+      data-testid="milestone-card"
+      className="
+        border border-gray-800 rounded-lg p-4 bg-gray-900
+        flex flex-col gap-3
+        sm:flex-row sm:items-center sm:justify-between sm:gap-4
+      "
     >
-      {/* ── Alert banner ── */}
-      {hasErrors && (
-        <div
-          role="alert"
-          aria-live="polite"
-          className="flex flex-col gap-1 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2"
+      {/* Milestone info */}
+      <div className="min-w-0">
+        <p className="text-sm text-gray-400">Milestone {milestone.index + 1}</p>
+        <p className="font-mono text-white text-sm mt-1 truncate">
+          {milestone.amount} stroops
+        </p>
+      </div>
+
+      {/* Status badge + action buttons */}
+      <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-3">
+        <span
+          className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${
+            statusColor[milestone.status] ?? "bg-gray-800 text-gray-400"
+          }`}
         >
-          <p className="text-xs font-semibold text-red-400 uppercase tracking-wide">
-            Invalid configuration
-          </p>
-          <ul className="list-disc list-inside space-y-0.5">
-            {errorMessages.map((msg) => (
-              <li key={msg} className="text-xs text-red-300">
-                {msg}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+          {milestone.status}
+        </span>
 
-      {/* ── Main row ── */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm text-gray-400">Milestone {milestone.index + 1}</p>
-
-          {/* Amount field — highlighted when invalid */}
-          <p
-            className={`font-mono text-sm mt-1 ${
-              merged.invalidAmount ? "text-red-400" : "text-white"
-            }`}
-            aria-invalid={!!merged.invalidAmount}
-            aria-errormessage={
-              merged.invalidAmount ? `amount-error-${milestone.index}` : undefined
-            }
+        {isFreelancer && milestone.status === "Pending" && (
+          <button
+            onClick={() => onMarkDelivered?.(milestone.index)}
+            className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition whitespace-nowrap"
           >
-            {milestone.amount || <span className="italic opacity-60">no amount</span>}{" "}
-            stroops
-          </p>
+            Mark Delivered
+          </button>
+        )}
 
-          {/* Inline amount error */}
-          {merged.invalidAmount && (
-            <p
-              id={`amount-error-${milestone.index}`}
-              role="alert"
-              className="text-xs text-red-400 mt-0.5"
+        {isClient && milestone.status === "Delivered" && (
+          <button
+            onClick={() => onApprove?.(milestone.index)}
+            className="text-xs bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-lg transition whitespace-nowrap"
+          >
+            Approve
+          </button>
+        )}
+
+        {(isClient || isFreelancer) &&
+          ["Pending", "Delivered"].includes(milestone.status) && (
+            <button
+              onClick={() => onDispute?.(milestone.index)}
+              className="text-xs bg-red-800 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg transition whitespace-nowrap"
             >
-              {merged.invalidAmount}
-            </p>
+              Dispute
+            </button>
           )}
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Status badge — highlighted when unknown */}
-          <span
-            className={`text-xs px-2 py-1 rounded-full border ${
-              merged.unknownStatus
-                ? "bg-red-500/10 text-red-400 border-red-500/30"
-                : statusColor[milestone.status] ?? "bg-gray-800 text-gray-400"
-            }`}
-            aria-invalid={!!merged.unknownStatus}
-          >
-            {milestone.status}
-          </span>
-
-          {/* Inline status error */}
-          {merged.unknownStatus && (
-            <p role="alert" className="text-xs text-red-400">
-              {merged.unknownStatus}
-            </p>
-          )}
-
-          {/* Action buttons — suppressed when role conflict exists */}
-          {!merged.unauthorizedAction && (
-            <>
-              {isFreelancer && milestone.status === "Pending" && (
-                <button
-                  onClick={() => onMarkDelivered?.(milestone.index)}
-                  className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-lg transition"
-                >
-                  Mark Delivered
-                </button>
-              )}
-              {isClient && milestone.status === "Delivered" && (
-                <button
-                  onClick={() => onApprove?.(milestone.index)}
-                  className="text-xs bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded-lg transition"
-                >
-                  Approve
-                </button>
-              )}
-              {(isClient || isFreelancer) &&
-                ["Pending", "Delivered"].includes(milestone.status) && (
-                  <button
-                    onClick={() => onDispute?.(milestone.index)}
-                    className="text-xs bg-red-800 hover:bg-red-700 text-white px-3 py-1 rounded-lg transition"
-                  >
-                    Dispute
-                  </button>
-                )}
-            </>
-          )}
-
-          {/* Role-conflict inline error */}
-          {merged.unauthorizedAction && (
-            <p role="alert" className="text-xs text-red-400">
-              {merged.unauthorizedAction}
-            </p>
-          )}
-        </div>
       </div>
     </div>
   );
