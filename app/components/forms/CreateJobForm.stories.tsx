@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { action } from "@storybook/addon-actions";
-import React from "react";
+import { action } from "@storybook/blocks";
 
 import CreateJobForm, { type CreateJobFormProps } from "./CreateJobForm";
 
@@ -61,11 +60,8 @@ export const LoadingSubmitting: Story = {
 
 export const SuccessCompletion: Story = {
   name: "Success / Completion",
-  render: (args) => {
-    // Success happens after successful submit.
-    // Provide valid default values by starting at step 2 and using a submit handler that resolves.
+  render: (args: Story["args"]) => {
     const onSubmit = async () => {
-      // Let the component transition to its internal success state.
       await new Promise((r) => setTimeout(r, 300));
     };
 
@@ -82,5 +78,4 @@ export const SuccessCompletion: Story = {
     );
   },
 };
-
 
