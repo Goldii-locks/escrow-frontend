@@ -7,7 +7,7 @@ interface Milestone {
 }
 
 interface Props {
-  milestone: Milestone;
+  milestone?: Milestone | null;
   isClient: boolean;
   isFreelancer: boolean;
   onMarkDelivered?: (i: number) => void;
@@ -31,20 +31,11 @@ interface Props {
  * the 4.5:1 threshold against the card's bg-gray-900 base.
  */
 const statusColor: Record<string, string> = {
-  Pending:   "bg-yellow-500/10 text-yellow-300 border-yellow-500/30",
-  Delivered: "bg-blue-500/10   text-blue-300   border-blue-500/30",
-  Released:  "bg-green-500/10  text-green-300  border-green-500/30",
-  Disputed:  "bg-red-500/10    text-red-300    border-red-500/30",
-  Refunded:  "bg-gray-500/10   text-gray-300   border-gray-500/30",
-};
-
-/** Human-readable descriptions surfaced to screen readers via aria-label. */
-const statusLabel: Record<string, string> = {
-  Pending:   "Pending — awaiting delivery",
-  Delivered: "Delivered — awaiting client approval",
-  Released:  "Released — funds disbursed",
-  Disputed:  "Disputed — under arbitration",
-  Refunded:  "Refunded — funds returned",
+  Pending: "bg-warning-soft/10 text-warning-soft border-warning-soft/20",
+  Delivered: "bg-info-soft/10 text-info-soft border-info-soft/20",
+  Released: "bg-success-soft/10 text-success-soft border-success-soft/20",
+  Disputed: "bg-danger-soft/10 text-danger-soft border-danger-soft/20",
+  Refunded: "bg-text-muted/10 text-text-muted border-text-muted/20",
 };
 
 export default function MilestoneCard({
@@ -55,90 +46,76 @@ export default function MilestoneCard({
   onApprove,
   onDispute,
 }: Props) {
-  const milestoneNumber = milestone.index + 1;
-  const resolvedStatusLabel =
-    statusLabel[milestone.status] ?? milestone.status;
+  if (
+    !milestone ||
+    typeof milestone.index !== "number" ||
+    typeof milestone.amount !== "string" ||
+    typeof milestone.status !== "string"
+  ) {
+    return (
+      <div
+        data-testid="milestone-empty-state"
+        className="border border-border-strong rounded-lg p-4 bg-surface-card flex flex-col gap-2"
+      >
+        <p className="text-sm font-semibold text-text-secondary">No milestones available</p>
+        <p className="text-xs text-text-muted">Add milestones in the create job form to begin tracking work and releases.</p>
+        <p className="text-xs text-accent-soft">Next step: create a job with at least one milestone amount.</p>
+      </div>
+    );
+  }
 
   return (
-    /**
-     * `article` is the correct landmark for a self-contained, independently
-     * meaningful piece of content. `aria-label` gives each card a unique
-     * accessible name so screen readers can distinguish them in a list.
-     */
-    <article
-      aria-label={`Milestone ${milestoneNumber}: ${resolvedStatusLabel}`}
-      className="border border-gray-800 rounded-lg p-4 bg-gray-900 flex items-center justify-between gap-4"
+    <div
+      data-testid="milestone-card"
+      className="
+        border border-border-strong rounded-lg p-4 bg-surface-card
+        flex flex-col gap-3
+        sm:flex-row sm:items-center sm:justify-between sm:gap-4
+      "
     >
-      {/* ── Left: milestone identity ── */}
-      <div>
-        {/*
-         * Use a heading so assistive-technology users can navigate between
-         * milestone cards via heading shortcuts (h / H in NVDA / JAWS).
-         * h3 is appropriate inside a section hierarchy that starts with h1
-         * (page) → h2 (job panel in dashboard).
-         */}
-        <h3 className="text-sm text-gray-300 font-medium">
-          Milestone {milestoneNumber}
-        </h3>
-        <p className="font-mono text-white text-sm mt-1">
-          {/* "stroops" is the unit; spelling it out in aria-label avoids
-              screen readers mis-pronouncing the abbreviation */}
-          <span aria-label={`${milestone.amount} stroops`}>
-            {milestone.amount} stroops
-          </span>
+      {/* Milestone info */}
+      <div className="min-w-0">
+        <p className="text-sm text-text-muted">Milestone {milestone.index + 1}</p>
+        <p className="font-mono text-text-primary text-sm mt-1 truncate">
+          {milestone.amount} stroops
         </p>
       </div>
 
-      {/* ── Right: status badge + action buttons ── */}
-      <div className="flex items-center gap-3">
-        {/*
-         * role="status" implies aria-live="polite" so any dynamic status
-         * change is announced without interrupting the user.
-         * aria-label provides the richer description; the visible text is
-         * kept short for sighted users.
-         */}
+      {/* Status badge + action buttons */}
+      <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-3">
         <span
-          role="status"
-          aria-label={resolvedStatusLabel}
-          className={`text-xs px-2 py-1 rounded-full border ${
-            statusColor[milestone.status] ?? "bg-gray-800 text-gray-300 border-gray-600"
+          className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${
+            statusColor[milestone.status] ?? "bg-surface-field text-text-muted border-border-subtle"
           }`}
         >
           {milestone.status}
         </span>
 
-        {/* Mark Delivered — freelancer only, Pending milestones */}
         {isFreelancer && milestone.status === "Pending" && (
           <button
             type="button"
             onClick={() => onMarkDelivered?.(milestone.index)}
-            aria-label={`Mark milestone ${milestoneNumber} as delivered`}
-            className="text-xs bg-blue-600 hover:bg-blue-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 text-white px-3 py-1 rounded-lg transition"
+            className="text-xs bg-info-soft hover:opacity-90 text-text-primary px-3 py-1.5 rounded-lg transition whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page"
           >
             Mark Delivered
           </button>
         )}
 
-        {/* Approve — client only, Delivered milestones */}
         {isClient && milestone.status === "Delivered" && (
           <button
             type="button"
             onClick={() => onApprove?.(milestone.index)}
-            aria-label={`Approve milestone ${milestoneNumber} and release funds`}
-            className="text-xs bg-green-700 hover:bg-green-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 text-white px-3 py-1 rounded-lg transition"
+            className="text-xs bg-success hover:opacity-90 text-text-primary px-3 py-1.5 rounded-lg transition whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page"
           >
             Approve
           </button>
         )}
 
-        {/* Dispute — either role, actionable milestones */}
         {(isClient || isFreelancer) &&
           ["Pending", "Delivered"].includes(milestone.status) && (
             <button
-              type="button"
               onClick={() => onDispute?.(milestone.index)}
-              aria-label={`Dispute milestone ${milestoneNumber}`}
-              className="text-xs bg-red-800 hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 text-white px-3 py-1 rounded-lg transition"
+              className="text-xs bg-danger hover:opacity-90 text-text-primary px-3 py-1.5 rounded-lg transition whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page"
             >
               Dispute
             </button>
