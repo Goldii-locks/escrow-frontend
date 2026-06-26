@@ -5,7 +5,6 @@ import {
   BASE_FEE,
   nativeToScVal,
   Address,
-  scValToNative,
 } from "@stellar/stellar-sdk";
 import { Server } from "@stellar/stellar-sdk/rpc";
 
@@ -19,7 +18,10 @@ export function getContract() {
   return new Contract(CONTRACT_ID);
 }
 
-export async function buildTx(sourceAddress: string, operation: any) {
+export async function buildTx(
+  sourceAddress: string,
+  operation: Parameters<TransactionBuilder["addOperation"]>[0]
+) {
   const account = await server.getAccount(sourceAddress);
   const tx = new TransactionBuilder(account, {
     fee: BASE_FEE,

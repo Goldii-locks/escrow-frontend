@@ -1,6 +1,19 @@
 "use client";
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
 
+interface FreighterSignResult {
+  signedTxXdr?: string;
+}
+
+interface FreighterApi {
+  requestAccess: () => Promise<void>;
+  getPublicKey: () => Promise<string>;
+  signTransaction: (
+    xdr: string,
+    options: { networkPassphrase: string }
+  ) => Promise<FreighterSignResult | string>;
+}
+
 interface WalletContextType {
   address: string | null;
   connect: () => Promise<void>;
@@ -24,7 +37,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const connect = useCallback(async () => {
     setIsConnecting(true);
     try {
-      const freighter = (window as any).freighter;
+      const freighter = (window as Window & { freighter?: FreighterApi }).freighter;
       if (!freighter) {
         alert("Please install the Freighter wallet extension.");
         return;
@@ -42,12 +55,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const disconnect = useCallback(() => setAddress(null), []);
 
   const signTransaction = useCallback(async (xdr: string): Promise<string> => {
-    const freighter = (window as any).freighter;
+    const freighter = (window as Window & { freighter?: FreighterApi }).freighter;
     if (!freighter) throw new Error("Freighter not found");
     const result = await freighter.signTransaction(xdr, {
       networkPassphrase: "Test SDF Network ; September 2015",
     });
-    return result.signedTxXdr ?? result;
+    return typeof result === "string" ? result : (result.signedTxXdr ?? "");
   }, []);
 
   return (
