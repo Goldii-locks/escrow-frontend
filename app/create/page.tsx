@@ -55,32 +55,11 @@ export default function CreateJob() {
     }
     setLoading(true);
     setError(null);
-    try {
-      const milestoneAmounts = normalizedMilestones.map(m => BigInt(m.amount));
-
-      // Build transaction
-      const autoReleaseSeconds = BigInt(autoReleaseDays) * BigInt(24) * BigInt(60) * BigInt(60); // Convert days to seconds
-      const buildTxRes = await fetch(`${BACKEND_URL}/api/jobs/build-tx`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contractId: CONTRACT_ID,
-          method: "initialize",
-          args: [
-            { type: "address", value: address }, // Admin (same as client for now)
-            { type: "address", value: address }, // Client
-            { type: "address", value: freelancer }, // Freelancer
-            { type: "address", value: arbiter }, // Arbiter
-            { type: "address", value: token }, // Token
-            { type: "u64", value: autoReleaseSeconds.toString() }, // Auto-release seconds
-            { type: "vec", value: milestoneAmounts.map(a => ({ type: "i128", value: a.toString() })) } // Milestone amounts
-          ],
-          sourceAddress: address
-        })
-      });
+    setTxHash(null);
+    setPhase("building");
 
     try {
-      const milestoneAmounts = milestones.map((m) => BigInt(m.amount));
+      const milestoneAmounts = normalizedMilestones.map((m) => BigInt(m.amount));
       const autoReleaseSeconds =
         BigInt(autoReleaseDays) * BigInt(24) * BigInt(60) * BigInt(60);
 
@@ -108,8 +87,9 @@ export default function CreateJob() {
 
       setPhase("success");
       setTxHash(hash);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+    } catch (err) {
+      setPhase("error");
+      setError(formatTxError(err));
     } finally {
       setLoading(false);
     }
