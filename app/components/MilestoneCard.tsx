@@ -1,15 +1,28 @@
 "use client";
 
+import { useState } from "react";
+import ButtonSpinner from "@/app/components/ButtonSpinner";
+import TxStatusBanner from "@/app/components/TxStatusBanner";
+import { ActionState } from "@/app/hooks/useActionStates";
+import { getPhaseLabel } from "@/app/lib/transactions";
+
 interface Milestone {
   index: number;
   amount: string;
   status: string;
+  releasedAmount?: string;
 }
 
 interface Props {
   milestone?: Milestone | null;
   isClient: boolean;
   isFreelancer: boolean;
+  partialReleaseState: ActionState;
+  claimAutoReleaseState: ActionState;
+  isPartialReleasePending: boolean;
+  isClaimAutoReleasePending: boolean;
+  onPartialRelease?: (index: number, amount: string) => void;
+  onClaimAutoRelease?: (index: number) => void;
   onMarkDelivered?: (i: number) => void;
   onApprove?: (i: number) => void;
   onDispute?: (i: number) => void;
@@ -27,6 +40,12 @@ export default function MilestoneCard({
   milestone,
   isClient,
   isFreelancer,
+  partialReleaseState,
+  claimAutoReleaseState,
+  isPartialReleasePending,
+  isClaimAutoReleasePending,
+  onPartialRelease,
+  onClaimAutoRelease,
   onMarkDelivered,
   onApprove,
   onDispute,

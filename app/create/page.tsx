@@ -2,10 +2,15 @@
 import { useState } from "react";
 import { useWallet } from "@/app/context/WalletContext";
 import Navbar from "@/app/components/Navbar";
+import ButtonSpinner from "@/app/components/ButtonSpinner";
+import TxStatusBanner from "@/app/components/TxStatusBanner";
 import { useRouter } from "next/navigation";
-
-const CONTRACT_ID = process.env.NEXT_PUBLIC_CONTRACT_ID || "";
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
+import {
+  getPhaseLabel,
+  submitContractTransaction,
+  TxPhase,
+} from "@/app/lib/transactions";
+import { formatTxError } from "@/app/lib/errors";
 
 export default function CreateJob() {
   const { address, signTransaction } = useWallet();
@@ -16,6 +21,7 @@ export default function CreateJob() {
   const [autoReleaseDays, setAutoReleaseDays] = useState("7");
   const [milestones, setMilestones] = useState([{ amount: "" }]);
   const [loading, setLoading] = useState(false);
+  const [phase, setPhase] = useState<TxPhase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
 
@@ -49,48 +55,41 @@ export default function CreateJob() {
     }
     setLoading(true);
     setError(null);
+    setTxHash(null);
+    setPhase("building");
+
     try {
-      const milestoneAmounts = normalizedMilestones.map(m => BigInt(m.amount));
+      const milestoneAmounts = normalizedMilestones.map((m) => BigInt(m.amount));
+      const autoReleaseSeconds =
+        BigInt(autoReleaseDays) * BigInt(24) * BigInt(60) * BigInt(60);
 
-      // Build transaction
-      const autoReleaseSeconds = BigInt(autoReleaseDays) * BigInt(24) * BigInt(60) * BigInt(60); // Convert days to seconds
-      const buildTxRes = await fetch(`${BACKEND_URL}/api/jobs/build-tx`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contractId: CONTRACT_ID,
-          method: "initialize",
-          args: [
-            { type: "address", value: address }, // Admin (same as client for now)
-            { type: "address", value: address }, // Client
-            { type: "address", value: freelancer }, // Freelancer
-            { type: "address", value: arbiter }, // Arbiter
-            { type: "address", value: token }, // Token
-            { type: "u64", value: autoReleaseSeconds.toString() }, // Auto-release seconds
-            { type: "vec", value: milestoneAmounts.map(a => ({ type: "i128", value: a.toString() })) } // Milestone amounts
-          ],
-          sourceAddress: address
-        })
+      const hash = await submitContractTransaction({
+        method: "initialize",
+        args: [
+          { type: "address", value: address },
+          { type: "address", value: address },
+          { type: "address", value: freelancer },
+          { type: "address", value: arbiter },
+          { type: "address", value: token },
+          { type: "u64", value: autoReleaseSeconds.toString() },
+          {
+            type: "vec",
+            value: milestoneAmounts.map((a) => ({
+              type: "i128",
+              value: a.toString(),
+            })),
+          },
+        ],
+        sourceAddress: address,
+        signTransaction,
+        onPhase: setPhase,
       });
 
-      if (!buildTxRes.ok) throw new Error("Failed to build transaction");
-      const { xdr } = await buildTxRes.json();
-
-      // Sign with Freighter
-      const signedXdr = await signTransaction(xdr);
-
-      // Submit to backend
-      const submitRes = await fetch(`${BACKEND_URL}/api/jobs/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ signedXdr })
-      });
-
-      if (!submitRes.ok) throw new Error("Failed to submit transaction");
-      const { hash } = await submitRes.json();
+      setPhase("success");
       setTxHash(hash);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+    } catch (err) {
+      setPhase("error");
+      setError(formatTxError(err));
     } finally {
       setLoading(false);
     }
@@ -148,6 +147,7 @@ export default function CreateJob() {
               onChange={(e) => setFreelancer(e.target.value)}
               placeholder="G..."
               required
+              disabled={loading}
             />
           </div>
           <div>
@@ -159,6 +159,7 @@ export default function CreateJob() {
               onChange={(e) => setArbiter(e.target.value)}
               placeholder="G..."
               required
+              disabled={loading}
             />
           </div>
           <div>
@@ -170,6 +171,7 @@ export default function CreateJob() {
               onChange={(e) => setToken(e.target.value)}
               placeholder="C..."
               required
+              disabled={loading}
             />
           </div>
           <div>
@@ -182,6 +184,7 @@ export default function CreateJob() {
               value={autoReleaseDays}
               onChange={(e) => setAutoReleaseDays(e.target.value)}
               required
+              disabled={loading}
             />
           </div>
           <div>
@@ -238,12 +241,19 @@ export default function CreateJob() {
               + Add Milestone
             </button>
           </div>
+
+          <TxStatusBanner
+            state={{ phase, error, txHash }}
+            successMessage="Job created successfully! Redirecting to dashboard..."
+          />
+
           <button
             type="submit"
             disabled={loading || !address || hasNoMilestones || hasPartialMilestones}
             className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 text-text-primary font-medium py-3 rounded-lg transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page"
           >
-            {loading ? "Creating..." : "Create Job"}
+            {loading && <ButtonSpinner className="h-4 w-4" />}
+            {loading ? getPhaseLabel(phase) || "Creating..." : "Create Job"}
           </button>
           {!address && (
             <p className="text-center text-sm text-text-disabled">Connect your wallet to create a job</p>
