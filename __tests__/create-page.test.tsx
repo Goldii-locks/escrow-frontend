@@ -34,11 +34,29 @@ describe("Create page", () => {
     const freelancer = screen.getByLabelText("Freelancer Address");
     expect(freelancer).toHaveClass("bg-surface-field");
     expect(freelancer).toHaveClass("focus-visible:ring-accent-soft");
+    expect(freelancer).toHaveClass("hover:border-accent-soft");
 
-    expect(screen.getByRole("button", { name: "Create Job" })).toBeDisabled();
+    const submitButton = screen.getByRole("button", { name: "Create Job" });
+    expect(submitButton).toBeDisabled();
+    expect(submitButton).toHaveClass("disabled:cursor-not-allowed");
     expect(
       screen.getByText("Complete each milestone amount to continue.")
     ).toBeInTheDocument();
+  });
+
+  it("supports keyboard focus cues and wizard section selection", () => {
+    render(<CreateJob />);
+
+    const freelancer = screen.getByLabelText("Freelancer Address");
+    freelancer.focus();
+
+    expect(freelancer).toHaveFocus();
+    expect(freelancer).toHaveClass("focus-visible:ring-2");
+
+    const scopeStep = screen.getByRole("button", { name: /2. Scope/i });
+    fireEvent.click(scopeStep);
+    expect(scopeStep).toHaveAttribute("aria-pressed", "true");
+    expect(scopeStep).toHaveClass("border-accent-soft");
   });
 
   it("renders a milestone empty state and supports recovery action", () => {
@@ -53,6 +71,21 @@ describe("Create page", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Add first milestone" }));
     expect(screen.getByLabelText("Milestone 1 amount")).toBeInTheDocument();
+  });
+
+  it("renders asset and requirement placeholders for empty list data and recovers from them", () => {
+    render(<CreateJob />);
+
+    expect(screen.getByTestId("asset-empty-state")).toBeInTheDocument();
+    expect(screen.getByText("No accepted assets selected")).toBeInTheDocument();
+    expect(screen.getByTestId("requirement-empty-state")).toBeInTheDocument();
+    expect(screen.getByText("No delivery requirements added")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add accepted asset" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add first requirement" }));
+
+    expect(screen.getByLabelText("Accepted asset 1")).toBeInTheDocument();
+    expect(screen.getByLabelText("Requirement 1")).toBeInTheDocument();
   });
 
   it("enables submit when required datasets are complete", () => {
