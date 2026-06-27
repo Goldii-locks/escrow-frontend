@@ -1,10 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import ButtonSpinner from "@/app/components/ButtonSpinner";
-import TxStatusBanner from "@/app/components/TxStatusBanner";
 import { ActionState } from "@/app/hooks/useActionStates";
-import { getPhaseLabel } from "@/app/lib/transactions";
 
 interface Milestone {
   index: number;
@@ -40,16 +36,13 @@ export default function MilestoneCard({
   milestone,
   isClient,
   isFreelancer,
-  partialReleaseState,
-  claimAutoReleaseState,
-  isPartialReleasePending,
-  isClaimAutoReleasePending,
-  onPartialRelease,
-  onClaimAutoRelease,
   onMarkDelivered,
   onApprove,
   onDispute,
+  ...unusedProps
 }: Props) {
+  void unusedProps;
+
   if (
     !milestone ||
     typeof milestone.index !== "number" ||
@@ -59,11 +52,18 @@ export default function MilestoneCard({
     return (
       <div
         data-testid="milestone-empty-state"
-        className="border border-border-strong rounded-lg p-4 bg-surface-card flex flex-col gap-2"
+        className="border border-border-strong rounded-lg p-4 bg-surface-card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
       >
-        <p className="text-sm font-semibold text-text-secondary">No milestones available</p>
-        <p className="text-xs text-text-muted">Add milestones in the create job form to begin tracking work and releases.</p>
-        <p className="text-xs text-accent-soft">Next step: create a job with at least one milestone amount.</p>
+        <div className="min-w-0 space-y-1">
+          <p className="text-sm font-semibold text-text-secondary">No milestones available</p>
+          <p className="text-xs text-text-muted">
+            This job has no milestone data yet. Add milestones in the create job form to
+            track delivery and releases.
+          </p>
+        </div>
+        <span className="text-xs px-2 py-1 rounded-full border border-border-subtle bg-surface-field text-text-muted whitespace-nowrap">
+          Waiting for milestones
+        </span>
       </div>
     );
   }
