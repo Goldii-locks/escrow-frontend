@@ -17,10 +17,7 @@ vi.mock("@/app/components/LoadingSkeleton", () => ({
 }));
 
 describe("Dashboard empty milestones transition", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockUseWallet.mockReturnValue({ address: "GCLIENT" });
-
+  const mockFetchWithMilestones = (milestones: unknown) => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -32,20 +29,47 @@ describe("Dashboard empty milestones transition", () => {
             freelancer: "GFREELANCER",
             arbiter: "GARBITER",
             funded: true,
-            milestones: [],
+            milestones,
           },
         }),
       })
     );
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseWallet.mockReturnValue({ address: "GCLIENT" });
   });
 
-  it("transitions from loading to empty-state milestone view", async () => {
+  it("transitions from loading to empty-state milestone view for empty array", async () => {
+    mockFetchWithMilestones([]);
+
     render(<Dashboard />);
 
     expect(screen.getByTestId("loading-skeleton")).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText("No milestones available")).toBeInTheDocument();
+    });
+  });
+
+  it("shows milestone empty state when milestones are undefined", async () => {
+    mockFetchWithMilestones(undefined);
+
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("milestone-empty-state")).toBeInTheDocument();
+    });
+  });
+
+  it("shows milestone empty state when milestones are null", async () => {
+    mockFetchWithMilestones(null);
+
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("milestone-empty-state")).toBeInTheDocument();
     });
   });
 });
