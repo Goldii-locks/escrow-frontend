@@ -8,6 +8,27 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface-page: #030712;
+  --color-surface-card: #111827;
+  --color-surface-field: #1f2937;
+  --color-border-strong: #1f2937;
+  --color-border-subtle: #374151;
+  --color-text-primary: #f9fafb;
+  --color-text-secondary: #d1d5db;
+  --color-text-muted: #9ca3af;
+  --color-text-disabled: #6b7280;
+  --color-accent: #4f46e5;
+  --color-accent-hover: #6366f1;
+  --color-accent-soft: #818cf8;
+  --color-accent-soft-hover: #a5b4fc;
+  --color-success: #16a34a;
+  --color-success-soft: #4ade80;
+  --color-success-soft-hover: #86efac;
+  --color-danger: #991b1b;
+  --color-danger-soft: #f87171;
+  --color-danger-soft-hover: #fca5a5;
+  --color-warning-soft: #facc15;
+  --color-info-soft: #60a5fa;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -22,5 +43,5 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }

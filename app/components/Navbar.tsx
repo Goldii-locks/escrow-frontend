@@ -21,6 +21,9 @@ export default function Navbar() {
             <Link href="/create" className="text-sm text-gray-300 hover:text-white transition">
               + New Job
             </Link>
+            <Link href="/admin" className="text-sm text-gray-300 hover:text-white transition">
+              Admin
+            </Link>
             <span className="text-sm text-gray-400 font-mono bg-gray-800 px-3 py-1 rounded-full">
               {short(address)}
             </span>
