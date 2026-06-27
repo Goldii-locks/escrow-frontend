@@ -58,18 +58,32 @@ export default function MilestoneCard({
         className="border border-border-strong rounded-lg p-4 bg-surface-card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
       >
         <div className="min-w-0 space-y-1">
-          <p className="text-sm font-semibold text-text-secondary">No milestones available</p>
+          <p className="text-sm font-semibold text-text-secondary">
+            No milestones available
+          </p>
           <p className="text-xs text-text-muted">
-            This job has no milestone data yet. Add milestones in the create job form to
-            track delivery and releases.
+            This job has no milestone data yet. Add milestones in the create
+            job form to track delivery and releases.
           </p>
         </div>
+
         <span className="text-xs px-2 py-1 rounded-full border border-border-subtle bg-surface-field text-text-muted whitespace-nowrap">
           Waiting for milestones
         </span>
       </div>
     );
   }
+
+  // Permission helpers
+  const canMarkDelivered =
+    isFreelancer &&
+    milestone.status === "Pending" &&
+    !!onMarkDelivered;
+
+  const canApprove =
+    isClient &&
+    milestone.status === "Delivered" &&
+    !!onApprove;
 
   return (
     <div
@@ -80,27 +94,30 @@ export default function MilestoneCard({
         sm:flex-row sm:items-center sm:justify-between sm:gap-4
         transition-all duration-200
         hover:border-accent-soft/40 hover:bg-surface-card/80
-        focus-within:outline-none focus-within:ring-2 focus-within:ring-accent-soft focus-within:ring-offset-2 focus-within:ring-offset-surface-page
+        focus-within:outline-none
+        focus-within:ring-2
+        focus-within:ring-accent-soft
+        focus-within:ring-offset-2
+        focus-within:ring-offset-surface-page
       "
     >
       {/* Milestone info */}
       <div className="min-w-0">
-        <p className="text-sm text-text-muted">Milestone {milestone.index + 1}</p>
+        <p className="text-sm text-text-muted">
+          Milestone {milestone.index + 1}
+        </p>
+
         <p className="font-mono text-text-primary text-sm mt-1 truncate">
           {milestone.amount} stroops
         </p>
       </div>
 
-      {/* ── Right: status badge + action buttons ─────────────────────── */}
+      {/* Status + Actions */}
       <div className="flex items-center gap-3 flex-wrap justify-end">
-        {/*
-         * role="status" – live region so assistive technologies announce
-         * status changes without requiring focus.
-         * aria-label on the <span> gives context beyond the bare word.
-         */}
         <span
           className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap transition-colors ${
-            statusColor[milestone.status] ?? "bg-surface-field text-text-muted border-border-subtle"
+            statusColor[milestone.status] ??
+            "bg-surface-field text-text-muted border-border-subtle"
           }`}
         >
           {milestone.status}
@@ -131,6 +148,7 @@ export default function MilestoneCard({
         {(isClient || isFreelancer) &&
           ["Pending", "Delivered"].includes(milestone.status) && (
             <button
+              type="button"
               onClick={() => onDispute?.(milestone.index)}
               disabled={!onDispute}
               className={`${baseBtn} bg-danger text-text-primary hover:bg-danger/80 active:scale-[0.97] focus-visible:ring-danger-soft disabled:hover:bg-danger disabled:active:scale-100`}
@@ -139,6 +157,6 @@ export default function MilestoneCard({
             </button>
           )}
       </div>
-  </div>
+    </div>
   );
 }
