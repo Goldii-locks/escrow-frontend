@@ -1,10 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import ButtonSpinner from "@/app/components/ButtonSpinner";
-import TxStatusBanner from "@/app/components/TxStatusBanner";
 import { ActionState } from "@/app/hooks/useActionStates";
-import { getPhaseLabel } from "@/app/lib/transactions";
 
 interface Milestone {
   index: number;
@@ -40,57 +36,20 @@ const statusColor: Record<string, string> = {
   Refunded: "bg-text-muted/10 text-text-muted border-text-muted/20",
 };
 
-/**
- * Derives validation errors from milestone data and role flags.
- * Returns null when there are no errors.
- */
-export function validateMilestone(
-  milestone: Milestone,
-  isClient: boolean,
-  isFreelancer: boolean
-): MilestoneValidationErrors | null {
-  const errors: MilestoneValidationErrors = {};
-
-  // Amount must be a non-empty string representing a positive integer (stroops)
-  const amountNum = Number(milestone.amount);
-  if (
-    !milestone.amount ||
-    milestone.amount.trim() === "" ||
-    !Number.isInteger(amountNum) ||
-    amountNum <= 0
-  ) {
-    errors.invalidAmount = "Amount must be a positive whole number (stroops).";
-  }
-
-  // Status must be a recognised value
-  if (!KNOWN_STATUSES.includes(milestone.status)) {
-    errors.unknownStatus = `Unknown status "${milestone.status}". Expected one of: ${KNOWN_STATUSES.join(", ")}.`;
-  }
-
-  // Role conflict: both isClient and isFreelancer should not be true at once
-  if (isClient && isFreelancer) {
-    errors.unauthorizedAction =
-      "A single address cannot be both client and freelancer on the same milestone.";
-  }
-
-  return Object.keys(errors).length > 0 ? errors : null;
-}
+const baseBtn =
+  "text-xs px-3 py-1.5 rounded-lg transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page disabled:opacity-40 disabled:cursor-not-allowed";
 
 export default function MilestoneCard({
   milestone,
   isClient,
   isFreelancer,
-  partialReleaseState,
-  claimAutoReleaseState,
-  isPartialReleasePending,
-  isClaimAutoReleasePending,
-  onPartialRelease,
-  onClaimAutoRelease,
   onMarkDelivered,
   onApprove,
   onDispute,
-  validationErrors: externalErrors,
+  ...unusedProps
 }: Props) {
+  void unusedProps;
+
   if (
     !milestone ||
     typeof milestone.index !== "number" ||
@@ -100,11 +59,18 @@ export default function MilestoneCard({
     return (
       <div
         data-testid="milestone-empty-state"
-        className="border border-border-strong rounded-lg p-4 bg-surface-card flex flex-col gap-2"
+        className="border border-border-strong rounded-lg p-4 bg-surface-card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
       >
-        <p className="text-sm font-semibold text-text-secondary">No milestones available</p>
-        <p className="text-xs text-text-muted">Add milestones in the create job form to begin tracking work and releases.</p>
-        <p className="text-xs text-accent-soft">Next step: create a job with at least one milestone amount.</p>
+        <div className="min-w-0 space-y-1">
+          <p className="text-sm font-semibold text-text-secondary">No milestones available</p>
+          <p className="text-xs text-text-muted">
+            This job has no milestone data yet. Add milestones in the create job form to
+            track delivery and releases.
+          </p>
+        </div>
+        <span className="text-xs px-2 py-1 rounded-full border border-border-subtle bg-surface-field text-text-muted whitespace-nowrap">
+          Waiting for milestones
+        </span>
       </div>
     );
   }
@@ -116,6 +82,9 @@ export default function MilestoneCard({
         border border-border-strong rounded-lg p-4 bg-surface-card
         flex flex-col gap-3
         sm:flex-row sm:items-center sm:justify-between sm:gap-4
+        transition-all duration-200
+        hover:border-accent-soft/40 hover:bg-surface-card/80
+        focus-within:outline-none focus-within:ring-2 focus-within:ring-accent-soft focus-within:ring-offset-2 focus-within:ring-offset-surface-page
       "
     >
       {/* Milestone info */}
@@ -129,7 +98,7 @@ export default function MilestoneCard({
       {/* Status badge + action buttons */}
       <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-3">
         <span
-          className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${
+          className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap transition-colors ${
             statusColor[milestone.status] ?? "bg-surface-field text-text-muted border-border-subtle"
           }`}
         >
@@ -139,7 +108,8 @@ export default function MilestoneCard({
         {isFreelancer && milestone.status === "Pending" && (
           <button
             onClick={() => onMarkDelivered?.(milestone.index)}
-            className="text-xs bg-info-soft hover:opacity-90 text-text-primary px-3 py-1.5 rounded-lg transition whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page"
+            disabled={!onMarkDelivered}
+            className={`${baseBtn} bg-info-soft text-text-primary hover:bg-info-soft/80 active:scale-[0.97] focus-visible:ring-info-soft disabled:hover:bg-info-soft disabled:active:scale-100`}
           >
             Mark Delivered
           </button>
@@ -148,7 +118,8 @@ export default function MilestoneCard({
         {isClient && milestone.status === "Delivered" && (
           <button
             onClick={() => onApprove?.(milestone.index)}
-            className="text-xs bg-success hover:opacity-90 text-text-primary px-3 py-1.5 rounded-lg transition whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page"
+            disabled={!onApprove}
+            className={`${baseBtn} bg-success text-text-primary hover:bg-success/80 active:scale-[0.97] focus-visible:ring-success-soft disabled:hover:bg-success disabled:active:scale-100`}
           >
             Approve
           </button>
@@ -158,7 +129,8 @@ export default function MilestoneCard({
           ["Pending", "Delivered"].includes(milestone.status) && (
             <button
               onClick={() => onDispute?.(milestone.index)}
-              className="text-xs bg-danger hover:opacity-90 text-text-primary px-3 py-1.5 rounded-lg transition whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page"
+              disabled={!onDispute}
+              className={`${baseBtn} bg-danger text-text-primary hover:bg-danger/80 active:scale-[0.97] focus-visible:ring-danger-soft disabled:hover:bg-danger disabled:active:scale-100`}
             >
               Dispute
             </button>
