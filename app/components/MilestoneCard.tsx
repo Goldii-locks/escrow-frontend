@@ -1,7 +1,5 @@
 "use client";
 
-import { ActionState } from "@/app/hooks/useActionStates";
-
 interface Milestone {
   index: number;
   amount: string;
@@ -13,12 +11,6 @@ interface Props {
   milestone?: Milestone | null;
   isClient: boolean;
   isFreelancer: boolean;
-  partialReleaseState: ActionState;
-  claimAutoReleaseState: ActionState;
-  isPartialReleasePending: boolean;
-  isClaimAutoReleasePending: boolean;
-  onPartialRelease?: (index: number, amount: string) => void;
-  onClaimAutoRelease?: (index: number) => void;
   onMarkDelivered?: (i: number) => void;
   onApprove?: (i: number) => void;
   onDispute?: (i: number) => void;
@@ -42,10 +34,7 @@ export default function MilestoneCard({
   onMarkDelivered,
   onApprove,
   onDispute,
-  ...unusedProps
 }: Props) {
-  void unusedProps;
-
   if (
     !milestone ||
     typeof milestone.index !== "number" ||
@@ -74,7 +63,6 @@ export default function MilestoneCard({
     );
   }
 
-  // Permission helpers
   const canMarkDelivered =
     isFreelancer &&
     milestone.status === "Pending" &&
@@ -101,7 +89,7 @@ export default function MilestoneCard({
         focus-within:ring-offset-surface-page
       "
     >
-      {/* Milestone info */}
+      {/* Milestone Info */}
       <div className="min-w-0">
         <p className="text-sm text-text-muted">
           Milestone {milestone.index + 1}
