@@ -139,6 +139,6 @@ export default function MilestoneCard({
             </button>
           )}
       </div>
-    </article>
+  </div>
   );
 }
