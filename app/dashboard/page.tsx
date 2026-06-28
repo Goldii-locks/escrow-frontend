@@ -152,17 +152,17 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 text-sm">
-                <div className="bg-gray-800 rounded-lg p-3">
+                <div className="bg-gray-800 rounded-lg p-3 min-w-0">
                   <p className="text-gray-400">Client</p>
-                  <p className="font-mono">{job.client}</p>
+                  <p className="font-mono text-xs break-all">{job.client}</p>
                 </div>
-                <div className="bg-gray-800 rounded-lg p-3">
+                <div className="bg-gray-800 rounded-lg p-3 min-w-0">
                   <p className="text-gray-400">Freelancer</p>
-                  <p className="font-mono">{job.freelancer}</p>
+                  <p className="font-mono text-xs break-all">{job.freelancer}</p>
                 </div>
-                <div className="bg-gray-800 rounded-lg p-3">
+                <div className="bg-gray-800 rounded-lg p-3 min-w-0">
                   <p className="text-gray-400">Arbiter</p>
-                  <p className="font-mono">{job.arbiter}</p>
+                  <p className="font-mono text-xs break-all">{job.arbiter}</p>
                 </div>
               </div>
               <div className="space-y-4">

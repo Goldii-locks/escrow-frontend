@@ -366,7 +366,7 @@ export default function CreateJob() {
                             type="button"
                             onClick={() => removeAcceptedAsset(index)}
                             aria-label={`Remove accepted asset ${index + 1}`}
-                            className={`${buttonClassName} text-danger-soft hover:text-danger-soft-hover shrink-0 rounded-sm px-2 py-2 active:scale-95`}
+                            className={`${buttonClassName} text-danger-soft hover:text-danger-soft-hover shrink-0 rounded-sm min-h-[44px] min-w-[44px] px-2 py-2 active:scale-95`}
                             disabled={loading}
                           >
                             ✕
@@ -413,7 +413,7 @@ export default function CreateJob() {
                             type="button"
                             onClick={() => removeRequirement(index)}
                             aria-label={`Remove requirement ${index + 1}`}
-                            className={`${buttonClassName} text-danger-soft hover:text-danger-soft-hover shrink-0 rounded-sm px-2 py-2 active:scale-95`}
+                            className={`${buttonClassName} text-danger-soft hover:text-danger-soft-hover shrink-0 rounded-sm min-h-[44px] min-w-[44px] px-2 py-2 active:scale-95`}
                             disabled={loading}
                           >
                             ✕
@@ -461,7 +461,7 @@ export default function CreateJob() {
                             type="button"
                             onClick={() => removeMilestone(i)}
                             aria-label={`Remove milestone ${i + 1}`}
-                            className={`${buttonClassName} text-danger-soft hover:text-danger-soft-hover shrink-0 rounded-sm px-2 py-2 active:scale-95`}
+                            className={`${buttonClassName} text-danger-soft hover:text-danger-soft-hover shrink-0 rounded-sm min-h-[44px] min-w-[44px] px-2 py-2 active:scale-95`}
                             disabled={loading}
                           >
                             ✕
