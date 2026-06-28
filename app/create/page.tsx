@@ -20,6 +20,11 @@ const inputClassName =
 const buttonClassName =
   "inline-flex items-center justify-center rounded-lg text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100";
 
+// Stable IDs used for aria-describedby wiring
+const FORM_ERROR_ID = "create-job-form-error";
+const PARTIAL_MILESTONE_HINT_ID = "milestone-partial-hint";
+const WALLET_HINT_ID = "create-job-wallet-hint";
+
 function EmptyCollectionState({
   title,
   description,
@@ -43,7 +48,7 @@ function EmptyCollectionState({
       <button
         type="button"
         onClick={onAction}
-        className={`${buttonClassName} mt-4 text-accent-soft hover:text-accent-soft-hover px-0 py-0 rounded-sm active:scale-95`}
+        className={`${buttonClassName} mt-4 text-accent-soft hover:text-accent-soft-hover px-0 py-0 rounded-sm active:scale-95 focus-visible:ring-accent-soft`}
       >
         {actionLabel}
       </button>
@@ -103,7 +108,7 @@ export default function CreateJob() {
   );
   const hasNoMilestones = normalizedMilestones.length === 0;
   const hasPartialMilestones = normalizedMilestones.some(
-    m => m.amount.trim().length === 0
+    (m) => m.amount.trim().length === 0
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -199,59 +204,77 @@ export default function CreateJob() {
           <p className="mb-6 text-sm leading-6 text-text-muted">
             Configure counterparties, funding structure, and delivery expectations before publishing the escrow job.
           </p>
-          <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3" data-testid="wizard-step-list">
-            {[
-              {
-                id: "details" as const,
-                label: "1. Details",
-                helper: "Participants and funding",
-              },
-              {
-                id: "milestones" as const,
-                label: "2. Scope",
-                helper: "Assets, requirements, milestones",
-              },
-              {
-                id: "review" as const,
-                label: "3. Review",
-                helper: "Check before submitting",
-              },
-            ].map((section) => {
-              const isActive = activeSection === section.id;
 
-              return (
-                <button
-                  key={section.id}
-                  type="button"
-                  onClick={() => setActiveSection(section.id)}
-                  aria-pressed={isActive}
-                  className={`${buttonClassName} flex-col items-start gap-1 border px-4 py-3 text-left ${
-                    isActive
-                      ? "border-accent-soft bg-accent/10 text-text-primary shadow-sm"
-                      : "border-border-subtle bg-surface-card text-text-secondary hover:border-accent-soft hover:bg-surface-card/90"
-                  }`}
-                >
-                  <span>{section.label}</span>
-                  <span className="text-xs font-normal text-text-muted">{section.helper}</span>
-                </button>
-              );
-            })}
-          </div>
+          {/* Wizard step navigation — aria-current marks the active step */}
+          <nav aria-label="Form steps" className="mb-6">
+            <ol className="grid grid-cols-1 gap-3 sm:grid-cols-3 list-none" data-testid="wizard-step-list">
+              {[
+                {
+                  id: "details" as const,
+                  label: "1. Details",
+                  helper: "Participants and funding",
+                },
+                {
+                  id: "milestones" as const,
+                  label: "2. Scope",
+                  helper: "Assets, requirements, milestones",
+                },
+                {
+                  id: "review" as const,
+                  label: "3. Review",
+                  helper: "Check before submitting",
+                },
+              ].map((section) => {
+                const isActive = activeSection === section.id;
+
+                return (
+                  <li key={section.id}>
+                    <button
+                      type="button"
+                      onClick={() => setActiveSection(section.id)}
+                      aria-current={isActive ? "step" : undefined}
+                      aria-pressed={isActive}
+                      className={`${buttonClassName} w-full flex-col items-start gap-1 border px-4 py-3 text-left ${
+                        isActive
+                          ? "border-accent-soft bg-accent/10 text-text-primary shadow-sm"
+                          : "border-border-subtle bg-surface-card text-text-secondary hover:border-accent-soft hover:bg-surface-card/90"
+                      }`}
+                    >
+                      <span>{section.label}</span>
+                      <span className="text-xs font-normal text-text-muted">{section.helper}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+
+          {/* Form-level error — id referenced by aria-describedby on the submit button */}
           {error && (
-            <div className="mb-5 rounded-lg bg-danger/40 border border-danger px-4 py-3 text-sm text-danger-soft" role="alert">
+            <div
+              id={FORM_ERROR_ID}
+              role="alert"
+              aria-live="assertive"
+              aria-atomic="true"
+              className="mb-5 rounded-lg bg-danger-soft/10 border border-danger-soft/20 px-4 py-3 text-sm text-danger-soft"
+            >
               {error}
             </div>
           )}
-          <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6" data-testid="create-job-form">
-            <section className="rounded-2xl border border-border-subtle bg-surface-card/70 p-5 shadow-sm">
+
+          <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6" data-testid="create-job-form" noValidate>
+
+            {/* ── Section 1: Job details ── */}
+            <section aria-labelledby="section-details-heading" className="rounded-2xl border border-border-subtle bg-surface-card/70 p-5 shadow-sm">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-base font-semibold text-text-primary">Job details</h2>
+                  <h2 id="section-details-heading" className="text-base font-semibold text-text-primary">Job details</h2>
                   <p className="text-xs text-text-muted">Specify the counterparties and core escrow timing.</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setActiveSection("details")}
+                  aria-label="Focus Job details section"
                   className={`${buttonClassName} border border-border-subtle bg-surface-field px-3 py-2 text-text-secondary hover:border-accent-soft hover:text-text-primary`}
                 >
                   Focus section
@@ -259,9 +282,14 @@ export default function CreateJob() {
               </div>
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="freelancer-address" className="block text-sm text-text-muted mb-1">Freelancer Address</label>
+                  <label htmlFor="freelancer-address" className="block text-sm text-text-muted mb-1">
+                    Freelancer Address
+                  </label>
                   <input
                     id="freelancer-address"
+                    type="text"
+                    autoComplete="off"
+                    spellCheck={false}
                     className={inputClassName}
                     value={freelancer}
                     onChange={(e) => setFreelancer(e.target.value)}
@@ -269,12 +297,19 @@ export default function CreateJob() {
                     placeholder="G..."
                     required
                     disabled={loading}
+                    aria-required="true"
+                    aria-describedby={error ? FORM_ERROR_ID : undefined}
                   />
                 </div>
                 <div>
-                  <label htmlFor="arbiter-address" className="block text-sm text-text-muted mb-1">Arbiter Address</label>
+                  <label htmlFor="arbiter-address" className="block text-sm text-text-muted mb-1">
+                    Arbiter Address
+                  </label>
                   <input
                     id="arbiter-address"
+                    type="text"
+                    autoComplete="off"
+                    spellCheck={false}
                     className={inputClassName}
                     value={arbiter}
                     onChange={(e) => setArbiter(e.target.value)}
@@ -282,12 +317,18 @@ export default function CreateJob() {
                     placeholder="G..."
                     required
                     disabled={loading}
+                    aria-required="true"
                   />
                 </div>
                 <div>
-                  <label htmlFor="token-address" className="block text-sm text-text-muted mb-1">Token Contract Address</label>
+                  <label htmlFor="token-address" className="block text-sm text-text-muted mb-1">
+                    Token Contract Address
+                  </label>
                   <input
                     id="token-address"
+                    type="text"
+                    autoComplete="off"
+                    spellCheck={false}
                     className={inputClassName}
                     value={token}
                     onChange={(e) => setToken(e.target.value)}
@@ -295,10 +336,13 @@ export default function CreateJob() {
                     placeholder="C..."
                     required
                     disabled={loading}
+                    aria-required="true"
                   />
                 </div>
                 <div>
-                  <label htmlFor="response-deadline" className="block text-sm text-text-muted mb-1">Response Deadline (days)</label>
+                  <label htmlFor="response-deadline" className="block text-sm text-text-muted mb-1">
+                    Response Deadline (days)
+                  </label>
                   <input
                     id="response-deadline"
                     type="number"
@@ -309,20 +353,23 @@ export default function CreateJob() {
                     onFocus={() => setActiveSection("details")}
                     required
                     disabled={loading}
+                    aria-required="true"
                   />
                 </div>
               </div>
             </section>
 
-            <section className="rounded-2xl border border-border-subtle bg-surface-card/70 p-5 shadow-sm">
+            {/* ── Section 2: Scope and release plan ── */}
+            <section aria-labelledby="section-scope-heading" className="rounded-2xl border border-border-subtle bg-surface-card/70 p-5 shadow-sm">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-base font-semibold text-text-primary">Scope and release plan</h2>
+                  <h2 id="section-scope-heading" className="text-base font-semibold text-text-primary">Scope and release plan</h2>
                   <p className="text-xs text-text-muted">Document what will be funded and what completion requires.</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setActiveSection("milestones")}
+                  aria-label="Focus Scope and release plan section"
                   className={`${buttonClassName} border border-border-subtle bg-surface-field px-3 py-2 text-text-secondary hover:border-accent-soft hover:text-text-primary`}
                 >
                   Focus section
@@ -330,17 +377,22 @@ export default function CreateJob() {
               </div>
 
               <div className="space-y-5">
-                <div>
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <label className="block text-sm text-text-muted">Accepted assets</label>
-                    <button
-                      type="button"
-                      onClick={addAcceptedAsset}
-                      className={`${buttonClassName} text-accent-soft hover:text-accent-soft-hover rounded-sm px-0 py-0 active:scale-95`}
-                    >
-                      + Add Asset
-                    </button>
-                  </div>
+
+                {/* Accepted assets */}
+                <fieldset>
+                  <legend className="block text-sm text-text-muted mb-2 w-full">
+                    <span className="flex items-center justify-between gap-3">
+                      <span>Accepted assets</span>
+                      <button
+                        type="button"
+                        onClick={addAcceptedAsset}
+                        aria-label="Add accepted asset"
+                        className={`${buttonClassName} text-accent-soft hover:text-accent-soft-hover rounded-sm px-0 py-0 active:scale-95`}
+                      >
+                        + Add Asset
+                      </button>
+                    </span>
+                  </legend>
                   {acceptedAssets.length === 0 ? (
                     <EmptyCollectionState
                       title="No accepted assets selected"
@@ -351,43 +403,53 @@ export default function CreateJob() {
                     />
                   ) : (
                     <div className="space-y-2" data-testid="asset-list">
-                      {acceptedAssets.map((asset, index) => (
-                        <div key={`asset-${index}`} className="flex items-center gap-2">
-                          <input
-                            className={`${inputClassName} flex-1 min-w-0`}
-                            value={asset}
-                            onChange={(e) => updateAcceptedAsset(index, e.target.value)}
-                            onFocus={() => setActiveSection("milestones")}
-                            placeholder={`Accepted asset ${index + 1}`}
-                            aria-label={`Accepted asset ${index + 1}`}
-                            disabled={loading}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeAcceptedAsset(index)}
-                            aria-label={`Remove accepted asset ${index + 1}`}
-                            className={`${buttonClassName} text-danger-soft hover:text-danger-soft-hover shrink-0 rounded-sm min-h-[44px] min-w-[44px] px-2 py-2 active:scale-95`}
-                            disabled={loading}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
+                      {acceptedAssets.map((asset, index) => {
+                        const inputId = `accepted-asset-${index}`;
+                        return (
+                          <div key={`asset-${index}`} className="flex items-center gap-2">
+                            <label htmlFor={inputId} className="sr-only">
+                              Accepted asset {index + 1}
+                            </label>
+                            <input
+                              id={inputId}
+                              className={`${inputClassName} flex-1 min-w-0`}
+                              value={asset}
+                              onChange={(e) => updateAcceptedAsset(index, e.target.value)}
+                              onFocus={() => setActiveSection("milestones")}
+                              placeholder={`Accepted asset ${index + 1}`}
+                              disabled={loading}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeAcceptedAsset(index)}
+                              aria-label={`Remove accepted asset ${index + 1}`}
+                              className={`${buttonClassName} text-danger-soft hover:text-danger-soft-hover shrink-0 rounded-sm min-h-[44px] min-w-[44px] px-2 py-2 active:scale-95`}
+                              disabled={loading}
+                            >
+                              <span aria-hidden="true">✕</span>
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
-                </div>
+                </fieldset>
 
-                <div>
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <label className="block text-sm text-text-muted">Requirements</label>
-                    <button
-                      type="button"
-                      onClick={addRequirement}
-                      className={`${buttonClassName} text-accent-soft hover:text-accent-soft-hover rounded-sm px-0 py-0 active:scale-95`}
-                    >
-                      + Add Requirement
-                    </button>
-                  </div>
+                {/* Requirements */}
+                <fieldset>
+                  <legend className="block text-sm text-text-muted mb-2 w-full">
+                    <span className="flex items-center justify-between gap-3">
+                      <span>Requirements</span>
+                      <button
+                        type="button"
+                        onClick={addRequirement}
+                        aria-label="Add requirement"
+                        className={`${buttonClassName} text-accent-soft hover:text-accent-soft-hover rounded-sm px-0 py-0 active:scale-95`}
+                      >
+                        + Add Requirement
+                      </button>
+                    </span>
+                  </legend>
                   {requirements.length === 0 ? (
                     <EmptyCollectionState
                       title="No delivery requirements added"
@@ -398,43 +460,53 @@ export default function CreateJob() {
                     />
                   ) : (
                     <div className="space-y-2" data-testid="requirement-list">
-                      {requirements.map((requirement, index) => (
-                        <div key={`requirement-${index}`} className="flex items-center gap-2">
-                          <input
-                            className={`${inputClassName} flex-1 min-w-0`}
-                            value={requirement}
-                            onChange={(e) => updateRequirement(index, e.target.value)}
-                            onFocus={() => setActiveSection("milestones")}
-                            placeholder={`Requirement ${index + 1}`}
-                            aria-label={`Requirement ${index + 1}`}
-                            disabled={loading}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeRequirement(index)}
-                            aria-label={`Remove requirement ${index + 1}`}
-                            className={`${buttonClassName} text-danger-soft hover:text-danger-soft-hover shrink-0 rounded-sm min-h-[44px] min-w-[44px] px-2 py-2 active:scale-95`}
-                            disabled={loading}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
+                      {requirements.map((requirement, index) => {
+                        const inputId = `requirement-${index}`;
+                        return (
+                          <div key={`requirement-${index}`} className="flex items-center gap-2">
+                            <label htmlFor={inputId} className="sr-only">
+                              Requirement {index + 1}
+                            </label>
+                            <input
+                              id={inputId}
+                              className={`${inputClassName} flex-1 min-w-0`}
+                              value={requirement}
+                              onChange={(e) => updateRequirement(index, e.target.value)}
+                              onFocus={() => setActiveSection("milestones")}
+                              placeholder={`Requirement ${index + 1}`}
+                              disabled={loading}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeRequirement(index)}
+                              aria-label={`Remove requirement ${index + 1}`}
+                              className={`${buttonClassName} text-danger-soft hover:text-danger-soft-hover shrink-0 rounded-sm min-h-[44px] min-w-[44px] px-2 py-2 active:scale-95`}
+                              disabled={loading}
+                            >
+                              <span aria-hidden="true">✕</span>
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
-                </div>
+                </fieldset>
 
-                <div>
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <label className="block text-sm text-text-muted">Milestones</label>
-                    <button
-                      type="button"
-                      onClick={addMilestone}
-                      className={`${buttonClassName} text-accent-soft hover:text-accent-soft-hover rounded-sm px-0 py-0 active:scale-95`}
-                    >
-                      + Add Milestone
-                    </button>
-                  </div>
+                {/* Milestones */}
+                <fieldset aria-describedby={hasPartialMilestones && !hasNoMilestones ? PARTIAL_MILESTONE_HINT_ID : undefined}>
+                  <legend className="block text-sm text-text-muted mb-2 w-full">
+                    <span className="flex items-center justify-between gap-3">
+                      <span>Milestones</span>
+                      <button
+                        type="button"
+                        onClick={addMilestone}
+                        aria-label="Add milestone"
+                        className={`${buttonClassName} text-accent-soft hover:text-accent-soft-hover rounded-sm px-0 py-0 active:scale-95`}
+                      >
+                        + Add Milestone
+                      </button>
+                    </span>
+                  </legend>
                   {hasNoMilestones ? (
                     <EmptyCollectionState
                       title="No milestones available."
@@ -445,47 +517,73 @@ export default function CreateJob() {
                     />
                   ) : (
                     <div className="space-y-2" data-testid="milestone-list">
-                      {normalizedMilestones.map((m, i) => (
-                        <div key={i} className="flex gap-2 items-center">
-                          <input
-                            className={`${inputClassName} flex-1 min-w-0`}
-                            value={m.amount}
-                            onChange={(e) => updateMilestone(i, e.target.value)}
-                            onFocus={() => setActiveSection("milestones")}
-                            placeholder={`Milestone ${i + 1} amount (stroops)`}
-                            aria-label={`Milestone ${i + 1} amount`}
-                            required
-                            disabled={loading}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeMilestone(i)}
-                            aria-label={`Remove milestone ${i + 1}`}
-                            className={`${buttonClassName} text-danger-soft hover:text-danger-soft-hover shrink-0 rounded-sm min-h-[44px] min-w-[44px] px-2 py-2 active:scale-95`}
-                            disabled={loading}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
+                      {normalizedMilestones.map((m, i) => {
+                        const inputId = `milestone-amount-${i}`;
+                        return (
+                          <div key={i} className="flex gap-2 items-center">
+                            <label htmlFor={inputId} className="sr-only">
+                              Milestone {i + 1} amount in stroops
+                            </label>
+                            <input
+                              id={inputId}
+                              type="number"
+                              min="1"
+                              inputMode="numeric"
+                              className={`${inputClassName} flex-1 min-w-0`}
+                              value={m.amount}
+                              onChange={(e) => updateMilestone(i, e.target.value)}
+                              onFocus={() => setActiveSection("milestones")}
+                              placeholder={`Milestone ${i + 1} amount (stroops)`}
+                              required
+                              disabled={loading}
+                              aria-required="true"
+                              aria-describedby={
+                                hasPartialMilestones && m.amount.trim().length === 0
+                                  ? PARTIAL_MILESTONE_HINT_ID
+                                  : undefined
+                              }
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeMilestone(i)}
+                              aria-label={`Remove milestone ${i + 1}`}
+                              className={`${buttonClassName} text-danger-soft hover:text-danger-soft-hover shrink-0 rounded-sm min-h-[44px] min-w-[44px] px-2 py-2 active:scale-95`}
+                              disabled={loading}
+                            >
+                              <span aria-hidden="true">✕</span>
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                   {hasPartialMilestones && !hasNoMilestones && (
-                    <p className="mt-2 text-xs text-warning-soft">Complete each milestone amount to continue.</p>
+                    <p
+                      id={PARTIAL_MILESTONE_HINT_ID}
+                      role="alert"
+                      aria-live="polite"
+                      aria-atomic="true"
+                      className="mt-2 text-xs text-warning-soft"
+                    >
+                      Complete each milestone amount to continue.
+                    </p>
                   )}
-                </div>
+                </fieldset>
+
               </div>
             </section>
 
-            <section className="rounded-2xl border border-border-subtle bg-surface-card/70 p-5 shadow-sm">
+            {/* ── Section 3: Review ── */}
+            <section aria-labelledby="section-review-heading" className="rounded-2xl border border-border-subtle bg-surface-card/70 p-5 shadow-sm">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-base font-semibold text-text-primary">Review</h2>
+                  <h2 id="section-review-heading" className="text-base font-semibold text-text-primary">Review</h2>
                   <p className="text-xs text-text-muted">Confirm the job has enough structure before sending the transaction.</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setActiveSection("review")}
+                  aria-label="Focus Review section"
                   className={`${buttonClassName} border border-border-subtle bg-surface-field px-3 py-2 text-text-secondary hover:border-accent-soft hover:text-text-primary`}
                 >
                   Focus section
@@ -515,13 +613,27 @@ export default function CreateJob() {
             <button
               type="submit"
               disabled={loading || !address || hasNoMilestones || hasPartialMilestones}
+              aria-describedby={[
+                error ? FORM_ERROR_ID : "",
+                !address ? WALLET_HINT_ID : "",
+              ]
+                .filter(Boolean)
+                .join(" ") || undefined}
               className={`${buttonClassName} w-full bg-accent hover:bg-accent-hover active:scale-95 py-3 text-text-primary disabled:bg-accent disabled:hover:bg-accent`}
             >
-              {loading && <ButtonSpinner className="h-4 w-4" />}
-              {loading ? getPhaseLabel(phase) || "Creating..." : "Create Job"}
+              {loading && <ButtonSpinner className="h-4 w-4 mr-2" />}
+              <span>{loading ? getPhaseLabel(phase) || "Creating..." : "Create Job"}</span>
             </button>
+
             {!address && (
-              <p className="text-center text-sm text-text-muted">Connect your wallet to create a job</p>
+              <p
+                id={WALLET_HINT_ID}
+                aria-live="polite"
+                aria-atomic="true"
+                className="text-center text-sm text-text-muted"
+              >
+                Connect your wallet to create a job
+              </p>
             )}
           </form>
         </div>

@@ -19,7 +19,9 @@ export default function TxStatusBanner({
     return (
       <p
         role="alert"
-        className={`text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 ${className}`}
+        aria-live="assertive"
+        aria-atomic="true"
+        className={`text-sm text-danger-soft bg-danger-soft/10 border border-danger-soft/20 rounded-lg px-3 py-2 ${className}`}
       >
         {error}
       </p>
@@ -30,7 +32,9 @@ export default function TxStatusBanner({
     return (
       <div
         role="status"
-        className={`text-sm text-green-400 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2 space-y-1 ${className}`}
+        aria-live="polite"
+        aria-atomic="true"
+        className={`text-sm text-success-soft bg-success-soft/10 border border-success-soft/20 rounded-lg px-3 py-2 space-y-1 ${className}`}
       >
         <p>{successMessage}</p>
         {txHash && (
@@ -38,7 +42,7 @@ export default function TxStatusBanner({
             href={getStellarExpertTxUrl(txHash)}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2"
+            className="text-accent-soft hover:text-accent-soft-hover underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page rounded-sm"
           >
             View on Stellar Expert
           </a>
@@ -50,7 +54,11 @@ export default function TxStatusBanner({
   const label = getPhaseLabel(phase);
   if (label) {
     return (
-      <p className={`text-sm text-gray-400 ${className}`} aria-live="polite">
+      <p
+        className={`text-sm text-text-muted ${className}`}
+        aria-live="polite"
+        aria-atomic="true"
+      >
         {label}
       </p>
     );
