@@ -43,7 +43,7 @@ const statusColor: Record<string, string> = {
   Pending: "bg-warning-soft/10 text-warning-soft border-warning-soft/20",
   Delivered: "bg-info-soft/10 text-info-soft border-info-soft/20",
   Released: "bg-success-soft/10 text-success-soft border-success-soft/20",
-  PartiallyReleased: "bg-orange-400/10 text-orange-400 border-orange-400/30",
+  PartiallyReleased: "bg-partial/10 text-partial border-partial/30",
   Disputed: "bg-danger-soft/10 text-danger-soft border-danger-soft/20",
   Refunded: "bg-text-muted/10 text-text-muted border-text-muted/20",
 };
@@ -181,7 +181,7 @@ export default function MilestoneCard({
               <span
                 data-testid="milestone-release-percent"
                 aria-label={`${releasePercent}% released`}
-                className="font-mono font-semibold text-orange-400"
+                className="font-mono font-semibold text-partial"
               >
                 {releasePercent}%
               </span>
@@ -199,13 +199,13 @@ export default function MilestoneCard({
               {/* Fill */}
               <div
                 data-testid="milestone-progress-fill"
-                className="h-full rounded-full bg-orange-400 transition-all duration-500"
+                className="h-full rounded-full bg-partial transition-all duration-500"
                 style={{ width: `${releasePercent}%` }}
               />
             </div>
             {/* Released amount vs total in stroops */}
             <p className="text-xs text-text-muted font-mono">
-              <span className="text-orange-400">{milestone.releasedAmount}</span>
+              <span className="text-partial">{milestone.releasedAmount}</span>
               {" / "}
               {milestone.amount} stroops
             </p>
