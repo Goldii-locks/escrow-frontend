@@ -1,0 +1,225 @@
+[21:22:21.491] [INFO] Running addon-a11y-addon-test automigration
+[21:22:21.491] [DEBUG] Extracting storybook data...
+[21:22:21.491] [DEBUG] Getting Storybook info...
+[21:22:21.513] [DEBUG] Loading main config...
+[21:22:21.513] [DEBUG] Getting stories paths...
+[21:22:21.559] [DEBUG] Getting package manager...
+[21:22:21.573] [DEBUG] Getting package.json info for C:/Users/USER/Desktop/DRIPS/escrow-frontend/package.json...
+[21:22:21.573] [DEBUG] Getting Storybook version...
+[21:22:21.574] [DEBUG] Detecting CSF factory usage...
+[21:22:21.624] [INFO] Checking possible migrations..
+[21:22:21.624] [DEBUG] Running [36maddon-a11y-addon-test[39m migration checks
+[21:22:21.632] [DEBUG] End of [36maddon-a11y-addon-test[39m migration checks
+[21:22:21.632] [INFO] 🔎 found a '[36maddon-a11y-addon-test[39m' migration:
+[21:22:21.634] [INFO] ✅ ran [36maddon-a11y-addon-test[39m migration
+[21:22:21.637] [INFO] [32mMigration check ran successfully[39m
+[21:22:21.637] [INFO] [1mSuccessful migrations:[22m
+
+[32maddon-a11y-addon-test[39m
+
+─────────────────────────────────────────────────
+
+If you'd like to run the migrations again, you can do so by running 
+[36mnpx storybook automigrate[39m
+
+The automigrations try to migrate common patterns in your project, but might not contain everything needed to migrate to the latest version of Storybook.
+
+Please check the changelog and migration guide for manual migrations and more information: 
+https://storybook.js.org/docs/releases/migration-guide?ref=upgrade
+And reach out on Discord if you need help: https://discord.gg/storybook
+[21:22:21.637] [INFO] Installing dependencies...
+[21:22:21.638] [DEBUG] Executing command: npm install
+[21:22:21.642] [DEBUG] Resolved command variation: npm.cmd
+[21:40:15.078] [ERROR] Installation of dependencies failed! {"error":"ExecaError: Command failed with exit code 1: npm.cmd install\n\nnpm warn deprecated tsconfck@3.1.6: unmaintained\nnpm warn deprecated uuid@8.3.2: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).\nnpm warn deprecated @safe-global/safe-gateway-typescript-sdk@3.23.1: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.\nnpm warn deprecated @stellar/stellar-base@13.1.0: This package is now rolled into @stellar/stellar-sdk. Please use @stellar/stellar-sdk to continue receiving updates and support.\nnpm warn deprecated @stellar/stellar-base@14.1.0: This package is now rolled into @stellar/stellar-sdk. Please use @stellar/stellar-sdk to continue receiving updates and support.\nnpm warn deprecated @stellar/stellar-base@14.1.0: This package is now rolled into @stellar/stellar-sdk. Please use @stellar/stellar-sdk to continue receiving updates and support.\nnpm warn cleanup Failed to remove some directories [\nnpm warn cleanup   [\nnpm warn cleanup     '\\\\\\\\?\\\\C:\\\\Users\\\\USER\\\\Desktop\\\\DRIPS\\\\escrow-frontend\\\\node_modules\\\\esbuild',\nnpm warn cleanup     [Error: EBUSY: resource busy or locked, rmdir 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\esbuild'] {\nnpm warn cleanup       errno: -4082,\nnpm warn cleanup       code: 'EBUSY',\nnpm warn cleanup       syscall: 'rmdir',\nnpm warn cleanup       path: 'C:\\\\Users\\\\USER\\\\Desktop\\\\DRIPS\\\\escrow-frontend\\\\node_modules\\\\esbuild'\nnpm warn cleanup     }\nnpm warn cleanup   ],\nnpm warn cleanup   [\nnpm warn cleanup     'C:\\\\Users\\\\USER\\\\Desktop\\\\DRIPS\\\\escrow-frontend\\\\node_modules\\\\esbuild',\nnpm warn cleanup     [Error: EBUSY: resource busy or locked, rmdir 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\esbuild'] {\nnpm warn cleanup       errno: -4082,\nnpm warn cleanup       code: 'EBUSY',\nnpm warn cleanup       syscall: 'rmdir',\nnpm warn cleanup       path: 'C:\\\\Users\\\\USER\\\\Desktop\\\\DRIPS\\\\escrow-frontend\\\\node_modules\\\\esbuild'\nnpm warn cleanup     }\nnpm warn cleanup   ],\nnpm warn cleanup   [\nnpm warn cleanup     '\\\\\\\\?\\\\C:\\\\Users\\\\USER\\\\Desktop\\\\DRIPS\\\\escrow-frontend\\\\node_modules\\\\@walletconnect\\\\sign-client',\nnpm warn cleanup     [Error: EPERM: operation not permitted, rmdir 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@walletconnect\\sign-client'] {\nnpm warn cleanup       errno: -4048,\nnpm warn cleanup       code: 'EPERM',\nnpm warn cleanup       syscall: 'rmdir',\nnpm warn cleanup       path: 'C:\\\\Users\\\\USER\\\\Desktop\\\\DRIPS\\\\escrow-frontend\\\\node_modules\\\\@walletconnect\\\\sign-client'\nnpm warn cleanup     }\nnpm warn cleanup   ],\nnpm warn cleanup   [\nnpm warn cleanup     '\\\\\\\\?\\\\C:\\\\Users\\\\USER\\\\Desktop\\\\DRIPS\\\\escrow-frontend\\\\node_modules\\\\@creit.tech\\\\stellar-wallets-kit\\\\node_modules\\\\@stellar',\nnpm warn cleanup     [Error: EPERM: operation not permitted, rmdir 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar\\stellar-sdk\\lib\\cjs\\node_modules\\.pnpm\\@stellar_js-xdr@4.0.0\\node_modules\\@stellar'] {\nnpm warn cleanup       errno: -4048,\nnpm warn cleanup       code: 'EPERM',\nnpm warn cleanup       syscall: 'rmdir',\nnpm warn cleanup       path: 'C:\\\\Users\\\\USER\\\\Desktop\\\\DRIPS\\\\escrow-frontend\\\\node_modules\\\\@creit.tech\\\\stellar-wallets-kit\\\\node_modules\\\\@stellar\\\\stellar-sdk\\\\lib\\\\cjs\\\\node_modules\\\\.pnpm\\\\@stellar_js-xdr@4.0.0\\\\node_modules\\\\@stellar'\nnpm warn cleanup     }\nnpm warn cleanup   ],\nnpm warn cleanup   [\nnpm warn cleanup     '\\\\\\\\?\\\\C:\\\\Users\\\\USER\\\\Desktop\\\\DRIPS\\\\escrow-frontend\\\\node_modules\\\\@creit.tech\\\\stellar-wallets-kit\\\\node_modules',\nnpm warn cleanup     [Error: EPERM: operation not permitted, rmdir 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar\\stellar-sdk\\lib\\cjs\\node_modules\\.pnpm\\@stellar_js-xdr@4.0.0\\node_modules'] {\nnpm warn cleanup       errno: -4048,\nnpm warn cleanup       code: 'EPERM',\nnpm warn cleanup       syscall: 'rmdir',\nnpm warn cleanup       path: 'C:\\\\Users\\\\USER\\\\Desktop\\\\DRIPS\\\\escrow-frontend\\\\node_modules\\\\@creit.tech\\\\stellar-wallets-kit\\\\node_modules\\\\@stellar\\\\stellar-sdk\\\\lib\\\\cjs\\\\node_modules\\\\.pnpm\\\\@stellar_js-xdr@4.0.0\\\\node_modules'\nnpm warn cleanup     }\nnpm warn cleanup   ],\nnpm warn cleanup   [\nnpm warn cleanup     '\\\\\\\\?\\\\C:\\\\Users\\\\USER\\\\Desktop\\\\DRIPS\\\\escrow-frontend\\\\node_modules\\\\@creit.tech\\\\stellar-wallets-kit\\\\node_modules\\\\@stellar\\\\stellar-sdk',\nnpm warn cleanup     [Error: EPERM: operation not permitted, rmdir 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar\\stellar-sdk\\lib\\axios\\cjs\\node_modules\\.pnpm\\@stellar_js-xdr@4.0.0\\node_modules\\@stellar\\js-xdr'] {\nnpm warn cleanup       errno: -4048,\nnpm warn cleanup       code: 'EPERM',\nnpm warn cleanup       syscall: 'rmdir',\nnpm warn cleanup       path: 'C:\\\\Users\\\\USER\\\\Desktop\\\\DRIPS\\\\escrow-frontend\\\\node_modules\\\\@creit.tech\\\\stellar-wallets-kit\\\\node_modules\\\\@stellar\\\\stellar-sdk\\\\lib\\\\axios\\\\cjs\\\\node_modules\\\\.pnpm\\\\@stellar_js-xdr@4.0.0\\\\node_modules\\\\@stellar\\\\js-xdr'\nnpm warn cleanup     }\nnpm warn cleanup   ],\nnpm warn cleanup   [\nnpm warn cleanup     '\\\\\\\\?\\\\C:\\\\Users\\\\USER\\\\Desktop\\\\DRIPS\\\\escrow-frontend\\\\node_modules\\\\@creit.tech\\\\stellar-wallets-kit',\nnpm warn cleanup     [Error: EPERM: operation not permitted, rmdir 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar\\stellar-sdk\\lib\\axios\\cjs\\node_modules\\.pnpm\\@stellar_js-xdr@4.0.0\\node_modules\\@stellar\\js-xdr'] {\nnpm warn cleanup       errno: -4048,\nnpm warn cleanup       code: 'EPERM',\nnpm warn cleanup       syscall: 'rmdir',\nnpm warn cleanup       path: 'C:\\\\Users\\\\USER\\\\Desktop\\\\DRIPS\\\\escrow-frontend\\\\node_modules\\\\@creit.tech\\\\stellar-wallets-kit\\\\node_modules\\\\@stellar\\\\stellar-sdk\\\\lib\\\\axios\\\\cjs\\\\node_modules\\\\.pnpm\\\\@stellar_js-xdr@4.0.0\\\\node_modules\\\\@stellar\\\\js-xdr'\nnpm warn cleanup     }\nnpm warn cleanup   ],\nnpm warn cleanup   [\nnpm warn cleanup     'C:\\\\Users\\\\USER\\\\Desktop\\\\DRIPS\\\\escrow-frontend\\\\node_modules\\\\@creit.tech\\\\stellar-wallets-kit',\nnpm warn cleanup     [Error: EPERM: operation not permitted, rmdir 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar\\stellar-sdk\\lib\\axios\\esm\\node_modules\\.pnpm\\@stellar_js-xdr@4.0.0\\node_modules'] {\nnpm warn cleanup       errno: -4048,\nnpm warn cleanup       code: 'EPERM',\nnpm warn cleanup       syscall: 'rmdir',\nnpm warn cleanup       path: 'C:\\\\Users\\\\USER\\\\Desktop\\\\DRIPS\\\\escrow-frontend\\\\node_modules\\\\@creit.tech\\\\stellar-wallets-kit\\\\node_modules\\\\@stellar\\\\stellar-sdk\\\\lib\\\\axios\\\\esm\\\\node_modules\\\\.pnpm\\\\@stellar_js-xdr@4.0.0\\\\node_modules'\nnpm warn cleanup     }\nnpm warn cleanup   ]\nnpm warn cleanup ]\nnpm error code 1\nnpm error path C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@trezor\\blockchain-link-utils\\node_modules\\@stellar\\stellar-sdk\nnpm error command failed\nnpm error command C:\\WINDOWS\\system32\\cmd.exe /d /s /c yarn setup || true\nnpm error 'yarn' is not recognized as an internal or external command,\nnpm error operable program or batch file.\nnpm error 'true' is not recognized as an internal or external command,\nnpm error operable program or batch file.\nnpm error A complete log of this run can be found in: C:\\Users\\USER\\AppData\\Local\\npm-cache\\_logs\\2026-06-28T20_22_22_372Z-debug-0.log\n    at getFinalError (file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/storybook/dist/_node-chunks/chunk-6U2XPXR7.js:11529:10)\n    at makeError (file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/storybook/dist/_node-chunks/chunk-6U2XPXR7.js:13065:15)\n    at getAsyncResult (file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/storybook/dist/_node-chunks/chunk-6U2XPXR7.js:15711:158)\n    at handlePromise (file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/storybook/dist/_node-chunks/chunk-6U2XPXR7.js:15697:162)\n    at async Object.executeTaskWithSpinner (file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/storybook/dist/_node-chunks/chunk-YBD2A4LF.js:3683:11)\n    at async NPMProxy.installDependencies (file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/storybook/dist/_node-chunks/chunk-6U2XPXR7.js:9679:5)\n    at async NPMProxy.installDependencies (file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/storybook/dist/_node-chunks/chunk-6U2XPXR7.js:16436:7)\n    at async doAutomigrate (file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/@storybook/cli/dist/_node-chunks/run-RM7XIKWA.js:8223:32)\n    at async file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/@storybook/cli/dist/_node-chunks/run-RM7XIKWA.js:10614:90\n    at async withTelemetry (file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/storybook/dist/_node-chunks/chunk-G7NXW2C2.js:650:12)"}
+[21:40:15.078] [ERROR] [38;2;241;97;97mExecaError: Command failed with exit code 1: npm.cmd install
+
+npm warn deprecated tsconfck@3.1.6: unmaintained
+npm warn deprecated uuid@8.3.2: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+npm warn deprecated @safe-global/safe-gateway-typescript-sdk@3.23.1: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @stellar/stellar-base@13.1.0: This package is now rolled into @stellar/stellar-sdk. Please use @stellar/stellar-sdk to continue receiving updates and support.
+npm warn deprecated @stellar/stellar-base@14.1.0: This package is now rolled into @stellar/stellar-sdk. Please use @stellar/stellar-sdk to continue receiving updates and support.
+npm warn deprecated @stellar/stellar-base@14.1.0: This package is now rolled into @stellar/stellar-sdk. Please use @stellar/stellar-sdk to continue receiving updates and support.
+npm warn cleanup Failed to remove some directories [
+npm warn cleanup   [
+npm warn cleanup     '\\\\?\\C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\esbuild',
+npm warn cleanup     [Error: EBUSY: resource busy or locked, rmdir '.\node_modules\esbuild'] {
+npm warn cleanup       errno: -4082,
+npm warn cleanup       code: 'EBUSY',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\esbuild'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\esbuild',
+npm warn cleanup     [Error: EBUSY: resource busy or locked, rmdir '.\node_modules\esbuild'] {
+npm warn cleanup       errno: -4082,
+npm warn cleanup       code: 'EBUSY',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\esbuild'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\?\\C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@walletconnect\\sign-client',
+npm warn cleanup     [Error: EPERM: operation not permitted, rmdir '.\node_modules\@walletconnect\sign-client'] {
+npm warn cleanup       errno: -4048,
+npm warn cleanup       code: 'EPERM',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@walletconnect\\sign-client'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\?\\C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar',
+npm warn cleanup     [Error: EPERM: operation not permitted, rmdir '.\node_modules\@creit.tech\stellar-wallets-kit\node_modules\@stellar\stellar-sdk\lib\cjs\node_modules\.pnpm\@stellar_js-xdr@4.0.0\node_modules\@stellar'] {
+npm warn cleanup       errno: -4048,
+npm warn cleanup       code: 'EPERM',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar\\stellar-sdk\\lib\\cjs\\node_modules\\.pnpm\\@stellar_js-xdr@4.0.0\\node_modules\\@stellar'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\?\\C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules',
+npm warn cleanup     [Error: EPERM: operation not permitted, rmdir '.\node_modules\@creit.tech\stellar-wallets-kit\node_modules\@stellar\stellar-sdk\lib\cjs\node_modules\.pnpm\@stellar_js-xdr@4.0.0\node_modules'] {
+npm warn cleanup       errno: -4048,
+npm warn cleanup       code: 'EPERM',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar\\stellar-sdk\\lib\\cjs\\node_modules\\.pnpm\\@stellar_js-xdr@4.0.0\\node_modules'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\?\\C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar\\stellar-sdk',
+npm warn cleanup     [Error: EPERM: operation not permitted, rmdir '.\node_modules\@creit.tech\stellar-wallets-kit\node_modules\@stellar\stellar-sdk\lib\axios\cjs\node_modules\.pnpm\@stellar_js-xdr@4.0.0\node_modules\@stellar\js-xdr'] {
+npm warn cleanup       errno: -4048,
+npm warn cleanup       code: 'EPERM',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar\\stellar-sdk\\lib\\axios\\cjs\\node_modules\\.pnpm\\@stellar_js-xdr@4.0.0\\node_modules\\@stellar\\js-xdr'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\?\\C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit',
+npm warn cleanup     [Error: EPERM: operation not permitted, rmdir '.\node_modules\@creit.tech\stellar-wallets-kit\node_modules\@stellar\stellar-sdk\lib\axios\cjs\node_modules\.pnpm\@stellar_js-xdr@4.0.0\node_modules\@stellar\js-xdr'] {
+npm warn cleanup       errno: -4048,
+npm warn cleanup       code: 'EPERM',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar\\stellar-sdk\\lib\\axios\\cjs\\node_modules\\.pnpm\\@stellar_js-xdr@4.0.0\\node_modules\\@stellar\\js-xdr'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit',
+npm warn cleanup     [Error: EPERM: operation not permitted, rmdir '.\node_modules\@creit.tech\stellar-wallets-kit\node_modules\@stellar\stellar-sdk\lib\axios\esm\node_modules\.pnpm\@stellar_js-xdr@4.0.0\node_modules'] {
+npm warn cleanup       errno: -4048,
+npm warn cleanup       code: 'EPERM',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar\\stellar-sdk\\lib\\axios\\esm\\node_modules\\.pnpm\\@stellar_js-xdr@4.0.0\\node_modules'
+npm warn cleanup     }
+npm warn cleanup   ]
+npm warn cleanup ]
+npm error code 1
+npm error path .\node_modules\@trezor\blockchain-link-utils\node_modules\@stellar\stellar-sdk
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c yarn setup || true
+npm error 'yarn' is not recognized as an internal or external command,
+npm error operable program or batch file.
+npm error 'true' is not recognized as an internal or external command,
+npm error operable program or batch file.
+npm error A complete log of this run can be found in: C:\Users\USER\AppData\Local\npm-cache\_logs\2026-06-28T20_22_22_372Z-debug-0.log[39m
+    at getFinalError (file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/storybook/dist/_node-chunks/chunk-6U2XPXR7.js:11529:10)
+    at makeError (file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/storybook/dist/_node-chunks/chunk-6U2XPXR7.js:13065:15)
+    at getAsyncResult (file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/storybook/dist/_node-chunks/chunk-6U2XPXR7.js:15711:158)
+    at handlePromise (file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/storybook/dist/_node-chunks/chunk-6U2XPXR7.js:15697:162)
+    at async Object.executeTaskWithSpinner (file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/storybook/dist/_node-chunks/chunk-YBD2A4LF.js:3683:11)
+    at async NPMProxy.installDependencies (file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/storybook/dist/_node-chunks/chunk-6U2XPXR7.js:9679:5)
+    at async NPMProxy.installDependencies (file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/storybook/dist/_node-chunks/chunk-6U2XPXR7.js:16436:7)
+    at async doAutomigrate (file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/@storybook/cli/dist/_node-chunks/run-RM7XIKWA.js:8223:32)
+    at async file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/@storybook/cli/dist/_node-chunks/run-RM7XIKWA.js:10614:90
+    at async withTelemetry (file:///C:/Users/USER/AppData/Local/npm-cache/_npx/dd71a53a3aa743ba/node_modules/storybook/dist/_node-chunks/chunk-G7NXW2C2.js:650:12)
+[21:40:17.637] [ERROR] ExecaError: Command failed with exit code 1: npm.cmd install
+
+npm warn deprecated tsconfck@3.1.6: unmaintained
+npm warn deprecated uuid@8.3.2: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+npm warn deprecated @safe-global/safe-gateway-typescript-sdk@3.23.1: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated @stellar/stellar-base@13.1.0: This package is now rolled into @stellar/stellar-sdk. Please use @stellar/stellar-sdk to continue receiving updates and support.
+npm warn deprecated @stellar/stellar-base@14.1.0: This package is now rolled into @stellar/stellar-sdk. Please use @stellar/stellar-sdk to continue receiving updates and support.
+npm warn deprecated @stellar/stellar-base@14.1.0: This package is now rolled into @stellar/stellar-sdk. Please use @stellar/stellar-sdk to continue receiving updates and support.
+npm warn cleanup Failed to remove some directories [
+npm warn cleanup   [
+npm warn cleanup     '\\\\?\\C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\esbuild',
+npm warn cleanup     [Error: EBUSY: resource busy or locked, rmdir '.\node_modules\esbuild'] {
+npm warn cleanup       errno: -4082,
+npm warn cleanup       code: 'EBUSY',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\esbuild'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\esbuild',
+npm warn cleanup     [Error: EBUSY: resource busy or locked, rmdir '.\node_modules\esbuild'] {
+npm warn cleanup       errno: -4082,
+npm warn cleanup       code: 'EBUSY',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\esbuild'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\?\\C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@walletconnect\\sign-client',
+npm warn cleanup     [Error: EPERM: operation not permitted, rmdir '.\node_modules\@walletconnect\sign-client'] {
+npm warn cleanup       errno: -4048,
+npm warn cleanup       code: 'EPERM',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@walletconnect\\sign-client'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\?\\C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar',
+npm warn cleanup     [Error: EPERM: operation not permitted, rmdir '.\node_modules\@creit.tech\stellar-wallets-kit\node_modules\@stellar\stellar-sdk\lib\cjs\node_modules\.pnpm\@stellar_js-xdr@4.0.0\node_modules\@stellar'] {
+npm warn cleanup       errno: -4048,
+npm warn cleanup       code: 'EPERM',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar\\stellar-sdk\\lib\\cjs\\node_modules\\.pnpm\\@stellar_js-xdr@4.0.0\\node_modules\\@stellar'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\?\\C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules',
+npm warn cleanup     [Error: EPERM: operation not permitted, rmdir '.\node_modules\@creit.tech\stellar-wallets-kit\node_modules\@stellar\stellar-sdk\lib\cjs\node_modules\.pnpm\@stellar_js-xdr@4.0.0\node_modules'] {
+npm warn cleanup       errno: -4048,
+npm warn cleanup       code: 'EPERM',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar\\stellar-sdk\\lib\\cjs\\node_modules\\.pnpm\\@stellar_js-xdr@4.0.0\\node_modules'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\?\\C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar\\stellar-sdk',
+npm warn cleanup     [Error: EPERM: operation not permitted, rmdir '.\node_modules\@creit.tech\stellar-wallets-kit\node_modules\@stellar\stellar-sdk\lib\axios\cjs\node_modules\.pnpm\@stellar_js-xdr@4.0.0\node_modules\@stellar\js-xdr'] {
+npm warn cleanup       errno: -4048,
+npm warn cleanup       code: 'EPERM',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar\\stellar-sdk\\lib\\axios\\cjs\\node_modules\\.pnpm\\@stellar_js-xdr@4.0.0\\node_modules\\@stellar\\js-xdr'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\?\\C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit',
+npm warn cleanup     [Error: EPERM: operation not permitted, rmdir '.\node_modules\@creit.tech\stellar-wallets-kit\node_modules\@stellar\stellar-sdk\lib\axios\cjs\node_modules\.pnpm\@stellar_js-xdr@4.0.0\node_modules\@stellar\js-xdr'] {
+npm warn cleanup       errno: -4048,
+npm warn cleanup       code: 'EPERM',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar\\stellar-sdk\\lib\\axios\\cjs\\node_modules\\.pnpm\\@stellar_js-xdr@4.0.0\\node_modules\\@stellar\\js-xdr'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit',
+npm warn cleanup     [Error: EPERM: operation not permitted, rmdir '.\node_modules\@creit.tech\stellar-wallets-kit\node_modules\@stellar\stellar-sdk\lib\axios\esm\node_modules\.pnpm\@stellar_js-xdr@4.0.0\node_modules'] {
+npm warn cleanup       errno: -4048,
+npm warn cleanup       code: 'EPERM',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: 'C:\\Users\\USER\\Desktop\\DRIPS\\escrow-frontend\\node_modules\\@creit.tech\\stellar-wallets-kit\\node_modules\\@stellar\\stellar-sdk\\lib\\axios\\esm\\node_modules\\.pnpm\\@stellar_js-xdr@4.0.0\\node_modules'
+npm warn cleanup     }
+npm warn cleanup   ]
+npm warn cleanup ]
+npm error code 1
+npm error path .\node_modules\@trezor\blockchain-link-utils\node_modules\@stellar\stellar-sdk
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c yarn setup || true
+npm error 'yarn' is not recognized as an internal or external command,
+npm error operable program or batch file.
+npm error 'true' is not recognized as an internal or external command,
+npm error operable program or batch file.
+npm error A complete log of this run can be found in: C:\Users\USER\AppData\Local\npm-cache\_logs\2026-06-28T20_22_22_372Z-debug-0.log
