@@ -244,7 +244,7 @@ export default function MilestoneCard({
             disabled={!onMarkDelivered}
             aria-disabled={!onMarkDelivered}
             aria-label={`Mark ${milestoneLabel} as delivered`}
-            className={`${baseBtn} bg-info-soft text-text-primary hover:bg-info-soft/80 active:scale-[0.97] focus-visible:ring-info-soft disabled:hover:bg-info-soft disabled:active:scale-100`}
+            className={`${baseBtn} bg-info-soft text-surface-page font-medium hover:bg-info-soft/80 active:scale-[0.97] focus-visible:ring-info-soft disabled:hover:bg-info-soft disabled:active:scale-100`}
           >
             Mark Delivered
           </button>
@@ -256,7 +256,7 @@ export default function MilestoneCard({
             disabled={!onApprove}
             aria-disabled={!onApprove}
             aria-label={`Approve ${milestoneLabel}`}
-            className={`${baseBtn} bg-success text-text-primary hover:bg-success/80 active:scale-[0.97] focus-visible:ring-success-soft disabled:hover:bg-success disabled:active:scale-100`}
+            className={`${baseBtn} bg-success text-surface-page font-medium hover:bg-success/80 active:scale-[0.97] focus-visible:ring-success-soft disabled:hover:bg-success disabled:active:scale-100`}
           >
             Approve
           </button>

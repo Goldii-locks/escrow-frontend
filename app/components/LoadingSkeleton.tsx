@@ -1,7 +1,8 @@
 export default function LoadingSkeleton() {
     return (
-        <div className="animate-pulse">
-            <div className="border border-gray-800 rounded-xl bg-gray-900 p-6 space-y-6">
+        <div className="animate-pulse" role="status" aria-live="polite">
+            <span className="sr-only">Loading job data…</span>
+            <div className="border border-gray-800 rounded-xl bg-gray-900 p-6 space-y-6" aria-hidden="true">
                 <div className="flex items-center justify-between mb-6">
                     <div>
                         <div className="h-6 w-32 bg-gray-800 rounded mb-2"></div>

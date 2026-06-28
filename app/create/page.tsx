@@ -165,8 +165,8 @@ export default function CreateJob() {
         <Navbar />
         <main className="flex-1 overflow-y-auto flex items-center justify-center">
           <div className="text-center px-4 py-12">
-            <div className="text-success-soft text-5xl mb-4">✓</div>
-            <h2 className="text-xl font-bold mb-2">Job Created!</h2>
+            <div className="text-success-soft text-5xl mb-4" aria-hidden="true">✓</div>
+            <h1 className="text-xl font-bold mb-2">Job Created!</h1>
             <p className="text-text-muted text-sm mb-6">Your escrow job is live on Stellar testnet.</p>
             <a
               href={`https://stellar.expert/explorer/testnet/tx/${txHash}`}
@@ -521,7 +521,7 @@ export default function CreateJob() {
               {loading ? getPhaseLabel(phase) || "Creating..." : "Create Job"}
             </button>
             {!address && (
-              <p className="text-center text-sm text-text-disabled">Connect your wallet to create a job</p>
+              <p className="text-center text-sm text-text-muted">Connect your wallet to create a job</p>
             )}
           </form>
         </div>

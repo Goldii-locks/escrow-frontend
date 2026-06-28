@@ -133,13 +133,13 @@ export default function Dashboard() {
       <main className="max-w-4xl mx-auto px-6 py-12">
         <h1 className="text-2xl font-bold mb-8">Job Dashboard</h1>
         {!address ? (
-          <p className="text-center text-gray-500">Connect your wallet to view your jobs</p>
+          <p className="text-center text-gray-400">Connect your wallet to view your jobs</p>
         ) : fetchLoading ? (
           <LoadingSkeleton />
         ) : error ? (
-          <div className="text-center text-red-400">Error: {error}</div>
+          <div className="text-center text-red-400" role="alert">Error: {error}</div>
         ) : !job ? (
-          <p className="text-center text-gray-500">No jobs found</p>
+          <p className="text-center text-gray-400">No jobs found</p>
         ) : (
           <div className="space-y-8">
             <div className="border border-gray-800 rounded-xl bg-gray-900 p-6">
@@ -147,7 +147,8 @@ export default function Dashboard() {
                 <div>
                   <h2 className="font-semibold text-lg">Job #{job.id.slice(0, 8)}</h2>
                   <p className="text-sm text-gray-400 mt-1">
-                    {job.funded ? "✅ Funded" : "🔒 Not funded"}
+                    <span aria-hidden="true">{job.funded ? "✅ " : "🔒 "}</span>
+                    {job.funded ? "Funded" : "Not funded"}
                   </p>
                 </div>
               </div>
