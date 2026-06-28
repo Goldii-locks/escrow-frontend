@@ -1,6 +1,7 @@
 "use client";
 
 import { ActionState } from "@/app/hooks/useActionStates";
+import CountdownTimer from "@/app/components/CountdownTimer";
 
 interface Milestone {
   index: number;
@@ -32,6 +33,11 @@ interface Props {
   isClaimAutoReleasePending: boolean;
   /** Optional field-level / general error messages to render inside the card. */
   errors?: MilestoneCardErrors;
+  /**
+   * Absolute auto-release deadline (epoch ms) for a Delivered milestone. When
+   * provided, a CountdownTimer is shown next to the status badge.
+   */
+  autoReleaseDeadline?: number | null;
   onPartialRelease?: (index: number, amount: string) => void;
   onClaimAutoRelease?: (index: number) => void;
   onMarkDelivered?: (i: number) => void;
@@ -72,6 +78,7 @@ export default function MilestoneCard({
   isClient,
   isFreelancer,
   errors,
+  autoReleaseDeadline,
   onMarkDelivered,
   onApprove,
   onDispute,
@@ -225,6 +232,11 @@ export default function MilestoneCard({
           >
             {isPartiallyReleased ? "Partially Released" : milestone.status}
           </span>
+          {/* Auto-release countdown for delivered milestones */}
+          {milestone.status === "Delivered" &&
+            typeof autoReleaseDeadline === "number" && (
+              <CountdownTimer deadline={autoReleaseDeadline} />
+            )}
           {/* Status field error */}
           {errors?.status && (
             <p
