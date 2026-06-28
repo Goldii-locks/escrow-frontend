@@ -1,15 +1,17 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useWallet } from "@/app/context/WalletContext";
 import Navbar from "@/app/components/Navbar";
 import ButtonSpinner from "@/app/components/ButtonSpinner";
 import TxStatusBanner from "@/app/components/TxStatusBanner";
 import { useRouter } from "next/navigation";
 import {
+  CONTRACT_ID,
   getPhaseLabel,
   submitContractTransaction,
   TxPhase,
 } from "@/app/lib/transactions";
+import { fetchWhitelistedTokens, tokenLabel, WhitelistToken } from "@/app/lib/whitelist";
 import { formatTxError } from "@/app/lib/errors";
 
 type WizardSection = "details" | "milestones" | "review";
@@ -66,6 +68,29 @@ export default function CreateJob() {
   const [phase, setPhase] = useState<TxPhase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [whitelist, setWhitelist] = useState<WhitelistToken[]>([]);
+  const [whitelistLoading, setWhitelistLoading] = useState(true);
+  const [whitelistError, setWhitelistError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const tokens = await fetchWhitelistedTokens(CONTRACT_ID, {
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        setWhitelist(tokens);
+        setWhitelistError(null);
+      } catch {
+        if (controller.signal.aborted) return;
+        setWhitelistError("Could not load the accepted-token whitelist.");
+      } finally {
+        if (!controller.signal.aborted) setWhitelistLoading(false);
+      }
+    })();
+    return () => controller.abort();
+  }, []);
 
   const addAcceptedAsset = () => setAcceptedAssets([...acceptedAssets, ""]);
   const removeAcceptedAsset = (index: number) =>
@@ -115,6 +140,10 @@ export default function CreateJob() {
     }
     if (hasPartialMilestones) {
       setError("Complete each milestone amount before creating a job.");
+      return;
+    }
+    if (!token || !whitelist.some((option) => option.address === token)) {
+      setError("Select an accepted token before creating a job.");
       return;
     }
     setLoading(true);
@@ -286,16 +315,49 @@ export default function CreateJob() {
                 </div>
                 <div>
                   <label htmlFor="token-address" className="block text-sm text-text-muted mb-1">Token Contract Address</label>
-                  <input
-                    id="token-address"
-                    className={inputClassName}
-                    value={token}
-                    onChange={(e) => setToken(e.target.value)}
-                    onFocus={() => setActiveSection("details")}
-                    placeholder="C..."
-                    required
-                    disabled={loading}
-                  />
+                  {whitelistLoading ? (
+                    <select
+                      id="token-address"
+                      className={inputClassName}
+                      disabled
+                      aria-busy="true"
+                    >
+                      <option>Loading accepted tokens…</option>
+                    </select>
+                  ) : whitelistError ? (
+                    <p
+                      role="alert"
+                      data-testid="token-whitelist-error"
+                      className="text-sm text-danger-soft"
+                    >
+                      {whitelistError}
+                    </p>
+                  ) : whitelist.length === 0 ? (
+                    <p
+                      data-testid="token-whitelist-empty"
+                      className="text-sm text-text-muted"
+                    >
+                      No accepted tokens are configured for this contract yet. Ask an admin
+                      to whitelist a token before creating a job.
+                    </p>
+                  ) : (
+                    <select
+                      id="token-address"
+                      className={inputClassName}
+                      value={token}
+                      onChange={(e) => setToken(e.target.value)}
+                      onFocus={() => setActiveSection("details")}
+                      required
+                      disabled={loading}
+                    >
+                      <option value="">Select a token</option>
+                      {whitelist.map((option) => (
+                        <option key={option.address} value={option.address}>
+                          {tokenLabel(option)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="response-deadline" className="block text-sm text-text-muted mb-1">Response Deadline (days)</label>
