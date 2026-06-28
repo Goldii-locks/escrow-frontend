@@ -11,6 +11,7 @@ import {
   runContractAction,
   submitContractTransaction,
 } from "@/app/lib/transactions";
+import { fetchAutoReleaseInfo } from "@/app/lib/autoRelease";
 
 interface Milestone {
   index: number;
@@ -69,6 +70,41 @@ export default function Dashboard() {
   const isClient = !!(job && address === job.client);
   const isFreelancer = !!(job && address === job.freelancer);
   const milestoneList = Array.isArray(job?.milestones) ? job.milestones : [];
+
+  const [autoReleaseDeadlines, setAutoReleaseDeadlines] = useState<
+    Record<number, number | null>
+  >({});
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const jobId = job?.id;
+    const deliveredIndexes = (Array.isArray(job?.milestones) ? job.milestones : [])
+      .filter((m) => m.status === "Delivered")
+      .map((m) => m.index);
+
+    (async () => {
+      if (!jobId || deliveredIndexes.length === 0) {
+        // Defer so this is not a synchronous setState within the effect.
+        await Promise.resolve();
+        if (!controller.signal.aborted) setAutoReleaseDeadlines({});
+        return;
+      }
+
+      const entries = await Promise.all(
+        deliveredIndexes.map(async (index) => {
+          const info = await fetchAutoReleaseInfo(jobId, index, {
+            signal: controller.signal,
+          });
+          return [index, info.deadlineMs] as const;
+        })
+      );
+      if (!controller.signal.aborted) {
+        setAutoReleaseDeadlines(Object.fromEntries(entries));
+      }
+    })();
+
+    return () => controller.abort();
+  }, [job]);
 
   const executeTx = useCallback(
     async (actionKey: string, method: string, args: { type: string; value: unknown }[]) => {
@@ -177,6 +213,7 @@ export default function Dashboard() {
                       claimAutoReleaseState={getState(`claim-${m.index}`)}
                       isPartialReleasePending={isPending(`partial-${m.index}`)}
                       isClaimAutoReleasePending={isPending(`claim-${m.index}`)}
+                      autoReleaseDeadline={autoReleaseDeadlines[m.index] ?? null}
                       onPartialRelease={handlePartialRelease}
                       onClaimAutoRelease={handleClaimAutoRelease}
                       onMarkDelivered={handleMarkDelivered}
