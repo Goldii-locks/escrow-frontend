@@ -8,9 +8,14 @@ import LoadingSkeleton from "@/app/components/LoadingSkeleton";
 import { useActionStates } from "@/app/hooks/useActionStates";
 import {
   BACKEND_URL,
+  CONTRACT_ID,
   runContractAction,
   submitContractTransaction,
 } from "@/app/lib/transactions";
+import { getStellarExpertContractUrl } from "@/app/lib/stellar";
+
+const REFRESH_INTERVAL_MS = 30_000;
+const DEFAULT_CONTRACT_ID = "CBBRYWY6ROXCM6AHP4COM3AL6UDPTY66FXF43Q7PNEIPU53RZOGHBYP3";
 
 interface Milestone {
   index: number;
@@ -37,33 +42,41 @@ export default function Dashboard() {
   const { getState, isPending, setPhase, setError: setActionError, setTxHash } =
     useActionStates();
 
-  const fetchJob = useCallback(async () => {
-    if (!address) {
-      setFetchLoading(false);
-      return;
-    }
+  const contractId = CONTRACT_ID || DEFAULT_CONTRACT_ID;
 
-    setFetchLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/jobs/by-wallet/${address}`);
-      const data = await res.json();
-
-      if (data.success) {
-        setJob(data.data);
-      } else {
-        setError(data.error || "Failed to fetch job data");
+  const fetchJob = useCallback(
+    async (options?: { background?: boolean }) => {
+      // Background refreshes (auto-refresh, post-action) update silently without
+      // flashing the loading skeleton.
+      if (!options?.background) {
+        setFetchLoading(true);
       }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to connect to backend");
-    } finally {
-      setFetchLoading(false);
-    }
-  }, [address]);
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/jobs/${contractId}`);
+        const data = await res.json();
+
+        if (data.success) {
+          setJob(data.data);
+          setError(null);
+        } else {
+          setError(data.error || "Failed to fetch job data");
+        }
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to connect to backend");
+      } finally {
+        if (!options?.background) {
+          setFetchLoading(false);
+        }
+      }
+    },
+    [contractId]
+  );
 
   useEffect(() => {
     fetchJob();
+    const id = setInterval(() => fetchJob({ background: true }), REFRESH_INTERVAL_MS);
+    return () => clearInterval(id);
   }, [fetchJob]);
 
   const isClient = !!(job && address === job.client);
@@ -88,7 +101,7 @@ export default function Dashboard() {
       );
 
       if (txHash !== null) {
-        await fetchJob();
+        await fetchJob({ background: true });
       }
 
       return txHash;
@@ -131,10 +144,23 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-950 text-white">
       <Navbar />
       <main className="max-w-4xl mx-auto px-6 py-12">
-        <h1 className="text-2xl font-bold mb-8">Job Dashboard</h1>
-        {!address ? (
-          <p className="text-center text-gray-400">Connect your wallet to view your jobs</p>
-        ) : fetchLoading ? (
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold">Job Dashboard</h1>
+          <a
+            href={getStellarExpertContractUrl(contractId)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-indigo-400 hover:text-indigo-300 underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 rounded"
+          >
+            Transaction history on Stellar Expert ↗
+          </a>
+        </div>
+        {!address && (
+          <p className="mb-6 text-sm text-gray-400" role="status">
+            Connect your wallet to act on milestones. Live contract data is shown below.
+          </p>
+        )}
+        {fetchLoading ? (
           <LoadingSkeleton />
         ) : error ? (
           <div className="text-center text-red-400" role="alert">Error: {error}</div>
