@@ -43,12 +43,29 @@ const statusColor: Record<string, string> = {
   Pending: "bg-warning-soft/10 text-warning-soft border-warning-soft/20",
   Delivered: "bg-info-soft/10 text-info-soft border-info-soft/20",
   Released: "bg-success-soft/10 text-success-soft border-success-soft/20",
+  PartiallyReleased: "bg-orange-400/10 text-orange-400 border-orange-400/30",
   Disputed: "bg-danger-soft/10 text-danger-soft border-danger-soft/20",
   Refunded: "bg-text-muted/10 text-text-muted border-text-muted/20",
 };
 
 const baseBtn =
   "text-xs px-3 py-1.5 rounded-lg transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page disabled:opacity-40 disabled:cursor-not-allowed";
+
+/**
+ * Compute the release percentage (0–100) for PartiallyReleased milestones.
+ * Returns null if either value is missing, zero, or non-numeric.
+ */
+function getReleasePercent(
+  releasedAmount: string | undefined,
+  totalAmount: string
+): number | null {
+  const released = Number(releasedAmount);
+  const total = Number(totalAmount);
+  if (!releasedAmount || isNaN(released) || isNaN(total) || total <= 0) {
+    return null;
+  }
+  return Math.min(100, Math.max(0, Math.round((released / total) * 100)));
+}
 
 export default function MilestoneCard({
   milestone,
@@ -99,6 +116,11 @@ export default function MilestoneCard({
   // Unique id for the error live region so buttons can reference it
   const errorRegionId = `milestone-${milestone.index}-errors`;
 
+  const isPartiallyReleased = milestone.status === "PartiallyReleased";
+  const releasePercent = isPartiallyReleased
+    ? getReleasePercent(milestone.releasedAmount, milestone.amount)
+    : null;
+
   return (
     <div
       data-testid="milestone-card"
@@ -129,7 +151,7 @@ export default function MilestoneCard({
       )}
 
       {/* Milestone info */}
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-sm text-text-muted" aria-hidden="true">
           {milestoneLabel}
         </p>
@@ -150,6 +172,45 @@ export default function MilestoneCard({
             {errors.amount}
           </p>
         )}
+
+        {/* Progress bar — only shown for PartiallyReleased milestones */}
+        {isPartiallyReleased && releasePercent !== null && (
+          <div className="mt-3 space-y-1">
+            <div className="flex items-center justify-between text-xs text-text-muted">
+              <span>Released</span>
+              <span
+                data-testid="milestone-release-percent"
+                aria-label={`${releasePercent}% released`}
+                className="font-mono font-semibold text-orange-400"
+              >
+                {releasePercent}%
+              </span>
+            </div>
+            {/* Track */}
+            <div
+              role="progressbar"
+              aria-valuenow={releasePercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`${milestoneLabel} release progress: ${releasePercent}% of funds released`}
+              data-testid="milestone-progress-bar"
+              className="relative h-2 w-full rounded-full bg-surface-field overflow-hidden"
+            >
+              {/* Fill */}
+              <div
+                data-testid="milestone-progress-fill"
+                className="h-full rounded-full bg-orange-400 transition-all duration-500"
+                style={{ width: `${releasePercent}%` }}
+              />
+            </div>
+            {/* Released amount vs total in stroops */}
+            <p className="text-xs text-text-muted font-mono">
+              <span className="text-orange-400">{milestone.releasedAmount}</span>
+              {" / "}
+              {milestone.amount} stroops
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Status badge + action buttons */}
@@ -157,11 +218,12 @@ export default function MilestoneCard({
         <div className="flex flex-col items-start gap-1">
           <span
             aria-label={`${milestoneLabel} status: ${milestone.status}`}
+            data-testid="milestone-status-badge"
             className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap transition-colors ${
               statusColor[milestone.status] ?? "bg-surface-field text-text-muted border-border-subtle"
             }`}
           >
-            {milestone.status}
+            {isPartiallyReleased ? "Partially Released" : milestone.status}
           </span>
           {/* Status field error */}
           {errors?.status && (
