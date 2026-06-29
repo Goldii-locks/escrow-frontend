@@ -164,11 +164,11 @@ export default function AdminPage() {
                         className="flex flex-col gap-2 bg-gray-800 rounded-lg px-4 py-3"
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <span className="font-mono text-sm truncate">{token}</span>
+                          <span className="font-mono text-sm truncate min-w-0">{token}</span>
                           <button
                             onClick={() => handleRemoveToken(token)}
                             disabled={removePending}
-                            className="inline-flex items-center gap-2 shrink-0 text-xs bg-red-800 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition"
+                            className="inline-flex items-center justify-center gap-2 shrink-0 min-h-[44px] text-xs bg-red-800 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg transition"
                           >
                             {removePending && <ButtonSpinner />}
                             {removePending

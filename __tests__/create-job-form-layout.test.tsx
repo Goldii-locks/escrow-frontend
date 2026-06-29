@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CreateJob from "@/app/create/page";
 
 const mockUseWallet = vi.fn();
@@ -19,10 +19,21 @@ vi.mock("@/app/context/WalletContext", () => ({
 describe("CreateJob form — layout", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true, data: [{ address: "CTOKEN", symbol: "USDC" }] }),
+      }),
+    );
     mockUseWallet.mockReturnValue({
       address: "GCLIENTADDRESS",
       signTransaction: vi.fn(),
     });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   describe("page shell", () => {
@@ -100,9 +111,9 @@ describe("CreateJob form — layout", () => {
       ).toBeInTheDocument();
     });
 
-    it("renders Token Contract Address input with placeholder 'C...'", () => {
+    it("renders the Token Contract Address field as a select (token whitelist dropdown)", () => {
       render(<CreateJob />);
-      expect(screen.getByPlaceholderText("C...")).toBeInTheDocument();
+      expect(screen.getByLabelText("Token Contract Address").tagName).toBe("SELECT");
     });
   });
 
