@@ -144,6 +144,36 @@ export default function CreateJob() {
 
   const isSubmitDisabled = loading || !address || hasNoMilestones || hasPartialMilestones;
 
+  const validateDeadline = (value: string): string | null => {
+    if (value.trim() === "") {
+      return "Response deadline is required";
+    }
+    const num = Number(value);
+    if (!Number.isInteger(num)) {
+      return "Must be a whole number of days";
+    }
+    if (num < 1) {
+      return "Must be at least 1 day";
+    }
+    if (num > 365) {
+      return "Must be at most 365 days";
+    }
+    return null;
+  };
+
+  const handleDeadlineChange = (value: string) => {
+    setAutoReleaseDays(value);
+    // Clear error on change, will re-validate on blur
+    if (deadlineError) {
+      setDeadlineError(null);
+    }
+  };
+
+  const handleDeadlineBlur = () => {
+    const error = validateDeadline(autoReleaseDays);
+    setDeadlineError(error);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!address) return;
@@ -482,7 +512,6 @@ export default function CreateJob() {
                     type="number"
                     min="1"
                     aria-required="true"
-                    aria-describedby="deadline-hint"
                     className={inputClassName}
                     value={autoReleaseDays}
                     onChange={(e) => handleDeadlineChange(e.target.value)}
@@ -492,7 +521,7 @@ export default function CreateJob() {
                     disabled={loading}
                     aria-invalid={!!deadlineError}
                     aria-describedby={
-                      deadlineError ? "deadline-error" : "deadline-preview"
+                      deadlineError ? "deadline-error" : "deadline-hint"
                     }
                   />
                   <p id="deadline-hint" className="mt-1 text-xs text-text-disabled">
