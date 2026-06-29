@@ -2,6 +2,7 @@
 
 import { ActionState } from "@/app/hooks/useActionStates";
 import CountdownTimer from "@/app/components/CountdownTimer";
+import TxStatusBanner from "@/app/components/TxStatusBanner";
 
 interface Milestone {
   index: number;
@@ -27,6 +28,10 @@ interface Props {
   milestone?: Milestone | null;
   isClient: boolean;
   isFreelancer: boolean;
+  isArbiter?: boolean;
+  resolveDisputeState?: ActionState;
+  isResolveDisputePending?: boolean;
+  onResolveDispute?: (index: number, releaseToFreelancer: boolean) => void;
   partialReleaseState: ActionState;
   claimAutoReleaseState: ActionState;
   isPartialReleasePending: boolean;
@@ -77,6 +82,10 @@ export default function MilestoneCard({
   milestone,
   isClient,
   isFreelancer,
+  isArbiter,
+  resolveDisputeState,
+  isResolveDisputePending,
+  onResolveDispute,
   errors,
   autoReleaseDeadline,
   onMarkDelivered,
@@ -87,11 +96,14 @@ export default function MilestoneCard({
   void unusedProps;
 
   if (
-    !milestone ||
-    typeof milestone.index !== "number" ||
-    typeof milestone.amount !== "string" ||
-    typeof milestone.status !== "string"
-  ) {
+  !milestone ||
+  milestone.index === undefined ||
+  milestone.amount === undefined ||
+  milestone.status === undefined ||
+  typeof milestone.index !== "number" ||
+  typeof milestone.amount !== "string" ||
+  typeof milestone.status !== "string"
+) {
     return (
       <div
         data-testid="milestone-empty-state"
@@ -220,72 +232,104 @@ export default function MilestoneCard({
         )}
       </div>
 
-      {/* Status badge + action buttons */}
-      <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-3">
-        <div className="flex flex-col items-start gap-1">
-          <span
-            aria-label={`${milestoneLabel} status: ${milestone.status}`}
-            data-testid="milestone-status-badge"
-            className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap transition-colors ${
-              statusColor[milestone.status] ?? "bg-surface-field text-text-muted border-border-subtle"
-            }`}
-          >
-            {isPartiallyReleased ? "Partially Released" : milestone.status}
-          </span>
-          {/* Auto-release countdown for delivered milestones */}
-          {milestone.status === "Delivered" &&
-            typeof autoReleaseDeadline === "number" && (
-              <CountdownTimer deadline={autoReleaseDeadline} />
-            )}
-          {/* Status field error */}
-          {errors?.status && (
-            <p
-              role="alert"
-              aria-live="polite"
-              data-testid="milestone-card-status-error"
-              className="text-xs text-warning-soft"
+      {/* Status badge + action buttons wrapper */}
+      <div className="flex flex-col gap-3 items-end justify-center">
+        <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-3">
+          <div className="flex flex-col items-start gap-1">
+            <span
+              aria-label={`${milestoneLabel} status: ${milestone.status}`}
+              data-testid="milestone-status-badge"
+              className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap transition-colors ${
+                statusColor[milestone.status] ?? "bg-surface-field text-text-muted border-border-subtle"
+              }`}
             >
-              {errors.status}
-            </p>
+              {isPartiallyReleased ? "Partially Released" : milestone.status}
+            </span>
+            {/* Auto-release countdown for delivered milestones */}
+            {milestone.status === "Delivered" &&
+              typeof autoReleaseDeadline === "number" && (
+                <CountdownTimer deadline={autoReleaseDeadline} />
+              )}
+            {/* Status field error */}
+            {errors?.status && (
+              <p
+                role="alert"
+                aria-live="polite"
+                data-testid="milestone-card-status-error"
+                className="text-xs text-warning-soft"
+              >
+                {errors.status}
+              </p>
+            )}
+          </div>
+
+          {isFreelancer && milestone.status === "Pending" && (
+            <button
+              onClick={() => onMarkDelivered?.(milestone.index)}
+              disabled={!onMarkDelivered}
+              aria-disabled={!onMarkDelivered}
+              aria-label={`Mark ${milestoneLabel} as delivered`}
+              className={`${baseBtn} bg-info-soft text-surface-page font-medium hover:bg-info-soft/80 active:scale-[0.97] focus-visible:ring-info-soft disabled:hover:bg-info-soft disabled:active:scale-100`}
+            >
+              Mark Delivered
+            </button>
+          )}
+
+          {isClient && milestone.status === "Delivered" && (
+            <button
+              onClick={() => onApprove?.(milestone.index)}
+              disabled={!onApprove}
+              aria-disabled={!onApprove}
+              aria-label={`Approve ${milestoneLabel}`}
+              className={`${baseBtn} bg-success text-surface-page font-medium hover:bg-success/80 active:scale-[0.97] focus-visible:ring-success-soft disabled:hover:bg-success disabled:active:scale-100`}
+            >
+              Approve
+            </button>
+          )}
+
+          {(isClient || isFreelancer) &&
+            ["Pending", "Delivered"].includes(milestone.status) && (
+              <button
+                onClick={() => onDispute?.(milestone.index)}
+                disabled={!onDispute}
+                aria-disabled={!onDispute}
+                aria-label={`Dispute ${milestoneLabel}`}
+                className={`${baseBtn} bg-danger text-text-primary hover:bg-danger/80 active:scale-[0.97] focus-visible:ring-danger-soft disabled:hover:bg-danger disabled:active:scale-100`}
+              >
+                Dispute
+              </button>
+            )}
+            
+          {isArbiter && milestone.status === "Disputed" && (
+            <>
+              <button
+                onClick={() => onResolveDispute?.(milestone.index, true)}
+                disabled={!onResolveDispute || isResolveDisputePending}
+                className={`${baseBtn} bg-success text-surface-page font-medium hover:bg-success/80 disabled:opacity-50`}
+              >
+                {isResolveDisputePending ? "Releasing..." : "Release to Freelancer"}
+              </button>
+
+              <button
+                onClick={() => onResolveDispute?.(milestone.index, false)}
+                disabled={!onResolveDispute || isResolveDisputePending}
+                className={`${baseBtn} bg-danger text-text-primary hover:bg-danger/80 disabled:opacity-50`}
+              >
+                {isResolveDisputePending ? "Refunding..." : "Refund to Client"}
+              </button>
+            </>
           )}
         </div>
 
-        {isFreelancer && milestone.status === "Pending" && (
-          <button
-            onClick={() => onMarkDelivered?.(milestone.index)}
-            disabled={!onMarkDelivered}
-            aria-disabled={!onMarkDelivered}
-            aria-label={`Mark ${milestoneLabel} as delivered`}
-            className={`${baseBtn} bg-info-soft text-surface-page font-medium hover:bg-info-soft/80 active:scale-[0.97] focus-visible:ring-info-soft disabled:hover:bg-info-soft disabled:active:scale-100`}
-          >
-            Mark Delivered
-          </button>
+        {/* TxStatusBanner rendered cleanly inside the layout alignment */}
+        {resolveDisputeState && resolveDisputeState.phase !== "idle" && (
+          <div className="w-full min-w-[240px]">
+            <TxStatusBanner 
+              state={resolveDisputeState} 
+              successMessage="Dispute resolved successfully. Funds have been distributed." 
+            />
+          </div>
         )}
-
-        {isClient && milestone.status === "Delivered" && (
-          <button
-            onClick={() => onApprove?.(milestone.index)}
-            disabled={!onApprove}
-            aria-disabled={!onApprove}
-            aria-label={`Approve ${milestoneLabel}`}
-            className={`${baseBtn} bg-success text-surface-page font-medium hover:bg-success/80 active:scale-[0.97] focus-visible:ring-success-soft disabled:hover:bg-success disabled:active:scale-100`}
-          >
-            Approve
-          </button>
-        )}
-
-        {(isClient || isFreelancer) &&
-          ["Pending", "Delivered"].includes(milestone.status) && (
-            <button
-              onClick={() => onDispute?.(milestone.index)}
-              disabled={!onDispute}
-              aria-disabled={!onDispute}
-              aria-label={`Dispute ${milestoneLabel}`}
-              className={`${baseBtn} bg-danger text-text-primary hover:bg-danger/80 active:scale-[0.97] focus-visible:ring-danger-soft disabled:hover:bg-danger disabled:active:scale-100`}
-            >
-              Dispute
-            </button>
-          )}
       </div>
     </div>
   );
