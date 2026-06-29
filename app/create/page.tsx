@@ -60,6 +60,9 @@ export default function CreateJob() {
   const [freelancer, setFreelancer] = useState("");
   const [arbiter, setArbiter] = useState("");
   const [token, setToken] = useState("");
+  const [freelancerError, setFreelancerError] = useState("");
+  const [arbiterError, setArbiterError] = useState("");
+  const [tokenError, setTokenError] = useState("");
   const [autoReleaseDays, setAutoReleaseDays] = useState("7");
   const [acceptedAssets, setAcceptedAssets] = useState<string[]>([]);
   const [requirements, setRequirements] = useState<string[]>([]);
@@ -131,7 +134,32 @@ export default function CreateJob() {
     (m) => m.amount.trim().length === 0
   );
 
-  const isSubmitDisabled = loading || !address || hasNoMilestones || hasPartialMilestones;
+  const hasValidationErrors = !!freelancerError || !!arbiterError || !!tokenError;
+  const isSubmitDisabled = loading || !address || hasNoMilestones || hasPartialMilestones || hasValidationErrors;
+
+  const validateFreelancer = (val: string) => {
+    if (val && !/^G[A-Z2-7]{55}$/.test(val)) {
+      setFreelancerError("Invalid Stellar public key format");
+    } else {
+      setFreelancerError("");
+    }
+  };
+
+  const validateArbiter = (val: string) => {
+    if (val && !/^G[A-Z2-7]{55}$/.test(val)) {
+      setArbiterError("Invalid Stellar public key format");
+    } else {
+      setArbiterError("");
+    }
+  };
+
+  const validateToken = (val: string) => {
+    if (val && !/^C[A-Z2-7]{55}$/.test(val)) {
+      setTokenError("Invalid Soroban contract ID format");
+    } else {
+      setTokenError("");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -335,14 +363,19 @@ export default function CreateJob() {
                     autoComplete="off"
                     spellCheck={false}
                     aria-required="true"
-                    className={inputClassName}
+                    className={`${inputClassName} ${freelancerError ? '!border-danger' : ''}`}
                     value={freelancer}
-                    onChange={(e) => setFreelancer(e.target.value)}
+                    onChange={(e) => {
+                      setFreelancer(e.target.value);
+                      validateFreelancer(e.target.value);
+                    }}
+                    onBlur={(e) => validateFreelancer(e.target.value)}
                     onFocus={() => setActiveSection("details")}
                     placeholder="G..."
                     required
                     disabled={loading}
                   />
+                  {freelancerError && <p className="text-sm text-danger-soft mt-1">{freelancerError}</p>}
                 </div>
 
                 {/* Arbiter Address */}
@@ -359,14 +392,19 @@ export default function CreateJob() {
                     autoComplete="off"
                     spellCheck={false}
                     aria-required="true"
-                    className={inputClassName}
+                    className={`${inputClassName} ${arbiterError ? '!border-danger' : ''}`}
                     value={arbiter}
-                    onChange={(e) => setArbiter(e.target.value)}
+                    onChange={(e) => {
+                      setArbiter(e.target.value);
+                      validateArbiter(e.target.value);
+                    }}
+                    onBlur={(e) => validateArbiter(e.target.value)}
                     onFocus={() => setActiveSection("details")}
                     placeholder="G..."
                     required
                     disabled={loading}
                   />
+                  {arbiterError && <p className="text-sm text-danger-soft mt-1">{arbiterError}</p>}
                 </div>
 
                 {/* Token Contract Address */}
@@ -383,14 +421,19 @@ export default function CreateJob() {
                     autoComplete="off"
                     spellCheck={false}
                     aria-required="true"
-                    className={inputClassName}
+                    className={`${inputClassName} ${tokenError ? '!border-danger' : ''}`}
                     value={token}
-                    onChange={(e) => setToken(e.target.value)}
+                    onChange={(e) => {
+                      setToken(e.target.value);
+                      validateToken(e.target.value);
+                    }}
+                    onBlur={(e) => validateToken(e.target.value)}
                     onFocus={() => setActiveSection("details")}
                     placeholder="C..."
                     required
                     disabled={loading}
                   />
+                  {tokenError && <p className="text-sm text-danger-soft mt-1">{tokenError}</p>}
                   <label htmlFor="token-address" className="block text-sm text-text-muted mb-1">Token Contract Address</label>
                   {whitelistLoading ? (
                     <select
