@@ -6,6 +6,7 @@ import Navbar from "@/app/components/Navbar";
 import ButtonSpinner from "@/app/components/ButtonSpinner";
 import TxStatusBanner from "@/app/components/TxStatusBanner";
 import { useActionStates } from "@/app/hooks/useActionStates";
+import { useIsAdmin } from "@/app/hooks/useIsAdmin";
 import {
   BACKEND_URL,
   CONTRACT_ID,
@@ -16,18 +17,20 @@ import {
 
 export default function AdminPage() {
   const { address, signTransaction } = useWallet();
+  const { loading: adminCheckLoading, isAdminUser } = useIsAdmin(address);
   const [tokenAddress, setTokenAddress] = useState("");
   const [whitelist, setWhitelist] = useState<string[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
-  const { getState, isPending, setPhase, setError, setTxHash } = useActionStates();
+  const { getState, isPending, setPhase, setError, setTxHash } =
+    useActionStates();
 
   const fetchWhitelist = useCallback(async () => {
     setListLoading(true);
     setListError(null);
     try {
       const res = await fetch(
-        `${BACKEND_URL}/api/jobs/whitelisted-tokens?contractId=${CONTRACT_ID}`
+        `${BACKEND_URL}/api/jobs/whitelisted-tokens?contractId=${CONTRACT_ID}`,
       );
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
@@ -45,13 +48,16 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    if (address) fetchWhitelist();
-  }, [address, fetchWhitelist]);
+    // Only fetch whitelist if user is admin
+    if (address && isAdminUser && !adminCheckLoading) {
+      fetchWhitelist();
+    }
+  }, [address, isAdminUser, adminCheckLoading, fetchWhitelist]);
 
   const executeTx = async (
     actionKey: string,
     method: string,
-    args: { type: string; value: unknown }[]
+    args: { type: string; value: unknown }[],
   ) => {
     if (!address) return;
 
@@ -65,7 +71,7 @@ export default function AdminPage() {
           signTransaction,
           onPhase,
         }),
-      { isPending, setPhase, setError, setTxHash }
+      { isPending, setPhase, setError, setTxHash },
     );
 
     if (txHash !== null) {
@@ -102,17 +108,49 @@ export default function AdminPage() {
       <main className="max-w-xl mx-auto px-6 py-12">
         <h1 className="text-2xl font-bold mb-2">Token Whitelist Admin</h1>
         <p className="text-sm text-gray-400 mb-8">
-          Manage whitelisted payment tokens for the escrow contract. Admin wallet required.
+          Manage whitelisted payment tokens for the escrow contract. Admin
+          wallet required.
         </p>
 
         {!address ? (
-          <p className="text-center text-gray-500">Connect your wallet to manage the whitelist.</p>
+          <p className="text-center text-gray-500">
+            Connect your wallet to manage the whitelist.
+          </p>
+        ) : adminCheckLoading ? (
+          <div className="text-center py-12">
+            <div className="inline-flex items-center gap-2 text-gray-400">
+              <ButtonSpinner className="h-5 w-5" />
+              <span>Verifying admin access...</span>
+            </div>
+          </div>
+        ) : !isAdminUser ? (
+          <div
+            role="alert"
+            className="border border-red-800 bg-red-950/30 rounded-xl p-8 text-center space-y-3"
+          >
+            <div className="text-4xl" aria-hidden="true">
+              🔒
+            </div>
+            <h2 className="text-lg font-semibold text-red-400">
+              Access Denied
+            </h2>
+            <p className="text-sm text-gray-400">
+              This page is restricted to the contract admin. Your wallet address
+              does not have admin privileges.
+            </p>
+          </div>
         ) : (
           <div className="space-y-8">
-            <form onSubmit={handleAddToken} className="space-y-4 border border-gray-800 rounded-xl bg-gray-900 p-6">
+            <form
+              onSubmit={handleAddToken}
+              className="space-y-4 border border-gray-800 rounded-xl bg-gray-900 p-6"
+            >
               <h2 className="font-semibold">Add Token</h2>
               <div>
-                <label htmlFor="token-address" className="block text-sm text-gray-400 mb-1">
+                <label
+                  htmlFor="token-address"
+                  className="block text-sm text-gray-400 mb-1"
+                >
                   Token Contract Address
                 </label>
                 <input
@@ -150,7 +188,9 @@ export default function AdminPage() {
                   {listError}
                 </p>
               ) : whitelist.length === 0 ? (
-                <p className="text-sm text-gray-500">No whitelisted tokens found.</p>
+                <p className="text-sm text-gray-500">
+                  No whitelisted tokens found.
+                </p>
               ) : (
                 <ul className="space-y-2">
                   {whitelist.map((token) => {
@@ -164,7 +204,9 @@ export default function AdminPage() {
                         className="flex flex-col gap-2 bg-gray-800 rounded-lg px-4 py-3"
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <span className="font-mono text-sm truncate min-w-0">{token}</span>
+                          <span className="font-mono text-sm truncate min-w-0">
+                            {token}
+                          </span>
                           <button
                             onClick={() => handleRemoveToken(token)}
                             disabled={removePending}
@@ -172,7 +214,8 @@ export default function AdminPage() {
                           >
                             {removePending && <ButtonSpinner />}
                             {removePending
-                              ? getPhaseLabel(removeState.phase) || "Removing..."
+                              ? getPhaseLabel(removeState.phase) ||
+                                "Removing..."
                               : "Remove"}
                           </button>
                         </div>

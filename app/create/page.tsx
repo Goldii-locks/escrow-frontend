@@ -17,7 +17,7 @@ import { formatTxError } from "@/app/lib/errors";
 type WizardSection = "details" | "milestones" | "review";
 
 const inputClassName =
-  "w-full bg-surface-field border border-border-subtle rounded-lg px-4 py-2 text-sm text-text-primary placeholder:text-text-disabled transition-all duration-200 hover:border-accent-soft hover:bg-surface-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border-subtle disabled:hover:bg-surface-field";
+  "w-full bg-surface-field border border-border-subtle rounded-lg px-4 py-2 text-sm text-text-primary placeholder:text-text-disabled transition-colors duration-200 hover:border-accent-soft hover:bg-surface-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-border-subtle disabled:hover:bg-surface-field";
 
 const buttonClassName =
   "inline-flex items-center justify-center rounded-lg text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100";
@@ -128,8 +128,10 @@ export default function CreateJob() {
   );
   const hasNoMilestones = normalizedMilestones.length === 0;
   const hasPartialMilestones = normalizedMilestones.some(
-    m => m.amount.trim().length === 0
+    (m) => m.amount.trim().length === 0
   );
+
+  const isSubmitDisabled = loading || !address || hasNoMilestones || hasPartialMilestones;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -188,15 +190,20 @@ export default function CreateJob() {
     }
   };
 
+  // ── Success screen ──────────────────────────────────────────────────────────
   if (txHash) {
     return (
       <div className="min-h-screen bg-surface-page text-text-primary flex flex-col">
         <Navbar />
         <main className="flex-1 overflow-y-auto flex items-center justify-center">
-          <div className="text-center px-4 py-12">
-            <div className="text-success-soft text-5xl mb-4" aria-hidden="true">✓</div>
-            <h1 className="text-xl font-bold mb-2">Job Created!</h1>
-            <p className="text-text-muted text-sm mb-6">Your escrow job is live on Stellar testnet.</p>
+          <div className="text-center px-4 py-12 animate-fade-in">
+            <div className="text-success-soft text-5xl mb-4" aria-hidden="true">
+              ✓
+            </div>
+            <h2 className="text-xl font-bold mb-2">Job Created!</h2>
+            <p className="text-text-muted text-sm mb-6">
+              Your escrow job is live on Stellar testnet.
+            </p>
             <a
               href={`https://stellar.expert/explorer/testnet/tx/${txHash}`}
               target="_blank"
@@ -219,12 +226,19 @@ export default function CreateJob() {
     );
   }
 
+  // ── Create-job form ─────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-surface-page text-text-primary flex flex-col" data-testid="create-job-form-page">
+    <div
+      className="min-h-screen bg-surface-page text-text-primary flex flex-col"
+      data-testid="create-job-form-page"
+    >
       <Navbar />
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-xl mx-auto px-4 sm:px-6 py-6 sm:py-12">
-          <h1 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Create New Job</h1>
+
+      <main className="flex-1 overflow-y-auto flex flex-col" id="main-content">
+        <div className="max-w-xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-12 flex-1">
+          <h1 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 text-text-primary">
+            Create New Job
+          </h1>
           <p className="mb-6 text-sm leading-6 text-text-muted">
             Configure counterparties, funding structure, and delivery expectations before publishing the escrow job.
           </p>
@@ -266,12 +280,32 @@ export default function CreateJob() {
               );
             })}
           </div>
-          {error && (
-            <div className="mb-5 rounded-lg bg-danger/40 border border-danger px-4 py-3 text-sm text-danger-soft" role="alert">
-              {error}
-            </div>
-          )}
-          <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6" data-testid="create-job-form">
+
+          {/*
+           * aria-live="polite" announces error messages to screen readers
+           * without interrupting the current read flow.
+           */}
+          <div aria-live="polite" aria-atomic="true">
+            {error && (
+              <div
+                id="form-error"
+                className="mb-5 rounded-lg bg-danger/40 border border-danger px-4 py-3 text-sm text-danger-soft animate-shake"
+                role="alert"
+              >
+                {error}
+              </div>
+            )}
+          </div>
+
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-5 sm:space-y-6"
+            data-testid="create-job-form"
+            aria-label="Create new escrow job"
+            aria-describedby={error ? "form-error" : undefined}
+            aria-busy={loading}
+            noValidate
+          >
             <section className="rounded-2xl border border-border-subtle bg-surface-card/70 p-5 shadow-sm">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
@@ -287,10 +321,20 @@ export default function CreateJob() {
                 </button>
               </div>
               <div className="space-y-4">
+                {/* Freelancer Address */}
                 <div>
-                  <label htmlFor="freelancer-address" className="block text-sm text-text-muted mb-1">Freelancer Address</label>
+                  <label
+                    htmlFor="freelancer-address"
+                    className="block text-sm text-text-muted mb-1"
+                  >
+                    Freelancer Address
+                  </label>
                   <input
                     id="freelancer-address"
+                    type="text"
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-required="true"
                     className={inputClassName}
                     value={freelancer}
                     onChange={(e) => setFreelancer(e.target.value)}
@@ -300,10 +344,21 @@ export default function CreateJob() {
                     disabled={loading}
                   />
                 </div>
+
+                {/* Arbiter Address */}
                 <div>
-                  <label htmlFor="arbiter-address" className="block text-sm text-text-muted mb-1">Arbiter Address</label>
+                  <label
+                    htmlFor="arbiter-address"
+                    className="block text-sm text-text-muted mb-1"
+                  >
+                    Arbiter Address
+                  </label>
                   <input
                     id="arbiter-address"
+                    type="text"
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-required="true"
                     className={inputClassName}
                     value={arbiter}
                     onChange={(e) => setArbiter(e.target.value)}
@@ -313,7 +368,29 @@ export default function CreateJob() {
                     disabled={loading}
                   />
                 </div>
+
+                {/* Token Contract Address */}
                 <div>
+                  <label
+                    htmlFor="token-address"
+                    className="block text-sm text-text-muted mb-1"
+                  >
+                    Token Contract Address
+                  </label>
+                  <input
+                    id="token-address"
+                    type="text"
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-required="true"
+                    className={inputClassName}
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                    onFocus={() => setActiveSection("details")}
+                    placeholder="C..."
+                    required
+                    disabled={loading}
+                  />
                   <label htmlFor="token-address" className="block text-sm text-text-muted mb-1">Token Contract Address</label>
                   {whitelistLoading ? (
                     <select
@@ -359,12 +436,21 @@ export default function CreateJob() {
                     </select>
                   )}
                 </div>
+
+                {/* Response Deadline */}
                 <div>
-                  <label htmlFor="response-deadline" className="block text-sm text-text-muted mb-1">Response Deadline (days)</label>
+                  <label
+                    htmlFor="response-deadline"
+                    className="block text-sm text-text-muted mb-1"
+                  >
+                    Response Deadline (days)
+                  </label>
                   <input
                     id="response-deadline"
                     type="number"
                     min="1"
+                    aria-required="true"
+                    aria-describedby="deadline-hint"
                     className={inputClassName}
                     value={autoReleaseDays}
                     onChange={(e) => setAutoReleaseDays(e.target.value)}
@@ -372,6 +458,9 @@ export default function CreateJob() {
                     required
                     disabled={loading}
                   />
+                  <p id="deadline-hint" className="mt-1 text-xs text-text-disabled">
+                    Funds auto-release after this many days if no dispute is raised.
+                  </p>
                 </div>
               </div>
             </section>
@@ -392,6 +481,7 @@ export default function CreateJob() {
               </div>
 
               <div className="space-y-5">
+                {/* Accepted Assets */}
                 <div>
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <label className="block text-sm text-text-muted">Accepted assets</label>
@@ -439,6 +529,7 @@ export default function CreateJob() {
                   )}
                 </div>
 
+                {/* Requirements */}
                 <div>
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <label className="block text-sm text-text-muted">Requirements</label>
@@ -486,9 +577,11 @@ export default function CreateJob() {
                   )}
                 </div>
 
-                <div>
+                {/* Milestones */}
+                <fieldset>
+                  <legend className="sr-only">Milestones</legend>
                   <div className="mb-2 flex items-center justify-between gap-3">
-                    <label className="block text-sm text-text-muted">Milestones</label>
+                    <span className="block text-sm text-text-muted" aria-hidden="true">Milestones</span>
                     <button
                       type="button"
                       onClick={addMilestone}
@@ -506,9 +599,14 @@ export default function CreateJob() {
                       testId="milestone-empty-state"
                     />
                   ) : (
-                    <div className="space-y-2" data-testid="milestone-list">
+                    <ul
+                      className="space-y-2"
+                      data-testid="milestone-list"
+                      role="list"
+                      aria-label="Milestone amounts"
+                    >
                       {normalizedMilestones.map((m, i) => (
-                        <div key={i} className="flex gap-2 items-center">
+                        <li key={i} className="flex gap-2 items-center animate-slide-in">
                           <input
                             className={`${inputClassName} flex-1 min-w-0`}
                             value={m.amount}
@@ -516,6 +614,8 @@ export default function CreateJob() {
                             onFocus={() => setActiveSection("milestones")}
                             placeholder={`Milestone ${i + 1} amount (stroops)`}
                             aria-label={`Milestone ${i + 1} amount`}
+                            aria-required="true"
+                            inputMode="numeric"
                             required
                             disabled={loading}
                           />
@@ -528,14 +628,20 @@ export default function CreateJob() {
                           >
                             ✕
                           </button>
-                        </div>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   )}
                   {hasPartialMilestones && !hasNoMilestones && (
-                    <p className="mt-2 text-xs text-warning-soft">Complete each milestone amount to continue.</p>
+                    <p
+                      className="mt-2 text-xs text-warning-soft"
+                      role="alert"
+                      aria-live="assertive"
+                    >
+                      Complete each milestone amount to continue.
+                    </p>
                   )}
-                </div>
+                </fieldset>
               </div>
             </section>
 
@@ -574,19 +680,59 @@ export default function CreateJob() {
               successMessage="Job created successfully! Redirecting to dashboard..."
             />
 
-            <button
-              type="submit"
-              disabled={loading || !address || hasNoMilestones || hasPartialMilestones}
-              className={`${buttonClassName} w-full bg-accent hover:bg-accent-hover active:scale-95 py-3 text-text-primary disabled:bg-accent disabled:hover:bg-accent`}
-            >
-              {loading && <ButtonSpinner className="h-4 w-4" />}
-              {loading ? getPhaseLabel(phase) || "Creating..." : "Create Job"}
-            </button>
             {!address && (
-              <p className="text-center text-sm text-text-muted">Connect your wallet to create a job</p>
+              <p
+                className="text-center text-sm text-text-disabled"
+                role="status"
+                aria-label="Connect your wallet to create a job"
+              >
+                Connect your wallet to create a job
+              </p>
             )}
+
+            {/*
+             * Issue #46 – sticky footer on mobile so the submit button stays
+             * visible without needing to scroll past the keyboard.
+             * Issue #45 – active:scale-[0.98] tactile press feedback.
+             * Issue #47 – semantic design-token classes throughout.
+             * Issue #40 – aria-disabled mirrors disabled state for AT.
+             */}
+            <div
+              className="
+                sm:static sm:bg-transparent sm:border-0 sm:p-0 sm:shadow-none
+                fixed bottom-0 left-0 right-0 z-20
+                bg-surface-page border-t border-border-strong
+                px-4 py-3
+                sm:px-0 sm:py-0 sm:relative
+              "
+              style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+            >
+              <button
+                type="submit"
+                disabled={isSubmitDisabled}
+                aria-disabled={isSubmitDisabled}
+                aria-label={loading ? "Creating job, please wait…" : "Create Job"}
+                className={`${buttonClassName} w-full bg-accent hover:bg-accent-hover active:scale-[0.98] py-3 text-text-primary disabled:bg-accent disabled:hover:bg-accent`}
+              >
+                {loading ? (
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <ButtonSpinner className="h-4 w-4" />
+                    {getPhaseLabel(phase) || "Creating…"}
+                  </span>
+                ) : (
+                  "Create Job"
+                )}
+              </button>
+            </div>
           </form>
         </div>
+
+        {/*
+         * Issue #46 – Bottom padding spacer so form content is never hidden
+         * behind the sticky button bar on mobile. On sm+ the bar is
+         * position:relative so no spacer is needed.
+         */}
+        <div className="sm:hidden h-20" aria-hidden="true" />
       </main>
     </div>
   );

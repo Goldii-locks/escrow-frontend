@@ -20,15 +20,17 @@ const defaultProps = {
 /** Helper: render with a valid milestone unless overridden */
 const renderCard = (
   overrides: Partial<Parameters<typeof MilestoneCard>[0]> = {},
-  milestone: Parameters<typeof MilestoneCard>[0]["milestone"] = {
+  ...args: [Parameters<typeof MilestoneCard>[0]["milestone"]?]
+) => {
+  const milestone = args.length > 0 ? args[0] : {
     index: 0,
     amount: "500",
     status: "Pending",
-  }
-) =>
-  render(
+  };
+  return render(
     <MilestoneCard {...defaultProps} milestone={milestone} {...overrides} />
   );
+};
 
 
 // ===========================================================================
@@ -47,9 +49,9 @@ describe("MilestoneCard — empty-state node rendering", () => {
   });
 
   it("renders the empty-state root node when milestone is undefined", () => {
-    renderCard({}, undefined);
-    expect(screen.getByTestId("milestone-empty-state")).toBeInTheDocument();
-  });
+  renderCard({}, {} as never);
+  expect(screen.getByTestId("milestone-empty-state")).toBeInTheDocument();
+});
 
   it("renders the empty-state root node when milestone has no amount", () => {
     renderCard({}, { index: 0 } as never);
