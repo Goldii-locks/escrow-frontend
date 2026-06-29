@@ -71,8 +71,12 @@ export default function CreateJob() {
 
       alert("Job created successfully!");
       router.push("/dashboard");
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        alert(err.message);
+      } else {
+        alert("An unknown error occurred");
+      }
     } finally {
       setLoading(false);
     }

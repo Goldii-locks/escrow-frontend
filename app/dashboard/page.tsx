@@ -46,8 +46,8 @@ export default function Dashboard() {
         } else {
           setError(data.error || "Failed to fetch job data");
         }
-      } catch (err: any) {
-        setError(err.message || "Failed to connect to backend");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to connect to backend");
       } finally {
         setLoading(false);
       }
