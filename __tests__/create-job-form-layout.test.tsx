@@ -107,7 +107,7 @@ describe("CreateJob form — layout", () => {
     it("renders Freelancer Address input with placeholder 'G...'", () => {
       render(<CreateJob />);
       expect(
-        screen.getByPlaceholderText("G...", { exact: false })
+        screen.getAllByPlaceholderText("G...", { exact: false })[0]
       ).toBeInTheDocument();
     });
 

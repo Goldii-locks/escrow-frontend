@@ -20,15 +20,17 @@ const defaultProps = {
 /** Helper: render with a valid milestone unless overridden */
 const renderCard = (
   overrides: Partial<Parameters<typeof MilestoneCard>[0]> = {},
-  milestone: Parameters<typeof MilestoneCard>[0]["milestone"] = {
+  ...args: [Parameters<typeof MilestoneCard>[0]["milestone"]?]
+) => {
+  const milestone = args.length > 0 ? args[0] : {
     index: 0,
     amount: "500",
     status: "Pending",
-  }
-) =>
-  render(
+  };
+  return render(
     <MilestoneCard {...defaultProps} milestone={milestone} {...overrides} />
   );
+};
 
 
 // ===========================================================================
