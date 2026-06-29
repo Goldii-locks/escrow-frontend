@@ -11,6 +11,7 @@ import {
   runContractAction,
   submitContractTransaction,
 } from "@/app/lib/transactions";
+import { fetchAutoReleaseInfo } from "@/app/lib/autoRelease";
 
 interface Milestone {
   index: number;
@@ -69,6 +70,41 @@ export default function Dashboard() {
   const isClient = !!(job && address === job.client);
   const isFreelancer = !!(job && address === job.freelancer);
   const milestoneList = Array.isArray(job?.milestones) ? job.milestones : [];
+
+  const [autoReleaseDeadlines, setAutoReleaseDeadlines] = useState<
+    Record<number, number | null>
+  >({});
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const jobId = job?.id;
+    const deliveredIndexes = (Array.isArray(job?.milestones) ? job.milestones : [])
+      .filter((m) => m.status === "Delivered")
+      .map((m) => m.index);
+
+    (async () => {
+      if (!jobId || deliveredIndexes.length === 0) {
+        // Defer so this is not a synchronous setState within the effect.
+        await Promise.resolve();
+        if (!controller.signal.aborted) setAutoReleaseDeadlines({});
+        return;
+      }
+
+      const entries = await Promise.all(
+        deliveredIndexes.map(async (index) => {
+          const info = await fetchAutoReleaseInfo(jobId, index, {
+            signal: controller.signal,
+          });
+          return [index, info.deadlineMs] as const;
+        })
+      );
+      if (!controller.signal.aborted) {
+        setAutoReleaseDeadlines(Object.fromEntries(entries));
+      }
+    })();
+
+    return () => controller.abort();
+  }, [job]);
 
   const executeTx = useCallback(
     async (actionKey: string, method: string, args: { type: string; value: unknown }[]) => {
@@ -133,13 +169,13 @@ export default function Dashboard() {
       <main className="max-w-4xl mx-auto px-6 py-12">
         <h1 className="text-2xl font-bold mb-8">Job Dashboard</h1>
         {!address ? (
-          <p className="text-center text-gray-500">Connect your wallet to view your jobs</p>
+          <p className="text-center text-gray-400">Connect your wallet to view your jobs</p>
         ) : fetchLoading ? (
           <LoadingSkeleton />
         ) : error ? (
-          <div className="text-center text-red-400">Error: {error}</div>
+          <div className="text-center text-red-400" role="alert">Error: {error}</div>
         ) : !job ? (
-          <p className="text-center text-gray-500">No jobs found</p>
+          <p className="text-center text-gray-400">No jobs found</p>
         ) : (
           <div className="space-y-8">
             <div className="border border-gray-800 rounded-xl bg-gray-900 p-6">
@@ -147,22 +183,23 @@ export default function Dashboard() {
                 <div>
                   <h2 className="font-semibold text-lg">Job #{job.id.slice(0, 8)}</h2>
                   <p className="text-sm text-gray-400 mt-1">
-                    {job.funded ? "✅ Funded" : "🔒 Not funded"}
+                    <span aria-hidden="true">{job.funded ? "✅ " : "🔒 "}</span>
+                    {job.funded ? "Funded" : "Not funded"}
                   </p>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 text-sm">
-                <div className="bg-gray-800 rounded-lg p-3">
+                <div className="bg-gray-800 rounded-lg p-3 min-w-0">
                   <p className="text-gray-400">Client</p>
-                  <p className="font-mono">{job.client}</p>
+                  <p className="font-mono text-xs break-all">{job.client}</p>
                 </div>
-                <div className="bg-gray-800 rounded-lg p-3">
+                <div className="bg-gray-800 rounded-lg p-3 min-w-0">
                   <p className="text-gray-400">Freelancer</p>
-                  <p className="font-mono">{job.freelancer}</p>
+                  <p className="font-mono text-xs break-all">{job.freelancer}</p>
                 </div>
-                <div className="bg-gray-800 rounded-lg p-3">
+                <div className="bg-gray-800 rounded-lg p-3 min-w-0">
                   <p className="text-gray-400">Arbiter</p>
-                  <p className="font-mono">{job.arbiter}</p>
+                  <p className="font-mono text-xs break-all">{job.arbiter}</p>
                 </div>
               </div>
               <div className="space-y-4">
@@ -177,6 +214,7 @@ export default function Dashboard() {
                       claimAutoReleaseState={getState(`claim-${m.index}`)}
                       isPartialReleasePending={isPending(`partial-${m.index}`)}
                       isClaimAutoReleasePending={isPending(`claim-${m.index}`)}
+                      autoReleaseDeadline={autoReleaseDeadlines[m.index] ?? null}
                       onPartialRelease={handlePartialRelease}
                       onClaimAutoRelease={handleClaimAutoRelease}
                       onMarkDelivered={handleMarkDelivered}

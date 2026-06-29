@@ -1,16 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import ButtonSpinner from "@/app/components/ButtonSpinner";
-import TxStatusBanner from "@/app/components/TxStatusBanner";
 import { ActionState } from "@/app/hooks/useActionStates";
-import { getPhaseLabel } from "@/app/lib/transactions";
+import CountdownTimer from "@/app/components/CountdownTimer";
 
 interface Milestone {
   index: number;
   amount: string;
   status: string;
   releasedAmount?: string;
+}
+
+/**
+ * Field-level and general error messages surfaced inside the card.
+ *
+ * - `amount`  – shown beneath the amount value (e.g. "Amount must be greater than 0")
+ * - `status`  – shown beneath the status badge (e.g. "Unknown status value")
+ * - `general` – shown as a top-level alert banner above the card body
+ */
+export interface MilestoneCardErrors {
+  amount?: string;
+  status?: string;
+  general?: string;
 }
 
 interface Props {
@@ -21,6 +31,13 @@ interface Props {
   claimAutoReleaseState: ActionState;
   isPartialReleasePending: boolean;
   isClaimAutoReleasePending: boolean;
+  /** Optional field-level / general error messages to render inside the card. */
+  errors?: MilestoneCardErrors;
+  /**
+   * Absolute auto-release deadline (epoch ms) for a Delivered milestone. When
+   * provided, a CountdownTimer is shown next to the status badge.
+   */
+  autoReleaseDeadline?: number | null;
   onPartialRelease?: (index: number, amount: string) => void;
   onClaimAutoRelease?: (index: number) => void;
   onMarkDelivered?: (i: number) => void;
@@ -32,24 +49,43 @@ const statusColor: Record<string, string> = {
   Pending: "bg-warning-soft/10 text-warning-soft border-warning-soft/20",
   Delivered: "bg-info-soft/10 text-info-soft border-info-soft/20",
   Released: "bg-success-soft/10 text-success-soft border-success-soft/20",
+  PartiallyReleased: "bg-orange-400/10 text-orange-400 border-orange-400/30",
   Disputed: "bg-danger-soft/10 text-danger-soft border-danger-soft/20",
   Refunded: "bg-text-muted/10 text-text-muted border-text-muted/20",
 };
+
+const baseBtn =
+  "text-xs px-3 py-1.5 rounded-lg transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page disabled:opacity-40 disabled:cursor-not-allowed";
+
+/**
+ * Compute the release percentage (0–100) for PartiallyReleased milestones.
+ * Returns null if either value is missing, zero, or non-numeric.
+ */
+function getReleasePercent(
+  releasedAmount: string | undefined,
+  totalAmount: string
+): number | null {
+  const released = Number(releasedAmount);
+  const total = Number(totalAmount);
+  if (!releasedAmount || isNaN(released) || isNaN(total) || total <= 0) {
+    return null;
+  }
+  return Math.min(100, Math.max(0, Math.round((released / total) * 100)));
+}
 
 export default function MilestoneCard({
   milestone,
   isClient,
   isFreelancer,
-  partialReleaseState,
-  claimAutoReleaseState,
-  isPartialReleasePending,
-  isClaimAutoReleasePending,
-  onPartialRelease,
-  onClaimAutoRelease,
+  errors,
+  autoReleaseDeadline,
   onMarkDelivered,
   onApprove,
   onDispute,
+  ...unusedProps
 }: Props) {
+  void unusedProps;
+
   if (
     !milestone ||
     typeof milestone.index !== "number" ||
@@ -59,125 +95,168 @@ export default function MilestoneCard({
     return (
       <div
         data-testid="milestone-empty-state"
-        className="border border-border-strong rounded-lg p-4 bg-surface-card flex flex-col gap-2"
+        role="region"
+        aria-label="No milestones"
+        className="border border-border-strong rounded-lg p-4 bg-surface-card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
       >
-        <p className="text-sm font-semibold text-text-secondary">No milestones available</p>
-        <p className="text-xs text-text-muted">Add milestones in the create job form to begin tracking work and releases.</p>
-        <p className="text-xs text-accent-soft">Next step: create a job with at least one milestone amount.</p>
+        <div className="min-w-0 space-y-1">
+          <p className="text-sm font-semibold text-text-secondary">No milestones available</p>
+          <p className="text-xs text-text-muted">
+            This job has no milestone data yet. Add milestones in the create job form to
+            track delivery and releases.
+          </p>
+        </div>
+        <span
+          aria-label="Status: waiting for milestones"
+          className="text-xs px-2 py-1 rounded-full border border-border-subtle bg-surface-field text-text-muted whitespace-nowrap"
+        >
+          Waiting for milestones
+        </span>
       </div>
     );
   }
 
+  // Human-readable milestone number (1-based) used in aria labels
+  const milestoneNumber = milestone.index + 1;
+  const milestoneLabel = `Milestone ${milestoneNumber}`;
+
+  // Unique id for the error live region so buttons can reference it
+  const errorRegionId = `milestone-${milestone.index}-errors`;
+
+  const isPartiallyReleased = milestone.status === "PartiallyReleased";
+  const releasePercent = isPartiallyReleased
+    ? getReleasePercent(milestone.releasedAmount, milestone.amount)
+    : null;
+
   return (
     <div
       data-testid="milestone-card"
+      role="region"
+      aria-label={milestoneLabel}
+      aria-describedby={errors?.general ? errorRegionId : undefined}
       className="
         border border-border-strong rounded-lg p-4 bg-surface-card
         flex flex-col gap-3
         sm:flex-row sm:items-center sm:justify-between sm:gap-4
+        transition-all duration-200
+        hover:border-accent-soft/40 hover:bg-surface-card/80
+        focus-within:outline-none focus-within:ring-2 focus-within:ring-accent-soft focus-within:ring-offset-2 focus-within:ring-offset-surface-page
       "
     >
+      {/* General error alert banner — aria-live so it announces dynamically */}
+      {errors?.general && (
+        <div
+          id={errorRegionId}
+          role="alert"
+          aria-live="assertive"
+          aria-atomic="true"
+          data-testid="milestone-card-error-alert"
+          className="w-full rounded-lg bg-danger/10 border border-danger/30 px-3 py-2 text-sm text-danger-soft sm:col-span-full"
+        >
+          {errors.general}
+        </div>
+      )}
+
       {/* Milestone info */}
-      <div className="min-w-0">
-        <p className="text-sm text-text-muted">Milestone {milestone.index + 1}</p>
-        <p className="font-mono text-text-primary text-sm mt-1 truncate">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-text-muted" aria-hidden="true">
+          {milestoneLabel}
+        </p>
+        <p
+          className="font-mono text-text-primary text-sm mt-1 truncate"
+          aria-label={`${milestoneLabel} amount: ${milestone.amount} stroops`}
+        >
           {milestone.amount} stroops
         </p>
+        {/* Amount field error */}
+        {errors?.amount && (
+          <p
+            role="alert"
+            aria-live="polite"
+            data-testid="milestone-card-amount-error"
+            className="mt-1 text-xs text-danger-soft"
+          >
+            {errors.amount}
+          </p>
+        )}
+
+        {/* Progress bar — only shown for PartiallyReleased milestones */}
+        {isPartiallyReleased && releasePercent !== null && (
+          <div className="mt-3 space-y-1">
+            <div className="flex items-center justify-between text-xs text-text-muted">
+              <span>Released</span>
+              <span
+                data-testid="milestone-release-percent"
+                aria-label={`${releasePercent}% released`}
+                className="font-mono font-semibold text-orange-400"
+              >
+                {releasePercent}%
+              </span>
+            </div>
+            {/* Track */}
+            <div
+              role="progressbar"
+              aria-valuenow={releasePercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`${milestoneLabel} release progress: ${releasePercent}% of funds released`}
+              data-testid="milestone-progress-bar"
+              className="relative h-2 w-full rounded-full bg-surface-field overflow-hidden"
+            >
+              {/* Fill */}
+              <div
+                data-testid="milestone-progress-fill"
+                className="h-full rounded-full bg-orange-400 transition-all duration-500"
+                style={{ width: `${releasePercent}%` }}
+              />
+            </div>
+            {/* Released amount vs total in stroops */}
+            <p className="text-xs text-text-muted font-mono">
+              <span className="text-orange-400">{milestone.releasedAmount}</span>
+              {" / "}
+              {milestone.amount} stroops
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Status badge + action buttons */}
       <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-3">
-        <span
-          className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${
-            statusColor[milestone.status] ?? "bg-surface-field text-text-muted border-border-subtle"
-          }`}
-        >
-            <style jsx global>{`
-                @keyframes milestonePulse {
-                    0%,
-                    100% {
-                        transform: translateY(0);
-                        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
-                    }
-                    50% {
-                        transform: translateY(-1px);
-                        box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.06);
-                    }
-                }
-                @keyframes milestoneCelebrate {
-                    0% {
-                        transform: scale(0.97);
-                        opacity: 0.75;
-                    }
-                    100% {
-                        transform: scale(1);
-                        opacity: 1;
-                    }
-                }
-                @keyframes milestoneSoftPop {
-                    0% {
-                        transform: scale(0.985);
-                    }
-                    100% {
-                        transform: scale(1);
-                    }
-                }
-                @keyframes milestoneShake {
-                    0%,
-                    100% {
-                        transform: translateX(0);
-                    }
-                    25% {
-                        transform: translateX(-2px);
-                    }
-                    75% {
-                        transform: translateX(2px);
-                    }
-                }
-                @keyframes milestoneFade {
-                    0% {
-                        opacity: 0.75;
-                        transform: translateY(2px);
-                    }
-                    100% {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-                @keyframes milestoneClick {
-                    0% {
-                        transform: scale(1);
-                    }
-                    45% {
-                        transform: scale(1.012);
-                    }
-                    100% {
-                        transform: scale(1);
-                    }
-                }
-            `}</style>
-
-            <div className="min-w-0 transition-transform duration-300 ease-out group-hover:translate-x-1">
-                <p className="text-sm text-gray-400">
-                    Milestone {milestone.index + 1}
-                </p>
-                <p className="font-mono text-white text-sm mt-1 truncate">
-                    {milestone.amount} stroops
-                </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-3">
-                <span
-                    data-testid="milestone-status"
-                    className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap transition-all duration-300 ease-out ${statusColor[milestone.status] ?? "bg-gray-800 text-gray-400"} ${motion}`}
-                >
-                    {milestone.status}
-                </span>
+        <div className="flex flex-col items-start gap-1">
+          <span
+            aria-label={`${milestoneLabel} status: ${milestone.status}`}
+            data-testid="milestone-status-badge"
+            className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap transition-colors ${
+              statusColor[milestone.status] ?? "bg-surface-field text-text-muted border-border-subtle"
+            }`}
+          >
+            {isPartiallyReleased ? "Partially Released" : milestone.status}
+          </span>
+          {/* Auto-release countdown for delivered milestones */}
+          {milestone.status === "Delivered" &&
+            typeof autoReleaseDeadline === "number" && (
+              <CountdownTimer deadline={autoReleaseDeadline} />
+            )}
+          {/* Status field error */}
+          {errors?.status && (
+            <p
+              role="alert"
+              aria-live="polite"
+              data-testid="milestone-card-status-error"
+              className="text-xs text-warning-soft"
+            >
+              {errors.status}
+            </p>
+          )}
+        </div>
 
         {isFreelancer && milestone.status === "Pending" && (
           <button
             onClick={() => onMarkDelivered?.(milestone.index)}
-            className="text-xs bg-info-soft hover:opacity-90 text-text-primary px-3 py-1.5 rounded-lg transition whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page"
+            disabled={!onMarkDelivered}
+            aria-disabled={!onMarkDelivered}
+            aria-label={`Mark ${milestoneLabel} as delivered`}
+            className={`${baseBtn} bg-info-soft text-surface-page font-medium hover:bg-info-soft/80 active:scale-[0.97] focus-visible:ring-info-soft disabled:hover:bg-info-soft disabled:active:scale-100`}
           >
             Mark Delivered
           </button>
@@ -186,7 +265,10 @@ export default function MilestoneCard({
         {isClient && milestone.status === "Delivered" && (
           <button
             onClick={() => onApprove?.(milestone.index)}
-            className="text-xs bg-success hover:opacity-90 text-text-primary px-3 py-1.5 rounded-lg transition whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page"
+            disabled={!onApprove}
+            aria-disabled={!onApprove}
+            aria-label={`Approve ${milestoneLabel}`}
+            className={`${baseBtn} bg-success text-surface-page font-medium hover:bg-success/80 active:scale-[0.97] focus-visible:ring-success-soft disabled:hover:bg-success disabled:active:scale-100`}
           >
             Approve
           </button>
@@ -196,7 +278,10 @@ export default function MilestoneCard({
           ["Pending", "Delivered"].includes(milestone.status) && (
             <button
               onClick={() => onDispute?.(milestone.index)}
-              className="text-xs bg-danger hover:opacity-90 text-text-primary px-3 py-1.5 rounded-lg transition whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page"
+              disabled={!onDispute}
+              aria-disabled={!onDispute}
+              aria-label={`Dispute ${milestoneLabel}`}
+              className={`${baseBtn} bg-danger text-text-primary hover:bg-danger/80 active:scale-[0.97] focus-visible:ring-danger-soft disabled:hover:bg-danger disabled:active:scale-100`}
             >
               Dispute
             </button>
