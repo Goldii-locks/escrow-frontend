@@ -135,6 +135,11 @@ export default function CreateJob() {
   const hasPartialMilestones = normalizedMilestones.some(
     (m) => m.amount.trim().length === 0
   );
+  const hasInvalidMilestones = normalizedMilestones.some(m => {
+    const trimmed = m.amount.trim();
+    if (trimmed.length === 0) return false;
+    return !/^[0-9]+$/.test(trimmed);
+  });
 
   const isSubmitDisabled = loading || !address || hasNoMilestones || hasPartialMilestones;
 
@@ -197,6 +202,10 @@ export default function CreateJob() {
       setError("Complete each milestone amount before creating a job.");
       return;
     }
+    if (hasInvalidMilestones) {
+      setError("Milestone amounts must contain only numeric characters.");
+      return;
+    }
     if (!token || !whitelist.some((option) => option.address === token)) {
       setError("Select an accepted token before creating a job.");
       return;
@@ -207,7 +216,13 @@ export default function CreateJob() {
     setPhase("building");
 
     try {
-      const milestoneAmounts = normalizedMilestones.map((m) => BigInt(m.amount));
+      const milestoneAmounts = normalizedMilestones.map((m) => {
+        const trimmed = m.amount.trim();
+        if (!/^[0-9]+$/.test(trimmed)) {
+          throw new Error("Invalid milestone amount");
+        }
+        return BigInt(trimmed);
+      });
       const autoReleaseSeconds =
         BigInt(autoReleaseDays) * BigInt(24) * BigInt(60) * BigInt(60);
 
@@ -750,6 +765,7 @@ export default function CreateJob() {
                             aria-required="true"
                             inputMode="numeric"
                             required
+                            pattern="^[0-9]+$"
                             disabled={loading}
                           />
                           <button
