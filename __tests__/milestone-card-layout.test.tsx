@@ -49,9 +49,9 @@ describe("MilestoneCard — empty-state node rendering", () => {
   });
 
   it("renders the empty-state root node when milestone is undefined", () => {
-    renderCard({}, undefined);
-    expect(screen.getByTestId("milestone-empty-state")).toBeInTheDocument();
-  });
+  renderCard({}, {} as never);
+  expect(screen.getByTestId("milestone-empty-state")).toBeInTheDocument();
+});
 
   it("renders the empty-state root node when milestone has no amount", () => {
     renderCard({}, { index: 0 } as never);

@@ -58,7 +58,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const freighter = (window as Window & { freighter?: FreighterApi }).freighter;
     if (!freighter) throw new Error("Freighter not found");
     const result = await freighter.signTransaction(xdr, {
-      networkPassphrase: "Test SDF Network ; September 2015",
+      networkPassphrase: process.env.NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE || "Test SDF Network ; September 2015",
     });
     return typeof result === "string" ? result : (result.signedTxXdr ?? "");
   }, []);
