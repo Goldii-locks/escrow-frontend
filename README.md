@@ -20,6 +20,7 @@ Next.js frontend for the Soroban milestone escrow smart contract on Stellar.
 - `/` — Landing page
 - `/create` — Create a new escrow job with milestones
 - `/dashboard` — View job status and interact with milestones
+- `/admin` — Manage whitelisted tokens (admin only)
 
 ## Setup
 

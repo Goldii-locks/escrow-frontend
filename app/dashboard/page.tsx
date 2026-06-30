@@ -81,12 +81,23 @@ export default function Dashboard() {
   }, [address]);
 
   useEffect(() => {
-    fetchJob();
-  }, [fetchJob]);
+  let active = true;
+  
+  Promise.resolve().then(() => {
+    if (active) {
+      fetchJob();
+    }
+  });
+
+  return () => {
+    active = false;
+  };
+}, [fetchJob]);
 
   const isClient = !!(job && address === job.client);
   const isFreelancer = !!(job && address === job.freelancer);
   const milestoneList = Array.isArray(job?.milestones) ? job.milestones : [];
+  const isArbiter = !!(job && address === job.arbiter)
 
   const [autoReleaseDeadlines, setAutoReleaseDeadlines] = useState<
     Record<number, number | null>
@@ -180,6 +191,16 @@ export default function Dashboard() {
     alert(`Dispute milestone ${i + 1} (wired to contract soon)`);
   };
 
+  const handleResolveDispute = async (index: number, releaseToFreelancer: boolean) => {
+  if (!address) return;
+
+  // The arguments must match the contract signature: (arbiter: Address, milestone_index: u32, release_to_freelancer: bool)
+  await executeTx(`resolve-${index}`, "resolve_dispute", [
+    { type: "address", value: address },
+    { type: "u32", value: index.toString() },
+    { type: "bool", value: releaseToFreelancer },
+  ]);
+  };
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <Navbar />
@@ -227,6 +248,10 @@ export default function Dashboard() {
                       milestone={m}
                       isClient={isClient}
                       isFreelancer={isFreelancer}
+                      isArbiter={isArbiter}
+                      resolveDisputeState={getState(`resolve-${m.index}`)}
+                      isResolveDisputePending={isPending(`resolve-${m.index}`)}
+                      onResolveDispute={handleResolveDispute}
                       partialReleaseState={getState(`partial-${m.index}`)}
                       claimAutoReleaseState={getState(`claim-${m.index}`)}
                       isPartialReleasePending={isPending(`partial-${m.index}`)}
