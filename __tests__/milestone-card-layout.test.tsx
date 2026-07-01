@@ -567,8 +567,60 @@ describe("MilestoneCard — button click handler invocation", () => {
     // No assertion on mock — we just verify no crash and button is disabled
     expect(btn).toBeDisabled();
   });
-});
 
+  it("calls onClaimAutoRelease with milestone index when clicked", () => {
+    const handler = vi.fn();
+    render(
+      <MilestoneCard
+        {...defaultProps}
+        milestone={{ index: 0, amount: "100", status: "Delivered" }}
+        isFreelancer
+        onClaimAutoRelease={handler}
+        autoReleaseDeadline={Date.now() - 1}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Claim auto-release for Milestone 1" })
+    );
+    expect(handler).toHaveBeenCalledOnce();
+    expect(handler).toHaveBeenCalledWith(0);
+  });
+
+  it("calls onClaimAutoRelease with correct index for non-zero milestone", () => {
+    const handler = vi.fn();
+    render(
+      <MilestoneCard
+        {...defaultProps}
+        milestone={{ index: 2, amount: "100", status: "Delivered" }}
+        isFreelancer
+        onClaimAutoRelease={handler}
+        autoReleaseDeadline={Date.now() - 1}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Claim auto-release for Milestone 3" })
+    );
+    expect(handler).toHaveBeenCalledWith(2);
+  });
+
+  it("does NOT call onClaimAutoRelease when button is disabled (pending)", () => {
+    const handler = vi.fn();
+    render(
+      <MilestoneCard
+        {...defaultProps}
+        milestone={{ index: 0, amount: "100", status: "Delivered" }}
+        isFreelancer
+        isClaimAutoReleasePending
+        onClaimAutoRelease={handler}
+        autoReleaseDeadline={Date.now() - 1}
+      />
+    );
+    const btn = screen.getByRole("button", { name: "Claim auto-release for Milestone 1" });
+    expect(btn).toBeDisabled();
+    fireEvent.click(btn);
+    expect(handler).not.toHaveBeenCalled();
+  });
+});
 
 // ===========================================================================
 // 9. Action button — structural CSS design-token classes
@@ -643,6 +695,51 @@ describe("MilestoneCard — action button design-token classes", () => {
     );
     const buttons = screen.getAllByRole("button");
     buttons.forEach((btn: HTMLElement) => expect(btn).toHaveClass("whitespace-nowrap"));
+  });
+
+  it("'Claim Auto-Release' button has 'bg-success-soft' token", () => {
+    render(
+      <MilestoneCard
+        {...defaultProps}
+        milestone={{ index: 0, amount: "100", status: "Delivered" }}
+        isFreelancer
+        onClaimAutoRelease={vi.fn()}
+        autoReleaseDeadline={Date.now() - 1}
+      />
+    );
+    expect(
+      screen.getByRole("button", { name: /claim auto-release/i })
+    ).toHaveClass("bg-success-soft");
+  });
+
+  it("'Claim Auto-Release' button has 'rounded-lg' class", () => {
+    render(
+      <MilestoneCard
+        {...defaultProps}
+        milestone={{ index: 0, amount: "100", status: "Delivered" }}
+        isFreelancer
+        onClaimAutoRelease={vi.fn()}
+        autoReleaseDeadline={Date.now() - 1}
+      />
+    );
+    expect(
+      screen.getByRole("button", { name: /claim auto-release/i })
+    ).toHaveClass("rounded-lg");
+  });
+
+  it("'Claim Auto-Release' button has 'text-surface-page' token", () => {
+    render(
+      <MilestoneCard
+        {...defaultProps}
+        milestone={{ index: 0, amount: "100", status: "Delivered" }}
+        isFreelancer
+        onClaimAutoRelease={vi.fn()}
+        autoReleaseDeadline={Date.now() - 1}
+      />
+    );
+    expect(
+      screen.getByRole("button", { name: /claim auto-release/i })
+    ).toHaveClass("text-surface-page");
   });
 });
 
