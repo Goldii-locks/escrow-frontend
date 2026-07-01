@@ -182,6 +182,36 @@ export default function CreateJob() {
     }
   };
 
+  const validateDeadline = (value: string): string | null => {
+    if (value.trim() === "") {
+      return "Response deadline is required";
+    }
+    const num = Number(value);
+    if (!Number.isInteger(num)) {
+      return "Must be a whole number of days";
+    }
+    if (num < 1) {
+      return "Must be at least 1 day";
+    }
+    if (num > 365) {
+      return "Must be at most 365 days";
+    }
+    return null;
+  };
+
+  const handleDeadlineChange = (value: string) => {
+    setAutoReleaseDays(value);
+    // Clear error on change, will re-validate on blur
+    if (deadlineError) {
+      setDeadlineError(null);
+    }
+  };
+
+  const handleDeadlineBlur = () => {
+    const error = validateDeadline(autoReleaseDays);
+    setDeadlineError(error);
+  };
+
   // Wizard tab sections config
   const wizardSections: { id: WizardSection; label: string; helper: string; panelId: string; tabId: string }[] = [
     {
@@ -264,9 +294,6 @@ export default function CreateJob() {
     setPhase("building");
 
     try {
-      const milestoneAmounts = normalizedMilestones.map((m) =>
-        BigInt(m.amount),
-      );
       const milestoneAmounts = normalizedMilestones.map((m) => {
         const trimmed = m.amount.trim();
         if (!/^[0-9]+$/.test(trimmed)) {
