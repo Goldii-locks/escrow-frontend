@@ -11,7 +11,11 @@ import {
   submitContractTransaction,
   TxPhase,
 } from "@/app/lib/transactions";
-import { fetchWhitelistedTokens, tokenLabel, WhitelistToken } from "@/app/lib/whitelist";
+import {
+  fetchWhitelistedTokens,
+  tokenLabel,
+  WhitelistToken,
+} from "@/app/lib/whitelist";
 import { formatTxError } from "@/app/lib/errors";
 
 type WizardSection = "details" | "milestones" | "review";
@@ -64,6 +68,7 @@ export default function CreateJob() {
   const [arbiterError, setArbiterError] = useState("");
   const [tokenError, setTokenError] = useState("");
   const [autoReleaseDays, setAutoReleaseDays] = useState("7");
+  const [deadlineError, setDeadlineError] = useState<string | null>(null);
   const [acceptedAssets, setAcceptedAssets] = useState<string[]>([]);
   const [requirements, setRequirements] = useState<string[]>([]);
   const [milestones, setMilestones] = useState([{ amount: "" }]);
@@ -102,7 +107,9 @@ export default function CreateJob() {
 
   const addAcceptedAsset = () => setAcceptedAssets([...acceptedAssets, ""]);
   const removeAcceptedAsset = (index: number) =>
-    setAcceptedAssets(acceptedAssets.filter((_, currentIndex) => currentIndex !== index));
+    setAcceptedAssets(
+      acceptedAssets.filter((_, currentIndex) => currentIndex !== index),
+    );
   const updateAcceptedAsset = (index: number, value: string) => {
     const updated = [...acceptedAssets];
     updated[index] = value;
@@ -111,7 +118,9 @@ export default function CreateJob() {
 
   const addRequirement = () => setRequirements([...requirements, ""]);
   const removeRequirement = (index: number) =>
-    setRequirements(requirements.filter((_, currentIndex) => currentIndex !== index));
+    setRequirements(
+      requirements.filter((_, currentIndex) => currentIndex !== index),
+    );
   const updateRequirement = (index: number, value: string) => {
     const updated = [...requirements];
     updated[index] = value;
@@ -128,11 +137,13 @@ export default function CreateJob() {
   };
 
   const normalizedMilestones = milestones.filter(
-    (m): m is { amount: string } => !!m && typeof m.amount === "string"
+    (m): m is { amount: string } => !!m && typeof m.amount === "string",
   );
-  const normalizedAssets = acceptedAssets.filter((asset) => asset.trim().length > 0);
+  const normalizedAssets = acceptedAssets.filter(
+    (asset) => asset.trim().length > 0,
+  );
   const normalizedRequirements = requirements.filter(
-    (requirement) => requirement.trim().length > 0
+    (requirement) => requirement.trim().length > 0,
   );
   const hasNoMilestones = normalizedMilestones.length === 0;
   const hasPartialMilestones = normalizedMilestones.some(
@@ -169,6 +180,36 @@ export default function CreateJob() {
     } else {
       setTokenError("");
     }
+  };
+
+  const validateDeadline = (value: string): string | null => {
+    if (value.trim() === "") {
+      return "Response deadline is required";
+    }
+    const num = Number(value);
+    if (!Number.isInteger(num)) {
+      return "Must be a whole number of days";
+    }
+    if (num < 1) {
+      return "Must be at least 1 day";
+    }
+    if (num > 365) {
+      return "Must be at most 365 days";
+    }
+    return null;
+  };
+
+  const handleDeadlineChange = (value: string) => {
+    setAutoReleaseDays(value);
+    // Clear error on change, will re-validate on blur
+    if (deadlineError) {
+      setDeadlineError(null);
+    }
+  };
+
+  const handleDeadlineBlur = () => {
+    const error = validateDeadline(autoReleaseDays);
+    setDeadlineError(error);
   };
 
   // Wizard tab sections config
@@ -222,6 +263,15 @@ export default function CreateJob() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!address) return;
+
+    // Validate deadline on submit
+    const deadlineValidationError = validateDeadline(autoReleaseDays);
+    if (deadlineValidationError) {
+      setDeadlineError(deadlineValidationError);
+      setError("Please fix the response deadline before creating a job.");
+      return;
+    }
+
     if (hasNoMilestones) {
       setError("Add at least one milestone amount before creating a job.");
       return;
@@ -336,7 +386,8 @@ export default function CreateJob() {
             Create New Job
           </h1>
           <p className="mb-6 text-sm leading-6 text-text-muted">
-            Configure counterparties, funding structure, and delivery expectations before publishing the escrow job.
+            Configure counterparties, funding structure, and delivery
+            expectations before publishing the escrow job.
           </p>
 
           {/*
@@ -372,7 +423,9 @@ export default function CreateJob() {
                   }`}
                 >
                   <span>{section.label}</span>
-                  <span className="text-xs font-normal text-text-muted">{section.helper}</span>
+                  <span className="text-xs font-normal text-text-muted">
+                    {section.helper}
+                  </span>
                 </button>
               );
             })}
@@ -423,8 +476,12 @@ export default function CreateJob() {
             >
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-base font-semibold text-text-primary">Job details</h2>
-                  <p className="text-xs text-text-muted">Specify the counterparties and core escrow timing.</p>
+                  <h2 className="text-base font-semibold text-text-primary">
+                    Job details
+                  </h2>
+                  <p className="text-xs text-text-muted">
+                    Specify the counterparties and core escrow timing.
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -562,8 +619,8 @@ export default function CreateJob() {
                       className="mt-1 text-sm text-text-muted"
                       aria-live="polite"
                     >
-                      No accepted tokens are configured for this contract yet. Ask an admin
-                      to whitelist a token before creating a job.
+                      No accepted tokens are configured for this contract yet.
+                      Ask an admin to whitelist a token before creating a job.
                     </p>
                   ) : (
                     <select
@@ -599,13 +656,17 @@ export default function CreateJob() {
                     type="number"
                     min="1"
                     aria-required="true"
-                    aria-describedby="deadline-hint"
                     className={inputClassName}
                     value={autoReleaseDays}
-                    onChange={(e) => setAutoReleaseDays(e.target.value)}
+                    onChange={(e) => handleDeadlineChange(e.target.value)}
+                    onBlur={handleDeadlineBlur}
                     onFocus={() => setActiveSection("details")}
                     required
                     disabled={loading}
+                    aria-invalid={!!deadlineError}
+                    aria-describedby={
+                      deadlineError ? "deadline-error" : "deadline-hint"
+                    }
                   />
                   <p id="deadline-hint" className="mt-1 text-xs text-text-disabled">
                     Funds auto-release after this many days if no dispute is raised.
@@ -625,8 +686,12 @@ export default function CreateJob() {
             >
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-base font-semibold text-text-primary">Scope and release plan</h2>
-                  <p className="text-xs text-text-muted">Document what will be funded and what completion requires.</p>
+                  <h2 className="text-base font-semibold text-text-primary">
+                    Scope and release plan
+                  </h2>
+                  <p className="text-xs text-text-muted">
+                    Document what will be funded and what completion requires.
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -680,12 +745,17 @@ export default function CreateJob() {
                       aria-labelledby="accepted-assets-label"
                     >
                       {acceptedAssets.map((asset, index) => (
-                        <div key={`asset-${index}`} className="flex items-center gap-2">
+                        <div
+                          key={`asset-${index}`}
+                          className="flex items-center gap-2"
+                        >
                           <input
                             id={`asset-input-${index}`}
                             className={`${inputClassName} flex-1 min-w-0`}
                             value={asset}
-                            onChange={(e) => updateAcceptedAsset(index, e.target.value)}
+                            onChange={(e) =>
+                              updateAcceptedAsset(index, e.target.value)
+                            }
                             onFocus={() => setActiveSection("milestones")}
                             placeholder={`Accepted asset ${index + 1}`}
                             aria-label={`Accepted asset ${index + 1}`}
@@ -740,12 +810,17 @@ export default function CreateJob() {
                       aria-labelledby="requirements-label"
                     >
                       {requirements.map((requirement, index) => (
-                        <div key={`requirement-${index}`} className="flex items-center gap-2">
+                        <div
+                          key={`requirement-${index}`}
+                          className="flex items-center gap-2"
+                        >
                           <input
                             id={`requirement-input-${index}`}
                             className={`${inputClassName} flex-1 min-w-0`}
                             value={requirement}
-                            onChange={(e) => updateRequirement(index, e.target.value)}
+                            onChange={(e) =>
+                              updateRequirement(index, e.target.value)
+                            }
                             onFocus={() => setActiveSection("milestones")}
                             placeholder={`Requirement ${index + 1}`}
                             aria-label={`Requirement ${index + 1}`}
@@ -856,8 +931,13 @@ export default function CreateJob() {
             >
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-base font-semibold text-text-primary">Review</h2>
-                  <p className="text-xs text-text-muted">Confirm the job has enough structure before sending the transaction.</p>
+                  <h2 className="text-base font-semibold text-text-primary">
+                    Review
+                  </h2>
+                  <p className="text-xs text-text-muted">
+                    Confirm the job has enough structure before sending the
+                    transaction.
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -871,18 +951,27 @@ export default function CreateJob() {
                   Focus section
                 </button>
               </div>
-              <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3" data-testid="review-summary">
+              <dl
+                className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3"
+                data-testid="review-summary"
+              >
                 <div className="rounded-xl border border-border-subtle bg-surface-field px-4 py-3">
                   <dt className="text-text-muted">Accepted assets</dt>
-                  <dd className="mt-1 font-medium text-text-primary">{normalizedAssets.length}</dd>
+                  <dd className="mt-1 font-medium text-text-primary">
+                    {normalizedAssets.length}
+                  </dd>
                 </div>
                 <div className="rounded-xl border border-border-subtle bg-surface-field px-4 py-3">
                   <dt className="text-text-muted">Requirements</dt>
-                  <dd className="mt-1 font-medium text-text-primary">{normalizedRequirements.length}</dd>
+                  <dd className="mt-1 font-medium text-text-primary">
+                    {normalizedRequirements.length}
+                  </dd>
                 </div>
                 <div className="rounded-xl border border-border-subtle bg-surface-field px-4 py-3">
                   <dt className="text-text-muted">Milestones</dt>
-                  <dd className="mt-1 font-medium text-text-primary">{normalizedMilestones.length}</dd>
+                  <dd className="mt-1 font-medium text-text-primary">
+                    {normalizedMilestones.length}
+                  </dd>
                 </div>
               </dl>
             </section>
