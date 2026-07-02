@@ -313,7 +313,7 @@ export default function CreateJob() {
       const autoReleaseSeconds =
         BigInt(autoReleaseDays) * BigInt(24) * BigInt(60) * BigInt(60);
 
-      const hash = await submitContractTransaction({
+      const txHash = await submitContractTransaction({
         method: "initialize",
         args: [
           { type: "address", value: address },
@@ -336,8 +336,10 @@ export default function CreateJob() {
       });
 
       setPhase("success");
-      setTxHash(hash);
-    } catch (err) {
+      setTxHash(txHash);
+      alert("Job created successfully!");
+      router.push("/dashboard");
+    } catch (err: unknown) {
       setPhase("error");
       setError(formatTxError(err));
     } finally {
@@ -857,7 +859,7 @@ export default function CreateJob() {
                     <button
                       type="button"
                       onClick={addMilestone}
-                      aria-label="Add milestone"
+                      aria-label="+ Add Milestone"
                       className={`${buttonClassName} text-accent-soft hover:text-accent-soft-hover rounded-sm px-0 py-0 active:scale-95`}
                     >
                       + Add Milestone
@@ -886,8 +888,8 @@ export default function CreateJob() {
                             value={m.amount}
                             onChange={(e) => updateMilestone(i, e.target.value)}
                             onFocus={() => setActiveSection("milestones")}
-                            placeholder={`Milestone ${i + 1} amount (stroops)`}
-                            aria-label={`Milestone ${i + 1} amount in stroops`}
+                            placeholder={`Milestone ${i + 1} amount`}
+                            aria-label={`Milestone ${i + 1} amount`}
                             aria-required="true"
                             type="number"
                             min="0"

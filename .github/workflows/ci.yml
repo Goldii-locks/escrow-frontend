@@ -19,7 +19,14 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "Lockfile found. Running npm ci..."
+            npm ci
+          else
+            echo "Lockfile missing. Running npm install..."
+            npm install --no-audit --prefer-offline
+          fi
 
       - name: Lint
         run: npm run lint

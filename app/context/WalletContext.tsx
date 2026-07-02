@@ -118,6 +118,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const connect = useCallback(async () => {
     setIsConnecting(true);
     try {
+      const freighter = (window as Window & { freighter?: any }).freighter;
+      if (!freighter) {
+        alert("Please install the Freighter wallet extension.");
+        return;
+      }
+      const freighterWallet = freighter as { requestAccess: () => Promise<void>; getPublicKey: () => Promise<string> };
+      await freighterWallet.requestAccess();
+      const addr = await freighterWallet.getPublicKey();
+      setAddress(addr);
       ensureKitInitialized();
       StellarWalletsKit.setWallet(selectedWalletId);
 
@@ -135,6 +144,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [ensureKitInitialized, selectedWalletId, checkNetwork, showToast]);
 
+  const signTransaction = useCallback(async (xdr: string): Promise<string> => {
+    const freighter = (window as Window & { freighter?: FreighterApi }).freighter;
+    if (!freighter) throw new Error("Freighter not found");
+    const result = await freighter.signTransaction(xdr, {
+      networkPassphrase: process.env.NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE || "Test SDF Network ; September 2015",
   const disconnect = useCallback(() => {
     StellarWalletsKit.disconnect().catch((e) => {
       console.error("Wallet disconnect failed", e);
