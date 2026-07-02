@@ -127,6 +127,17 @@ export default function MilestoneCard({
   const [partialAmount, setPartialAmount] = useState("");
   const [partialAmtError, setPartialAmtError] = useState<string | null>(null);
 
+  // Whether the auto-release deadline has passed. `mountedAt` is captured
+  // once via a lazy initializer (mirrors CountdownTimer's own pattern) so
+  // the render body never calls Date.now() directly; `liveElapsed` catches
+  // the case where the deadline passes while this card stays mounted, via
+  // CountdownTimer's onElapsed callback below.
+  const [mountedAt] = useState<number>(() => Date.now());
+  const [liveElapsed, setLiveElapsed] = useState(false);
+  const isDeadlineElapsed =
+    liveElapsed ||
+    (typeof autoReleaseDeadline === "number" && autoReleaseDeadline <= mountedAt);
+
   /** Client-side validation + submission handler for partial release. */
   function handlePartialReleaseSubmit() {
     if (!milestone) return;
@@ -320,7 +331,10 @@ export default function MilestoneCard({
             {/* Auto-release countdown for delivered milestones */}
             {milestone.status === "Delivered" &&
               typeof autoReleaseDeadline === "number" && (
-                <CountdownTimer deadline={autoReleaseDeadline} />
+                <CountdownTimer
+                  deadline={autoReleaseDeadline}
+                  onElapsed={() => setLiveElapsed(true)}
+                />
               )}
             {/* Status field error */}
             {errors?.status && (
@@ -356,6 +370,18 @@ export default function MilestoneCard({
               className={`${baseBtn} bg-success text-surface-page font-medium hover:bg-success/80 active:scale-[0.97] focus-visible:ring-success-soft disabled:hover:bg-success disabled:active:scale-100`}
             >
               Approve
+            </button>
+          )}
+
+          {isFreelancer && milestone.status === "Delivered" && isDeadlineElapsed && (
+            <button
+              onClick={() => onClaimAutoRelease?.(milestone.index)}
+              disabled={!onClaimAutoRelease || isClaimAutoReleasePending}
+              aria-disabled={!onClaimAutoRelease || isClaimAutoReleasePending}
+              aria-label={`Claim auto-release for ${milestoneLabel}`}
+              className={`${baseBtn} bg-success-soft text-surface-page font-medium hover:bg-success-soft/80 active:scale-[0.97] focus-visible:ring-success-soft disabled:hover:bg-success-soft disabled:active:scale-100`}
+            >
+              {isClaimAutoReleasePending ? "Claiming..." : "Claim Auto-Release"}
             </button>
           )}
 

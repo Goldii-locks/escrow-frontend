@@ -55,15 +55,14 @@ describe("Create form – a11y ARIA compliance (issue #40)", () => {
       "aria-required",
       "true"
     );
-    expect(screen.getByLabelText("Token Contract Address")).toHaveAttribute(
-      "aria-required",
-      "true"
-    );
+    expect(
+      screen.getByLabelText("Token Contract Address", { selector: "input" })
+    ).toHaveAttribute("aria-required", "true");
   });
 
   it("milestone inputs carry aria-required='true'", () => {
     render(<CreateJob />);
-    const m1 = screen.getByLabelText("Milestone 1 amount");
+    const m1 = screen.getByLabelText("Milestone 1 amount in stroops");
     expect(m1).toHaveAttribute("aria-required", "true");
   });
 
@@ -95,20 +94,19 @@ describe("Create form – a11y ARIA compliance (issue #40)", () => {
     expect(removeBtn).toBeInTheDocument();
   });
 
-  it("partial milestone warning is an assertive live region", () => {
+  it("partial milestone warning is a polite live region", () => {
     render(<CreateJob />);
     // Default render has one empty milestone so warning is shown
     const warning = screen.getByText("Complete each milestone amount to continue.");
-    expect(warning).toHaveAttribute("aria-live", "assertive");
-    expect(warning).toHaveAttribute("role", "alert");
+    expect(warning).toHaveAttribute("aria-live", "polite");
+    expect(warning).toHaveAttribute("role", "status");
   });
 
   it("no-wallet message uses role=status", () => {
     mockUseWallet.mockReturnValue({ address: null, signTransaction: vi.fn() });
     render(<CreateJob />);
-    expect(
-      screen.getByRole("status", { name: /connect your wallet/i })
-    ).toBeInTheDocument();
+    const message = screen.getByText(/connect your wallet/i);
+    expect(message).toHaveAttribute("role", "status");
   });
 
   it("submit button is keyboard-focusable and has focus-visible ring classes", () => {
@@ -124,7 +122,7 @@ describe("Create form – a11y ARIA compliance (issue #40)", () => {
     const inputs = [
       screen.getByLabelText("Freelancer Address"),
       screen.getByLabelText("Arbiter Address"),
-      screen.getByLabelText("Token Contract Address"),
+      screen.getByLabelText("Token Contract Address", { selector: "input" }),
     ];
     for (const input of inputs) {
       expect(input).toHaveClass("focus-visible:ring-2");

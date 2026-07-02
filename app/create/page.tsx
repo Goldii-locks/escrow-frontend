@@ -660,12 +660,33 @@ export default function CreateJob() {
                   >
                     Response Deadline (days)
                   </label>
+                  <div
+                    role="group"
+                    aria-label="Deadline presets"
+                    className="mb-2 flex flex-wrap gap-2"
+                  >
+                    {[3, 7, 14, 30].map((days) => (
+                      <button
+                        key={days}
+                        type="button"
+                        onClick={() => handleDeadlineChange(String(days))}
+                        disabled={loading}
+                        className={`${buttonClassName} border px-3 py-1.5 text-xs ${
+                          autoReleaseDays === String(days)
+                            ? "border-accent-soft bg-accent/10 text-text-primary"
+                            : "border-border-subtle bg-surface-card text-text-secondary hover:border-accent-soft"
+                        }`}
+                      >
+                        {days} days
+                      </button>
+                    ))}
+                  </div>
                   <input
                     id="response-deadline"
                     type="number"
                     min="1"
                     aria-required="true"
-                    className={inputClassName}
+                    className={`${inputClassName} ${deadlineError ? "!border-danger" : ""}`}
                     value={autoReleaseDays}
                     onChange={(e) => handleDeadlineChange(e.target.value)}
                     onBlur={handleDeadlineBlur}
@@ -677,9 +698,26 @@ export default function CreateJob() {
                       deadlineError ? "deadline-error" : "deadline-hint"
                     }
                   />
-                  <p id="deadline-hint" className="mt-1 text-xs text-text-disabled">
-                    Funds auto-release after this many days if no dispute is raised.
-                  </p>
+                  {deadlineError ? (
+                    <p
+                      id="deadline-error"
+                      role="alert"
+                      aria-live="polite"
+                      className="mt-1 text-xs text-danger-soft"
+                    >
+                      {deadlineError}
+                    </p>
+                  ) : (
+                    <p id="deadline-hint" className="mt-1 text-xs text-text-disabled">
+                      Funds auto-release after this many days if no dispute is raised.
+                    </p>
+                  )}
+                  {!deadlineError && (
+                    <p className="mt-1 text-xs text-text-muted">
+                      Freelancer can claim funds automatically after {autoReleaseDays}{" "}
+                      {autoReleaseDays === "1" ? "day" : "days"} if you do not respond.
+                    </p>
+                  )}
                 </div>
               </div>
             </section>

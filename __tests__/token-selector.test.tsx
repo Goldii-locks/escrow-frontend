@@ -44,7 +44,9 @@ describe("Create Job token selector (#4)", () => {
     expect(await screen.findByRole("option", { name: "USDC" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Lumens" })).toBeInTheDocument();
 
-    const select = screen.getByLabelText("Token Contract Address") as HTMLSelectElement;
+    const select = screen.getByLabelText("Token Contract Address", {
+      selector: "select",
+    }) as HTMLSelectElement;
     fireEvent.change(select, { target: { value: "CUSDC" } });
     expect(select.value).toBe("CUSDC");
   });

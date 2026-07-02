@@ -66,7 +66,7 @@ describe("Create form – micro-animations (issue #45)", () => {
 
   it("applies transition-all on the Add Milestone button", () => {
     render(<CreateJob />);
-    const addBtn = screen.getByRole("button", { name: "+ Add Milestone" });
+    const addBtn = screen.getByRole("button", { name: "Add milestone" });
     expect(addBtn).toHaveClass("transition-all");
     expect(addBtn).toHaveClass("active:scale-95");
   });

@@ -204,7 +204,7 @@ describe("Response Deadline validation and features", () => {
       fireEvent.blur(input);
 
       await waitFor(() => {
-        expect(input).toHaveClass("border-danger");
+        expect(input).toHaveClass("!border-danger");
       });
     });
 
@@ -313,6 +313,13 @@ describe("Response Deadline validation and features", () => {
       const input = screen.getByLabelText("Response Deadline (days)");
       const submitButton = screen.getByRole("button", { name: /create job/i });
 
+      // Fill the milestone amount so the deadline check (which runs first
+      // in the submit handler) is what actually gets exercised, rather
+      // than the button staying disabled for an unrelated reason.
+      fireEvent.change(screen.getByLabelText("Milestone 1 amount in stroops"), {
+        target: { value: "100" },
+      });
+
       // Set invalid value
       fireEvent.change(input, { target: { value: "500" } });
 
@@ -334,6 +341,10 @@ describe("Response Deadline validation and features", () => {
 
       const input = screen.getByLabelText("Response Deadline (days)");
       const submitButton = screen.getByRole("button", { name: /create job/i });
+
+      fireEvent.change(screen.getByLabelText("Milestone 1 amount in stroops"), {
+        target: { value: "100" },
+      });
 
       // Clear the field
       fireEvent.change(input, { target: { value: "" } });
