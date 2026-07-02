@@ -289,6 +289,14 @@ export default function CreateJob() {
       setError("Select an accepted token before creating a job.");
       return;
     }
+    validateFreelancer(freelancer);
+    validateArbiter(arbiter);
+    if (!freelancer || !arbiter || !/^G[A-Z2-7]{55}$/.test(freelancer) || !/^G[A-Z2-7]{55}$/.test(arbiter)) {
+      if (!freelancer) setFreelancerError("This field is required.");
+      if (!arbiter) setArbiterError("This field is required.");
+      setError("Please fix the address fields before creating a job.");
+      return;
+    }
     setLoading(true);
     setError(null);
     setTxHash(null);

@@ -10,6 +10,7 @@ export default function Navbar() {
     connect,
     disconnect,
     isConnecting,
+    networkMismatch,
     selectedWalletId,
     setSelectedWalletId,
   } = useWallet();
@@ -21,17 +22,26 @@ export default function Navbar() {
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 rounded";
 
   return (
-    <nav
-      aria-label="Primary"
-      className="border-b border-gray-800 bg-gray-950 px-6 py-4 flex items-center justify-between"
-    >
-      <Link
-        href="/"
-        aria-label="Escrow home"
-        className={`text-xl font-bold text-white tracking-tight ${focusRing}`}
+    <>
+      {networkMismatch && (
+        <div
+          className="bg-warning/40 border-b border-warning px-6 py-3 text-warning-soft text-sm text-center"
+          role="alert"
+        >
+          ⚠️ Network mismatch: Please switch your Freighter wallet to Stellar Testnet.
+        </div>
+      )}
+      <nav
+        aria-label="Primary"
+        className="border-b border-gray-800 bg-gray-950 px-6 py-4 flex items-center justify-between"
       >
-        <span aria-hidden="true">🔐</span> Escrow
-      </Link>
+        <Link
+          href="/"
+          aria-label="Escrow home"
+          className={`text-xl font-bold text-white tracking-tight ${focusRing}`}
+        >
+          <span aria-hidden="true">🔐</span> Escrow
+        </Link>
       <div className="flex items-center gap-4">
         {address ? (
           <>
@@ -62,10 +72,11 @@ export default function Navbar() {
               {short(address)}
             </span>
             <button
-              onClick={disconnect}
-              className={`text-sm text-red-400 hover:text-red-300 transition ${focusRing}`}
+              onClick={connect}
+              disabled={isConnecting}
+              className={`bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition ${focusRing}`}
             >
-              Disconnect
+              {isConnecting ? "Connecting..." : "Connect Wallet"}
             </button>
           </>
         ) : (
@@ -100,5 +111,6 @@ export default function Navbar() {
         )}
       </div>
     </nav>
+    </>
   );
 }

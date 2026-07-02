@@ -5,6 +5,7 @@ import { ActionState } from "@/app/hooks/useActionStates";
 import CountdownTimer from "@/app/components/CountdownTimer";
 import TxStatusBanner from "@/app/components/TxStatusBanner";
 import ButtonSpinner from "@/app/components/ButtonSpinner";
+import { formatBaseUnits } from "@/app/lib/amounts";
 
 interface Milestone {
   index: number;

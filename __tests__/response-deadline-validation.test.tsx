@@ -12,7 +12,7 @@ vi.mock("@/app/components/Navbar", () => ({
   default: () => <div data-testid="navbar">Navbar</div>,
 }));
 
-vi.mock("@/app/lib/wallet", () => ({
+vi.mock("@/app/context/WalletContext", () => ({
   useWallet: () => mockUseWallet(),
 }));
 
