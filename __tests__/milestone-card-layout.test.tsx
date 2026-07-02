@@ -192,14 +192,14 @@ describe("MilestoneCard — card root node rendering", () => {
     expect(screen.getByText("Milestone 3")).toBeInTheDocument();
   });
 
-  it("renders the amount with 'stroops' unit suffix", () => {
+  it("renders the amount with token symbol suffix", () => {
     renderCard();
-    expect(screen.getByText("500 stroops")).toBeInTheDocument();
+    expect(screen.getByText("0.00005 XLM")).toBeInTheDocument();
   });
 
   it("renders the correct amount for a different milestone", () => {
     renderCard({}, { index: 0, amount: "1000", status: "Released" });
-    expect(screen.getByText("1000 stroops")).toBeInTheDocument();
+    expect(screen.getByText("0.0001 XLM")).toBeInTheDocument();
   });
 
   it("renders the status badge text", () => {
@@ -567,8 +567,60 @@ describe("MilestoneCard — button click handler invocation", () => {
     // No assertion on mock — we just verify no crash and button is disabled
     expect(btn).toBeDisabled();
   });
-});
 
+  it("calls onClaimAutoRelease with milestone index when clicked", () => {
+    const handler = vi.fn();
+    render(
+      <MilestoneCard
+        {...defaultProps}
+        milestone={{ index: 0, amount: "100", status: "Delivered" }}
+        isFreelancer
+        onClaimAutoRelease={handler}
+        autoReleaseDeadline={Date.now() - 1}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Claim auto-release for Milestone 1" })
+    );
+    expect(handler).toHaveBeenCalledOnce();
+    expect(handler).toHaveBeenCalledWith(0);
+  });
+
+  it("calls onClaimAutoRelease with correct index for non-zero milestone", () => {
+    const handler = vi.fn();
+    render(
+      <MilestoneCard
+        {...defaultProps}
+        milestone={{ index: 2, amount: "100", status: "Delivered" }}
+        isFreelancer
+        onClaimAutoRelease={handler}
+        autoReleaseDeadline={Date.now() - 1}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Claim auto-release for Milestone 3" })
+    );
+    expect(handler).toHaveBeenCalledWith(2);
+  });
+
+  it("does NOT call onClaimAutoRelease when button is disabled (pending)", () => {
+    const handler = vi.fn();
+    render(
+      <MilestoneCard
+        {...defaultProps}
+        milestone={{ index: 0, amount: "100", status: "Delivered" }}
+        isFreelancer
+        isClaimAutoReleasePending
+        onClaimAutoRelease={handler}
+        autoReleaseDeadline={Date.now() - 1}
+      />
+    );
+    const btn = screen.getByRole("button", { name: "Claim auto-release for Milestone 1" });
+    expect(btn).toBeDisabled();
+    fireEvent.click(btn);
+    expect(handler).not.toHaveBeenCalled();
+  });
+});
 
 // ===========================================================================
 // 9. Action button — structural CSS design-token classes
@@ -644,6 +696,51 @@ describe("MilestoneCard — action button design-token classes", () => {
     const buttons = screen.getAllByRole("button");
     buttons.forEach((btn: HTMLElement) => expect(btn).toHaveClass("whitespace-nowrap"));
   });
+
+  it("'Claim Auto-Release' button has 'bg-success-soft' token", () => {
+    render(
+      <MilestoneCard
+        {...defaultProps}
+        milestone={{ index: 0, amount: "100", status: "Delivered" }}
+        isFreelancer
+        onClaimAutoRelease={vi.fn()}
+        autoReleaseDeadline={Date.now() - 1}
+      />
+    );
+    expect(
+      screen.getByRole("button", { name: /claim auto-release/i })
+    ).toHaveClass("bg-success-soft");
+  });
+
+  it("'Claim Auto-Release' button has 'rounded-lg' class", () => {
+    render(
+      <MilestoneCard
+        {...defaultProps}
+        milestone={{ index: 0, amount: "100", status: "Delivered" }}
+        isFreelancer
+        onClaimAutoRelease={vi.fn()}
+        autoReleaseDeadline={Date.now() - 1}
+      />
+    );
+    expect(
+      screen.getByRole("button", { name: /claim auto-release/i })
+    ).toHaveClass("rounded-lg");
+  });
+
+  it("'Claim Auto-Release' button has 'text-surface-page' token", () => {
+    render(
+      <MilestoneCard
+        {...defaultProps}
+        milestone={{ index: 0, amount: "100", status: "Delivered" }}
+        isFreelancer
+        onClaimAutoRelease={vi.fn()}
+        autoReleaseDeadline={Date.now() - 1}
+      />
+    );
+    expect(
+      screen.getByRole("button", { name: /claim auto-release/i })
+    ).toHaveClass("text-surface-page");
+  });
 });
 
 
@@ -664,17 +761,17 @@ describe("MilestoneCard — milestone info typographic classes", () => {
 
   it("amount text has 'font-mono' class", () => {
     renderCard();
-    expect(screen.getByText("500 stroops")).toHaveClass("font-mono");
+    expect(screen.getByText("0.00005 XLM")).toHaveClass("font-mono");
   });
 
   it("amount text has 'text-text-primary' design token", () => {
     renderCard();
-    expect(screen.getByText("500 stroops")).toHaveClass("text-text-primary");
+    expect(screen.getByText("0.00005 XLM")).toHaveClass("text-text-primary");
   });
 
   it("amount text has 'truncate' class for overflow handling", () => {
     renderCard();
-    expect(screen.getByText("500 stroops")).toHaveClass("truncate");
+    expect(screen.getByText("0.00005 XLM")).toHaveClass("truncate");
   });
 });
 

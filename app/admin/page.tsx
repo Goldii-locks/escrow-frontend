@@ -48,10 +48,18 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+
     // Only fetch whitelist if user is admin
-    if (address && isAdminUser && !adminCheckLoading) {
-      fetchWhitelist();
-    }
+    Promise.resolve().then(() => {
+      if (active && address && isAdminUser && !adminCheckLoading) {
+        void fetchWhitelist();
+      }
+    });
+
+    return () => {
+      active = false;
+    };
   }, [address, isAdminUser, adminCheckLoading, fetchWhitelist]);
 
   const executeTx = async (

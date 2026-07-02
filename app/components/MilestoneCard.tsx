@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { ActionState } from "@/app/hooks/useActionStates";
 import CountdownTimer from "@/app/components/CountdownTimer";
 import TxStatusBanner from "@/app/components/TxStatusBanner";
+import ButtonSpinner from "@/app/components/ButtonSpinner";
+import { formatBaseUnits } from "@/app/lib/amounts";
 
 interface Milestone {
   index: number;
@@ -14,14 +17,16 @@ interface Milestone {
 /**
  * Field-level and general error messages surfaced inside the card.
  *
- * - `amount`  – shown beneath the amount value (e.g. "Amount must be greater than 0")
- * - `status`  – shown beneath the status badge (e.g. "Unknown status value")
- * - `general` – shown as a top-level alert banner above the card body
+ * - `amount`     – shown beneath the amount value (e.g. "Amount must be greater than 0")
+ * - `status`     – shown beneath the status badge (e.g. "Unknown status value")
+ * - `general`    – shown as a top-level alert banner above the card body
+ * - `partialAmt` – validation error on the partial-release amount input
  */
 export interface MilestoneCardErrors {
   amount?: string;
   status?: string;
   general?: string;
+  partialAmt?: string;
 }
 
 interface Props {
@@ -36,6 +41,8 @@ interface Props {
   claimAutoReleaseState: ActionState;
   isPartialReleasePending: boolean;
   isClaimAutoReleasePending: boolean;
+  amountDecimals?: number;
+  amountSymbol?: string;
   /** Optional field-level / general error messages to render inside the card. */
   errors?: MilestoneCardErrors;
   /**
@@ -78,6 +85,20 @@ function getReleasePercent(
   return Math.min(100, Math.max(0, Math.round((released / total) * 100)));
 }
 
+/**
+ * Compute the unreleased balance (in stroops) for a milestone.
+ * Returns null if the total or released amount isn't a valid integer string.
+ */
+function unreleasedBalance(milestone: Milestone): bigint | null {
+  try {
+    const total = BigInt(milestone.amount);
+    const released = BigInt(milestone.releasedAmount ?? "0");
+    return total - released;
+  } catch {
+    return null;
+  }
+}
+
 export default function MilestoneCard({
   milestone,
   isClient,
@@ -88,12 +109,58 @@ export default function MilestoneCard({
   onResolveDispute,
   errors,
   autoReleaseDeadline,
+  amountDecimals = 7,
+  amountSymbol = "XLM",
   onMarkDelivered,
   onApprove,
   onDispute,
+  onClaimAutoRelease,
+  isClaimAutoReleasePending,
+  partialReleaseState,
+  isPartialReleasePending,
+  onPartialRelease,
   ...unusedProps
 }: Props) {
   void unusedProps;
+
+  // Local state for the partial-release amount input and its validation error
+  const [partialAmount, setPartialAmount] = useState("");
+  const [partialAmtError, setPartialAmtError] = useState<string | null>(null);
+
+  /** Client-side validation + submission handler for partial release. */
+  function handlePartialReleaseSubmit() {
+    if (!milestone) return;
+    setPartialAmtError(null);
+
+    const trimmed = partialAmount.trim();
+    if (!trimmed) {
+      setPartialAmtError("Enter an amount to release.");
+      return;
+    }
+
+    let parsed: bigint;
+    try {
+      parsed = BigInt(trimmed);
+    } catch {
+      setPartialAmtError("Amount must be a whole number of stroops.");
+      return;
+    }
+
+    if (parsed <= BigInt(0)) {
+      setPartialAmtError("Amount must be greater than 0.");
+      return;
+    }
+
+    const remaining = unreleasedBalance(milestone);
+    if (remaining !== null && parsed > remaining) {
+      setPartialAmtError(
+        `Amount exceeds the unreleased balance of ${remaining.toString()} stroops.`
+      );
+      return;
+    }
+
+    onPartialRelease?.(milestone.index, trimmed);
+  }
 
   if (
   !milestone ||
@@ -135,7 +202,14 @@ export default function MilestoneCard({
   // Unique id for the error live region so buttons can reference it
   const errorRegionId = `milestone-${milestone.index}-errors`;
 
+  const isDeadlineElapsed =
+    typeof autoReleaseDeadline === "number" && autoReleaseDeadline <= Date.now();
+
   const isPartiallyReleased = milestone.status === "PartiallyReleased";
+  const displayAmount = formatBaseUnits(milestone.amount, { decimals: amountDecimals });
+  const displayReleasedAmount = milestone.releasedAmount
+    ? formatBaseUnits(milestone.releasedAmount, { decimals: amountDecimals })
+    : null;
   const releasePercent = isPartiallyReleased
     ? getReleasePercent(milestone.releasedAmount, milestone.amount)
     : null;
@@ -177,9 +251,9 @@ export default function MilestoneCard({
         </p>
         <p
           className="font-mono text-text-primary text-sm mt-1 truncate"
-          aria-label={`${milestoneLabel} amount: ${milestone.amount} stroops`}
+          aria-label={`${milestoneLabel} amount: ${displayAmount} ${amountSymbol}`}
         >
-          {milestone.amount} stroops
+          {displayAmount} {amountSymbol}
         </p>
         {/* Amount field error */}
         {errors?.amount && (
@@ -227,7 +301,7 @@ export default function MilestoneCard({
             <p className="text-xs text-text-muted font-mono">
               <span className="text-partial">{milestone.releasedAmount}</span>
               {" / "}
-              {milestone.amount} stroops
+              {displayAmount} {amountSymbol}
             </p>
           </div>
         )}
@@ -332,6 +406,94 @@ export default function MilestoneCard({
           </div>
         )}
       </div>
+
+      {/* Partial release form — visible to client when milestone is Delivered or PartiallyReleased */}
+      {isClient && ["Delivered", "PartiallyReleased"].includes(milestone.status) && (
+        <div
+          className="w-full mt-1 pt-3 border-t border-border-subtle flex flex-col gap-2"
+          data-testid="partial-release-section"
+        >
+          {/* Remaining balance hint */}
+          {milestone.releasedAmount && (
+            <p className="text-xs text-text-muted">
+              Released so far:{" "}
+              <span className="font-mono">{milestone.releasedAmount} stroops</span>
+              {unreleasedBalance(milestone) !== null && (
+                <>
+                  {" · "}Remaining:{" "}
+                  <span className="font-mono">
+                    {unreleasedBalance(milestone)!.toString()} stroops
+                  </span>
+                </>
+              )}
+            </p>
+          )}
+
+          <div className="flex flex-wrap items-start gap-2">
+            <div className="flex flex-col gap-1 min-w-0 flex-1">
+              <label
+                htmlFor={`partial-amount-${milestone.index}`}
+                className="text-xs text-text-muted sr-only"
+              >
+                Release amount in stroops for {milestoneLabel}
+              </label>
+              <input
+                id={`partial-amount-${milestone.index}`}
+                type="number"
+                inputMode="numeric"
+                min="1"
+                step="1"
+                placeholder="Amount in stroops"
+                value={partialAmount}
+                onChange={(e) => {
+                  setPartialAmount(e.target.value);
+                  setPartialAmtError(null);
+                }}
+                disabled={isPartialReleasePending}
+                aria-label={`Partial release amount for ${milestoneLabel}`}
+                aria-describedby={
+                  partialAmtError ? `partial-amt-err-${milestone.index}` : undefined
+                }
+                aria-invalid={!!partialAmtError}
+                className="text-xs px-3 py-1.5 rounded-lg bg-surface-field border border-border-subtle text-text-primary placeholder:text-text-muted
+                  focus:outline-none focus:ring-2 focus:ring-accent-soft focus:ring-offset-1 focus:ring-offset-surface-page
+                  disabled:opacity-40 disabled:cursor-not-allowed
+                  [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                data-testid="partial-amount-input"
+              />
+              {partialAmtError && (
+                <p
+                  id={`partial-amt-err-${milestone.index}`}
+                  role="alert"
+                  aria-live="polite"
+                  data-testid="partial-amount-error"
+                  className="text-xs text-danger-soft"
+                >
+                  {partialAmtError}
+                </p>
+              )}
+            </div>
+
+            <button
+              onClick={handlePartialReleaseSubmit}
+              disabled={isPartialReleasePending || !onPartialRelease}
+              aria-disabled={isPartialReleasePending || !onPartialRelease}
+              aria-label={`Release partial amount for ${milestoneLabel}`}
+              className={`${baseBtn} flex items-center gap-1.5 bg-accent-soft text-text-primary hover:bg-accent-soft/80 active:scale-[0.97] focus-visible:ring-accent-soft disabled:hover:bg-accent-soft disabled:active:scale-100`}
+              data-testid="partial-release-btn"
+            >
+              {isPartialReleasePending && <ButtonSpinner />}
+              {isPartialReleasePending ? "Releasing…" : "Release Partial Amount"}
+            </button>
+          </div>
+
+          {/* Tx status banner for partial release */}
+          <TxStatusBanner
+            state={partialReleaseState}
+            successMessage="Partial release submitted. Milestone updated."
+          />
+        </div>
+      )}
     </div>
   );
 }

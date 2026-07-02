@@ -5,6 +5,7 @@ export interface WhitelistToken {
   address: string;
   symbol?: string;
   name?: string;
+  decimals?: number;
 }
 
 interface RawWhitelistResponse {
@@ -36,6 +37,10 @@ function normalizeToken(item: unknown): WhitelistToken | null {
       address,
       symbol: typeof o.symbol === "string" ? o.symbol : undefined,
       name: typeof o.name === "string" ? o.name : undefined,
+      decimals:
+        typeof o.decimals === "number" && Number.isFinite(o.decimals)
+          ? Math.floor(o.decimals)
+          : undefined,
     };
   }
   return null;

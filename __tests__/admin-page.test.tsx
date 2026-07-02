@@ -126,7 +126,7 @@ describe("AdminPage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/could not connect to backend to load whitelist/i)
+        screen.getByText(/backend error|could not connect to backend to load whitelist/i)
       ).toBeInTheDocument();
     });
   });

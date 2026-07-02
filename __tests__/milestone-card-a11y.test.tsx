@@ -208,21 +208,21 @@ describe("MilestoneCard — amount accessible label", () => {
   it("amount element has aria-label with milestone name and amount", () => {
     renderCard({}, { index: 0, amount: "500", status: "Pending" });
     expect(
-      screen.getByLabelText("Milestone 1 amount: 500 stroops")
+      screen.getByLabelText("Milestone 1 amount: 0.00005 XLM")
     ).toBeInTheDocument();
   });
 
   it("amount aria-label updates for a different milestone index", () => {
     renderCard({}, { index: 3, amount: "1000", status: "Released" });
     expect(
-      screen.getByLabelText("Milestone 4 amount: 1000 stroops")
+      screen.getByLabelText("Milestone 4 amount: 0.0001 XLM")
     ).toBeInTheDocument();
   });
 
   it("amount aria-label reflects the correct amount value", () => {
     renderCard({}, { index: 0, amount: "250", status: "Pending" });
     expect(
-      screen.getByLabelText("Milestone 1 amount: 250 stroops")
+      screen.getByLabelText("Milestone 1 amount: 0.000025 XLM")
     ).toBeInTheDocument();
   });
 
@@ -298,6 +298,90 @@ describe("MilestoneCard — aria-disabled state", () => {
     const btn = screen.getByRole("button", { name: "Mark Milestone 1 as delivered" });
     expect(btn).not.toBeDisabled();
     expect(btn).toHaveAttribute("aria-disabled", "false");
+  });
+
+  it("'Claim Auto-Release' has accessible name including milestone number", () => {
+    renderCard(
+      {
+        isFreelancer: true,
+        onClaimAutoRelease: vi.fn(),
+        autoReleaseDeadline: Date.now() - 1,
+      },
+      { index: 0, amount: "100", status: "Delivered" }
+    );
+    expect(
+      screen.getByRole("button", { name: "Claim auto-release for Milestone 1" })
+    ).toBeInTheDocument();
+  });
+
+  it("'Claim Auto-Release' accessible name updates with milestone index", () => {
+    renderCard(
+      {
+        isFreelancer: true,
+        onClaimAutoRelease: vi.fn(),
+        autoReleaseDeadline: Date.now() - 1,
+      },
+      { index: 3, amount: "100", status: "Delivered" }
+    );
+    expect(
+      screen.getByRole("button", { name: "Claim auto-release for Milestone 4" })
+    ).toBeInTheDocument();
+  });
+
+  it("'Claim Auto-Release' has aria-disabled='true' when handler is absent", () => {
+    renderCard(
+      {
+        isFreelancer: true,
+        autoReleaseDeadline: Date.now() - 1,
+      },
+      { index: 0, amount: "100", status: "Delivered" }
+    );
+    expect(
+      screen.getByRole("button", { name: "Claim auto-release for Milestone 1" })
+    ).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("'Claim Auto-Release' has aria-disabled='false' when handler is provided", () => {
+    renderCard(
+      {
+        isFreelancer: true,
+        onClaimAutoRelease: vi.fn(),
+        autoReleaseDeadline: Date.now() - 1,
+      },
+      { index: 0, amount: "100", status: "Delivered" }
+    );
+    expect(
+      screen.getByRole("button", { name: "Claim auto-release for Milestone 1" })
+    ).toHaveAttribute("aria-disabled", "false");
+  });
+
+  it("'Claim Auto-Release' is enabled when handler is provided", () => {
+    renderCard(
+      {
+        isFreelancer: true,
+        onClaimAutoRelease: vi.fn(),
+        autoReleaseDeadline: Date.now() - 1,
+      },
+      { index: 0, amount: "100", status: "Delivered" }
+    );
+    expect(
+      screen.getByRole("button", { name: "Claim auto-release for Milestone 1" })
+    ).not.toBeDisabled();
+  });
+
+  it("'Claim Auto-Release' is disabled when isClaimAutoReleasePending is true", () => {
+    renderCard(
+      {
+        isFreelancer: true,
+        isClaimAutoReleasePending: true,
+        onClaimAutoRelease: vi.fn(),
+        autoReleaseDeadline: Date.now() - 1,
+      },
+      { index: 0, amount: "100", status: "Delivered" }
+    );
+    const btn = screen.getByRole("button", { name: "Claim auto-release for Milestone 1" });
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute("aria-disabled", "true");
   });
 });
 
