@@ -254,7 +254,7 @@ export default function CreateJob() {
       const autoReleaseSeconds =
         BigInt(autoReleaseDays) * BigInt(24) * BigInt(60) * BigInt(60);
 
-      const hash = await submitContractTransaction({
+      const txHash = await submitContractTransaction({
         method: "initialize",
         args: [
           { type: "address", value: address },
@@ -276,19 +276,11 @@ export default function CreateJob() {
         onPhase: setPhase,
       });
 
-      if (!submitRes.ok) throw new Error("Failed to submit transaction");
-
+      setPhase("success");
+      setTxHash(txHash);
       alert("Job created successfully!");
       router.push("/dashboard");
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        alert(err.message);
-      } else {
-        alert("An unknown error occurred");
-      }
-      setPhase("success");
-      setTxHash(hash);
-    } catch (err) {
       setPhase("error");
       setError(formatTxError(err));
     } finally {

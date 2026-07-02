@@ -47,23 +47,6 @@ export default function Dashboard() {
     setFetchLoading(true);
     setError(null);
 
-      setLoading(true);
-      setError(null);
-
-      try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
-        const res = await fetch(`${backendUrl}/api/jobs/by-wallet/${address}`);
-        const data = await res.json();
-
-        if (data.success) {
-          setJob(data.data);
-        } else {
-          setError(data.error || "Failed to fetch job data");
-        }
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Failed to connect to backend");
-      } finally {
-        setLoading(false);
     try {
       const res = await fetch(`${BACKEND_URL}/api/jobs/by-wallet/${address}`);
       const data = await res.json();

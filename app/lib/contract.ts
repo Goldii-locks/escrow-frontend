@@ -19,7 +19,6 @@ export function getContract() {
   return new Contract(CONTRACT_ID);
 }
 
-export async function buildTx(sourceAddress: string, operation: Operation) {
 export async function buildTx(
   sourceAddress: string,
   operation: Parameters<TransactionBuilder["addOperation"]>[0]
