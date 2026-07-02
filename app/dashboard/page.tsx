@@ -6,6 +6,7 @@ import Navbar from "@/app/components/Navbar";
 import MilestoneCard from "@/app/components/MilestoneCard";
 import LoadingSkeleton from "@/app/components/LoadingSkeleton";
 import { useActionStates } from "@/app/hooks/useActionStates";
+import { useToast } from "@/app/context/ToastContext";
 import {
   BACKEND_URL,
   runContractAction,
@@ -135,6 +136,7 @@ const roleFilterLabels: Array<{ id: RoleFilter; label: string }> = [
 
 export default function Dashboard() {
   const { address, signTransaction } = useWallet();
+  const { showToast } = useToast();
   const [fetchLoading, setFetchLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -379,15 +381,15 @@ export default function Dashboard() {
   };
 
   const handleMarkDelivered = async (i: number) => {
-    alert(`Mark milestone ${i + 1} delivered (wired to contract soon)`);
+    showToast(`Mark milestone ${i + 1} delivered (wired to contract soon)`, "info");
   };
 
   const handleApprove = async (i: number) => {
-    alert(`Approve milestone ${i + 1} (wired to contract soon)`);
+    showToast(`Approve milestone ${i + 1} (wired to contract soon)`, "info");
   };
 
   const handleDispute = async (i: number) => {
-    alert(`Dispute milestone ${i + 1} (wired to contract soon)`);
+    showToast(`Dispute milestone ${i + 1} (wired to contract soon)`, "info");
   };
 
   const handleResolveDispute = async (index: number, releaseToFreelancer: boolean) => {

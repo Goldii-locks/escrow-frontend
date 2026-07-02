@@ -19,6 +19,14 @@ import {
 import { formatTxError } from "@/app/lib/errors";
 import { parseDecimalToBaseUnits } from "@/app/lib/amounts";
 
+const isValidStellarPublicKey = (address: string) => {
+  return /^G[A-Z0-9]{55}$/.test(address);
+};
+
+const isValidContractAddress = (address: string) => {
+  return /^C[A-Z0-9]{55}$/.test(address);
+};
+
 type WizardSection = "details" | "milestones" | "review";
 
 const inputClassName =
@@ -80,6 +88,10 @@ export default function CreateJob() {
   const [whitelist, setWhitelist] = useState<WhitelistToken[]>([]);
   const [whitelistLoading, setWhitelistLoading] = useState(true);
   const [whitelistError, setWhitelistError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<{
+    freelancer?: string;
+    arbiter?: string;
+  }>({});
 
   // Refs for tab-panel sections — used for programmatic focus on tab activation
   const detailsPanelRef = useRef<HTMLDivElement>(null);
@@ -156,6 +168,37 @@ export default function CreateJob() {
     return !/^[0-9]+$/.test(trimmed);
   });
 
+  const validateAddress = (value: string, field: "freelancer" | "arbiter") => {
+    if (!value) {
+      return "This field is required.";
+    }
+    if (!isValidStellarPublicKey(value)) {
+      return "Must be a valid Stellar public key starting with 'G'.";
+    }
+    return undefined;
+  };
+
+  const handleFreelancerChange = (value: string) => {
+    setFreelancer(value);
+    const err = validateAddress(value, "freelancer");
+    setValidationErrors((prev) => ({ ...prev, freelancer: err }));
+  };
+
+  const handleArbiterChange = (value: string) => {
+    setArbiter(value);
+    const err = validateAddress(value, "arbiter");
+    setValidationErrors((prev) => ({ ...prev, arbiter: err }));
+  };
+
+  const isSubmitDisabled =
+    loading ||
+    !address ||
+    hasNoMilestones ||
+    hasPartialMilestones ||
+    !!validationErrors.freelancer ||
+    !!validationErrors.arbiter ||
+    !freelancer ||
+    !arbiter;
   const hasValidationErrors = !!freelancerError || !!arbiterError || !!tokenError;
   const isSubmitDisabled = loading || !address || hasNoMilestones || hasPartialMilestones || hasValidationErrors;
 
@@ -287,6 +330,12 @@ export default function CreateJob() {
     }
     if (!token || !whitelist.some((option) => option.address === token)) {
       setError("Select an accepted token before creating a job.");
+      return;
+    }
+    const freelancerErr = validateAddress(freelancer, "freelancer");
+    const arbiterErr = validateAddress(arbiter, "arbiter");
+    if (freelancerErr || arbiterErr) {
+      setValidationErrors({ freelancer: freelancerErr, arbiter: arbiterErr });
       return;
     }
     setLoading(true);
@@ -511,6 +560,9 @@ export default function CreateJob() {
                     autoComplete="off"
                     spellCheck={false}
                     aria-required="true"
+                    className={`${inputClassName} ${validationErrors.freelancer ? "border-danger" : ""}`}
+                    value={freelancer}
+                    onChange={(e) => handleFreelancerChange(e.target.value)}
                     className={`${inputClassName} ${freelancerError ? '!border-danger' : ''}`}
                     value={freelancer}
                     onChange={(e) => {
@@ -523,6 +575,9 @@ export default function CreateJob() {
                     required
                     disabled={loading}
                   />
+                  {validationErrors.freelancer && (
+                    <p className="mt-1 text-xs text-danger-soft">{validationErrors.freelancer}</p>
+                  )}
                   {freelancerError && <p className="text-sm text-danger-soft mt-1">{freelancerError}</p>}
                 </div>
 
@@ -540,6 +595,9 @@ export default function CreateJob() {
                     autoComplete="off"
                     spellCheck={false}
                     aria-required="true"
+                    className={`${inputClassName} ${validationErrors.arbiter ? "border-danger" : ""}`}
+                    value={arbiter}
+                    onChange={(e) => handleArbiterChange(e.target.value)}
                     className={`${inputClassName} ${arbiterError ? '!border-danger' : ''}`}
                     value={arbiter}
                     onChange={(e) => {
@@ -552,6 +610,9 @@ export default function CreateJob() {
                     required
                     disabled={loading}
                   />
+                  {validationErrors.arbiter && (
+                    <p className="mt-1 text-xs text-danger-soft">{validationErrors.arbiter}</p>
+                  )}
                   {arbiterError && <p className="text-sm text-danger-soft mt-1">{arbiterError}</p>}
                 </div>
 

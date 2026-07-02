@@ -102,6 +102,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }
     } catch (e) {
       console.error("Wallet connection failed", e);
+      showToast("Failed to connect wallet.", "error");
     } finally {
       setIsConnecting(false);
     }
