@@ -10,6 +10,7 @@ export default function Navbar() {
     connect,
     disconnect,
     isConnecting,
+    networkMismatch,
     selectedWalletId,
     setSelectedWalletId,
   } = useWallet();
@@ -34,8 +35,13 @@ export default function Navbar() {
         aria-label="Primary"
         className="border-b border-gray-800 bg-gray-950 px-6 py-4 flex items-center justify-between"
       >
-        <span aria-hidden="true">🔐</span> Escrow
-      </Link>
+        <Link
+          href="/"
+          aria-label="Escrow home"
+          className={`text-xl font-bold text-white tracking-tight ${focusRing}`}
+        >
+          <span aria-hidden="true">🔐</span> Escrow
+        </Link>
       <div className="flex items-center gap-4">
         {address ? (
           <>
@@ -105,5 +111,6 @@ export default function Navbar() {
         )}
       </div>
     </nav>
+    </>
   );
 }

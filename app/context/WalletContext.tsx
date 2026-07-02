@@ -10,6 +10,10 @@ import {
 } from "react";
 import { Networks, StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
 import { defaultModules } from "@creit.tech/stellar-wallets-kit/modules/utils";
+import { NETWORK_PASSPHRASE } from "@/app/lib/contract";
+import { useToast } from "./ToastContext";
+
+const STORAGE_KEY = "milesto_wallet_connected";
 
 export const SUPPORTED_WALLETS = [
   { id: "freighter", label: "Freighter" },
@@ -29,6 +33,7 @@ interface WalletContextType {
   connect: () => Promise<void>;
   disconnect: () => void;
   isConnecting: boolean;
+  networkMismatch: boolean;
   selectedWalletId: SupportedWalletId;
   setSelectedWalletId: (walletId: SupportedWalletId) => void;
   signTransaction: (xdr: string) => Promise<string>;
@@ -39,6 +44,7 @@ const WalletContext = createContext<WalletContextType>({
   connect: async () => {},
   disconnect: () => {},
   isConnecting: false,
+  networkMismatch: false,
   selectedWalletId: SUPPORTED_WALLETS[0].id,
   setSelectedWalletId: () => {},
   signTransaction: async () => "",
@@ -50,7 +56,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [selectedWalletId, setSelectedWalletId] = useState<SupportedWalletId>(
     SUPPORTED_WALLETS[0].id
   );
+  const [networkMismatch, setNetworkMismatch] = useState(false);
   const initializedRef = useRef(false);
+  const { showToast } = useToast();
+
+  const checkNetwork = useCallback(async () => {
+    try {
+      const result = await StellarWalletsKit.getNetwork();
+      setNetworkMismatch(result.networkPassphrase !== NETWORK_PASSPHRASE);
+    } catch (e) {
+      console.error("Failed to check network", e);
+      setNetworkMismatch(false);
+    }
+  }, []);
 
   const ensureKitInitialized = useCallback(() => {
     if (initializedRef.current) return;
@@ -72,23 +90,30 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (localStorage.getItem(STORAGE_KEY) !== "true") return;
+
     ensureKitInitialized();
 
     let active = true;
     StellarWalletsKit.getAddress()
-      .then((result: { address?: string }) => {
-        if (active && result.address) {
+      .then(async (result: { address?: string }) => {
+        if (!active) return;
+        if (result.address) {
           setAddress(result.address);
+          await checkNetwork();
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
         }
       })
       .catch(() => {
-        // No active address is expected before wallet connection.
+        // Previously-connected wallet is no longer reachable.
+        localStorage.removeItem(STORAGE_KEY);
       });
 
     return () => {
       active = false;
     };
-  }, [ensureKitInitialized]);
+  }, [ensureKitInitialized, checkNetwork]);
 
   const connect = useCallback(async () => {
     setIsConnecting(true);
@@ -99,6 +124,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const result = (await StellarWalletsKit.authModal()) as { address?: string };
       if (result.address) {
         setAddress(result.address);
+        await checkNetwork();
+        localStorage.setItem(STORAGE_KEY, "true");
       }
     } catch (e) {
       console.error("Wallet connection failed", e);
@@ -106,12 +133,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsConnecting(false);
     }
-  }, [ensureKitInitialized, selectedWalletId]);
+  }, [ensureKitInitialized, selectedWalletId, checkNetwork, showToast]);
 
   const disconnect = useCallback(() => {
     StellarWalletsKit.disconnect().catch((e) => {
       console.error("Wallet disconnect failed", e);
     });
+    localStorage.removeItem(STORAGE_KEY);
+    setNetworkMismatch(false);
     setAddress(null);
   }, []);
 
@@ -123,7 +152,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     const result = (await StellarWalletsKit.signTransaction(xdr, {
       address,
-      networkPassphrase: Networks.TESTNET,
+      networkPassphrase: NETWORK_PASSPHRASE,
     })) as KitSignResult;
 
     return result.signedTxXdr ?? "";
@@ -136,6 +165,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         connect,
         disconnect,
         isConnecting,
+        networkMismatch,
         selectedWalletId,
         setSelectedWalletId,
         signTransaction,
