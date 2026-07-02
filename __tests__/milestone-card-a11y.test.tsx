@@ -208,21 +208,21 @@ describe("MilestoneCard — amount accessible label", () => {
   it("amount element has aria-label with milestone name and amount", () => {
     renderCard({}, { index: 0, amount: "500", status: "Pending" });
     expect(
-      screen.getByLabelText("Milestone 1 amount: 500 stroops")
+      screen.getByLabelText("Milestone 1 amount: 0.00005 XLM")
     ).toBeInTheDocument();
   });
 
   it("amount aria-label updates for a different milestone index", () => {
     renderCard({}, { index: 3, amount: "1000", status: "Released" });
     expect(
-      screen.getByLabelText("Milestone 4 amount: 1000 stroops")
+      screen.getByLabelText("Milestone 4 amount: 0.0001 XLM")
     ).toBeInTheDocument();
   });
 
   it("amount aria-label reflects the correct amount value", () => {
     renderCard({}, { index: 0, amount: "250", status: "Pending" });
     expect(
-      screen.getByLabelText("Milestone 1 amount: 250 stroops")
+      screen.getByLabelText("Milestone 1 amount: 0.000025 XLM")
     ).toBeInTheDocument();
   });
 

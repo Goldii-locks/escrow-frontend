@@ -23,14 +23,19 @@ describe("Dashboard empty milestones transition", () => {
       vi.fn().mockResolvedValue({
         json: async () => ({
           success: true,
-          data: {
-            id: "job-1",
-            client: "GCLIENT",
-            freelancer: "GFREELANCER",
-            arbiter: "GARBITER",
-            funded: true,
-            milestones,
-          },
+          data: [
+            {
+              id: "job-1",
+              client: "GCLIENT",
+              freelancer: "GFREELANCER",
+              arbiter: "GARBITER",
+              funded: true,
+              milestones,
+            },
+          ],
+          page: 1,
+          limit: 5,
+          total: 1,
         }),
       })
     );
@@ -38,7 +43,7 @@ describe("Dashboard empty milestones transition", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseWallet.mockReturnValue({ address: "GCLIENT" });
+    mockUseWallet.mockReturnValue({ address: "GCLIENT", signTransaction: vi.fn() });
   });
 
   it("transitions from loading to empty-state milestone view for empty array", async () => {

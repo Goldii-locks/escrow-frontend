@@ -40,6 +40,8 @@ interface Props {
   claimAutoReleaseState: ActionState;
   isPartialReleasePending: boolean;
   isClaimAutoReleasePending: boolean;
+  amountDecimals?: number;
+  amountSymbol?: string;
   /** Optional field-level / general error messages to render inside the card. */
   errors?: MilestoneCardErrors;
   /**
@@ -106,6 +108,8 @@ export default function MilestoneCard({
   onResolveDispute,
   errors,
   autoReleaseDeadline,
+  amountDecimals = 7,
+  amountSymbol = "XLM",
   onMarkDelivered,
   onApprove,
   onDispute,
@@ -201,6 +205,10 @@ export default function MilestoneCard({
     typeof autoReleaseDeadline === "number" && autoReleaseDeadline <= Date.now();
 
   const isPartiallyReleased = milestone.status === "PartiallyReleased";
+  const displayAmount = formatBaseUnits(milestone.amount, { decimals: amountDecimals });
+  const displayReleasedAmount = milestone.releasedAmount
+    ? formatBaseUnits(milestone.releasedAmount, { decimals: amountDecimals })
+    : null;
   const releasePercent = isPartiallyReleased
     ? getReleasePercent(milestone.releasedAmount, milestone.amount)
     : null;
@@ -242,9 +250,9 @@ export default function MilestoneCard({
         </p>
         <p
           className="font-mono text-text-primary text-sm mt-1 truncate"
-          aria-label={`${milestoneLabel} amount: ${milestone.amount} stroops`}
+          aria-label={`${milestoneLabel} amount: ${displayAmount} ${amountSymbol}`}
         >
-          {milestone.amount} stroops
+          {displayAmount} {amountSymbol}
         </p>
         {/* Amount field error */}
         {errors?.amount && (
@@ -292,7 +300,7 @@ export default function MilestoneCard({
             <p className="text-xs text-text-muted font-mono">
               <span className="text-partial">{milestone.releasedAmount}</span>
               {" / "}
-              {milestone.amount} stroops
+              {displayAmount} {amountSymbol}
             </p>
           </div>
         )}

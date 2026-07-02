@@ -192,14 +192,14 @@ describe("MilestoneCard — card root node rendering", () => {
     expect(screen.getByText("Milestone 3")).toBeInTheDocument();
   });
 
-  it("renders the amount with 'stroops' unit suffix", () => {
+  it("renders the amount with token symbol suffix", () => {
     renderCard();
-    expect(screen.getByText("500 stroops")).toBeInTheDocument();
+    expect(screen.getByText("0.00005 XLM")).toBeInTheDocument();
   });
 
   it("renders the correct amount for a different milestone", () => {
     renderCard({}, { index: 0, amount: "1000", status: "Released" });
-    expect(screen.getByText("1000 stroops")).toBeInTheDocument();
+    expect(screen.getByText("0.0001 XLM")).toBeInTheDocument();
   });
 
   it("renders the status badge text", () => {
@@ -761,17 +761,17 @@ describe("MilestoneCard — milestone info typographic classes", () => {
 
   it("amount text has 'font-mono' class", () => {
     renderCard();
-    expect(screen.getByText("500 stroops")).toHaveClass("font-mono");
+    expect(screen.getByText("0.00005 XLM")).toHaveClass("font-mono");
   });
 
   it("amount text has 'text-text-primary' design token", () => {
     renderCard();
-    expect(screen.getByText("500 stroops")).toHaveClass("text-text-primary");
+    expect(screen.getByText("0.00005 XLM")).toHaveClass("text-text-primary");
   });
 
   it("amount text has 'truncate' class for overflow handling", () => {
     renderCard();
-    expect(screen.getByText("500 stroops")).toHaveClass("truncate");
+    expect(screen.getByText("0.00005 XLM")).toHaveClass("truncate");
   });
 });
 

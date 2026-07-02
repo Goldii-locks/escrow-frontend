@@ -1,10 +1,18 @@
 "use client";
 import { useWallet } from "@/app/context/WalletContext";
 import { useIsAdmin } from "@/app/hooks/useIsAdmin";
+import { SUPPORTED_WALLETS } from "@/app/context/WalletContext";
 import Link from "next/link";
 
 export default function Navbar() {
-  const { address, connect, disconnect, isConnecting } = useWallet();
+  const {
+    address,
+    connect,
+    disconnect,
+    isConnecting,
+    selectedWalletId,
+    setSelectedWalletId,
+  } = useWallet();
   const { isAdminUser } = useIsAdmin(address);
 
   const short = (addr: string) => `${addr.slice(0, 4)}...${addr.slice(-4)}`;
@@ -61,13 +69,34 @@ export default function Navbar() {
             </button>
           </>
         ) : (
-          <button
-            onClick={connect}
-            disabled={isConnecting}
-            className={`bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition ${focusRing}`}
-          >
-            {isConnecting ? "Connecting..." : "Connect Wallet"}
-          </button>
+          <>
+            <label htmlFor="wallet-provider" className="sr-only">
+              Wallet provider
+            </label>
+            <select
+              id="wallet-provider"
+              value={selectedWalletId}
+              onChange={(event) =>
+                setSelectedWalletId(event.target.value as (typeof SUPPORTED_WALLETS)[number]["id"])
+              }
+              aria-label="Wallet provider"
+              disabled={isConnecting}
+              className="bg-gray-900 border border-gray-700 text-sm text-gray-200 rounded-lg px-3 py-2"
+            >
+              {SUPPORTED_WALLETS.map((wallet) => (
+                <option key={wallet.id} value={wallet.id}>
+                  {wallet.label}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={connect}
+              disabled={isConnecting}
+              className={`bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition ${focusRing}`}
+            >
+              {isConnecting ? "Connecting..." : "Connect Wallet"}
+            </button>
+          </>
         )}
       </div>
     </nav>

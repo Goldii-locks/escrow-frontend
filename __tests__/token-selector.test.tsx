@@ -59,7 +59,7 @@ describe("Create Job token selector (#4)", () => {
     stubFetch({ success: true, data: [] });
     render(<CreateJob />);
     expect(await screen.findByTestId("token-whitelist-empty")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Token Contract Address")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Token Contract Address")).toBeInTheDocument();
   });
 
   it("shows an error message when the whitelist fails to load", async () => {
