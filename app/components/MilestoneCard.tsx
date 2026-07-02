@@ -202,9 +202,6 @@ export default function MilestoneCard({
   // Unique id for the error live region so buttons can reference it
   const errorRegionId = `milestone-${milestone.index}-errors`;
 
-  const isDeadlineElapsed =
-    typeof autoReleaseDeadline === "number" && autoReleaseDeadline <= Date.now();
-
   const isPartiallyReleased = milestone.status === "PartiallyReleased";
   const displayAmount = formatBaseUnits(milestone.amount, { decimals: amountDecimals });
   const displayReleasedAmount = milestone.releasedAmount

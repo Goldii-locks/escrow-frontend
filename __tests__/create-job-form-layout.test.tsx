@@ -85,7 +85,7 @@ describe("CreateJob form — layout", () => {
     it("renders the Token Contract Address label and input", () => {
       render(<CreateJob />);
       expect(
-        screen.getByLabelText("Token Contract Address")
+        screen.getByLabelText("Token Contract Address", { selector: "input" })
       ).toBeInTheDocument();
     });
 
@@ -113,7 +113,9 @@ describe("CreateJob form — layout", () => {
 
     it("renders the Token Contract Address field as a select (token whitelist dropdown)", () => {
       render(<CreateJob />);
-      expect(screen.getByLabelText("Token Contract Address").tagName).toBe("SELECT");
+      expect(
+        screen.getByLabelText("Token Contract Address", { selector: "select" }).tagName
+      ).toBe("SELECT");
     });
   });
 
@@ -125,7 +127,9 @@ describe("CreateJob form — layout", () => {
 
     it("renders the first milestone amount input", () => {
       render(<CreateJob />);
-      expect(screen.getByLabelText("Milestone 1 amount")).toBeInTheDocument();
+      expect(
+        screen.getByLabelText("Milestone 1 amount in stroops")
+      ).toBeInTheDocument();
     });
 
     it("renders the remove button for the first milestone", () => {
@@ -138,7 +142,7 @@ describe("CreateJob form — layout", () => {
     it("renders the '+ Add Milestone' button", () => {
       render(<CreateJob />);
       expect(
-        screen.getByRole("button", { name: "+ Add Milestone" })
+        screen.getByRole("button", { name: "Add milestone" })
       ).toBeInTheDocument();
     });
   });

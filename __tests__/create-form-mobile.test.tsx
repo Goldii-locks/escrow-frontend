@@ -91,6 +91,8 @@ describe("Create form – mobile viewport layout (issue #46)", () => {
     render(<CreateJob />);
     expect(screen.getByLabelText("Freelancer Address")).toHaveClass("w-full");
     expect(screen.getByLabelText("Arbiter Address")).toHaveClass("w-full");
-    expect(screen.getByLabelText("Token Contract Address")).toHaveClass("w-full");
+    expect(
+      screen.getByLabelText("Token Contract Address", { selector: "input" })
+    ).toHaveClass("w-full");
   });
 });

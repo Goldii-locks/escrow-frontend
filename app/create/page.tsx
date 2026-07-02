@@ -129,27 +129,12 @@ export default function CreateJob() {
   };
 
   const addMilestone = () => setMilestones([...milestones, { amount: "" }]);
-  const removeMilestone = (i: number) => {
+  const removeMilestone = (i: number) =>
     setMilestones(milestones.filter((_, idx) => idx !== i));
-    setTouched(prev => {
-      const newTouched = { ...prev };
-      delete newTouched[`milestone-${i}`];
-      return newTouched;
-    });
-    setFieldErrors(prev => {
-      const newErrors = { ...prev };
-      delete newErrors[`milestone-${i}`];
-      return newErrors;
-    });
-  };
   const updateMilestone = (i: number, val: string) => {
     const updated = [...milestones];
     updated[i].amount = val;
     setMilestones(updated);
-    // Clear error when user types
-    if (fieldErrors[`milestone-${i}`]) {
-      setFieldErrors(prev => ({ ...prev, [`milestone-${i}`]: "" }));
-    }
   };
 
   const normalizedMilestones = milestones.filter(

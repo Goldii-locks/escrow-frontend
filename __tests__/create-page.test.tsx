@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CreateJob from "@/app/create/page";
 
@@ -64,16 +64,16 @@ describe("Create page", () => {
     expect(freelancer).toHaveFocus();
     expect(freelancer).toHaveClass("focus-visible:ring-2");
 
-    const scopeStep = screen.getByRole("button", { name: /2. Scope/i });
+    const scopeStep = screen.getByRole("tab", { name: /2. Scope/i });
     fireEvent.click(scopeStep);
-    expect(scopeStep).toHaveAttribute("aria-pressed", "true");
+    expect(scopeStep).toHaveAttribute("aria-selected", "true");
     expect(scopeStep).toHaveClass("border-accent-soft");
   });
 
   it("renders a milestone empty state and supports recovery action", () => {
     render(<CreateJob />);
 
-    fireEvent.click(screen.getByRole("button", { name: "+ Add Milestone" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add milestone" }));
     fireEvent.click(screen.getByRole("button", { name: "Remove milestone 1" }));
     fireEvent.click(screen.getByRole("button", { name: "Remove milestone 1" }));
 
@@ -81,7 +81,9 @@ describe("Create page", () => {
     expect(screen.getByText("No milestones available.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Add first milestone" }));
-    expect(screen.getByLabelText("Milestone 1 amount")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Milestone 1 amount in stroops")
+    ).toBeInTheDocument();
   });
 
   it("renders asset and requirement placeholders for empty list data and recovers from them", () => {
@@ -92,7 +94,11 @@ describe("Create page", () => {
     expect(screen.getByTestId("requirement-empty-state")).toBeInTheDocument();
     expect(screen.getByText("No delivery requirements added")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Add accepted asset" }));
+    fireEvent.click(
+      within(screen.getByTestId("asset-empty-state")).getByRole("button", {
+        name: "Add accepted asset",
+      })
+    );
     fireEvent.click(screen.getByRole("button", { name: "Add first requirement" }));
 
     expect(screen.getByLabelText("Accepted asset 1")).toBeInTheDocument();
@@ -103,19 +109,21 @@ describe("Create page", () => {
     render(<CreateJob />);
 
     fireEvent.change(screen.getByLabelText("Freelancer Address"), {
-      target: { value: "GFREELANCER" },
+      target: { value: "G" + "F".repeat(55) },
     });
     fireEvent.change(screen.getByLabelText("Arbiter Address"), {
-      target: { value: "GARBITER" },
+      target: { value: "G" + "B".repeat(55) },
     });
 
     // Wait for the whitelist to load, then select the token from the dropdown.
     await screen.findByRole("option", { name: "USDC" });
-    const tokenSelect = screen.getByLabelText("Token Contract Address") as HTMLSelectElement;
+    const tokenSelect = screen.getByLabelText("Token Contract Address", {
+      selector: "select",
+    }) as HTMLSelectElement;
     fireEvent.change(tokenSelect, { target: { value: "CTOKEN" } });
     expect(tokenSelect.value).toBe("CTOKEN");
 
-    fireEvent.change(screen.getByLabelText("Milestone 1 amount"), {
+    fireEvent.change(screen.getByLabelText("Milestone 1 amount in stroops"), {
       target: { value: "100" },
     });
 
