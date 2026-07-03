@@ -73,4 +73,121 @@ describe("MilestoneCard", () => {
       "sm:justify-between"
     );
   });
+
+  it("renders 'Claim Auto-Release' button for freelancer when deadline has elapsed", () => {
+    render(
+      <MilestoneCard
+        milestone={{ index: 0, amount: "100", status: "Delivered" }}
+        isClient={false}
+        isFreelancer
+        partialReleaseState={idleActionState}
+        claimAutoReleaseState={idleActionState}
+        isPartialReleasePending={false}
+        isClaimAutoReleasePending={false}
+        onClaimAutoRelease={vi.fn()}
+        autoReleaseDeadline={Date.now() - 1}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /claim auto-release/i })
+    ).toBeInTheDocument();
+  });
+
+  it("does NOT render 'Claim Auto-Release' for client when deadline has elapsed", () => {
+    render(
+      <MilestoneCard
+        milestone={{ index: 0, amount: "100", status: "Delivered" }}
+        isClient
+        isFreelancer={false}
+        partialReleaseState={idleActionState}
+        claimAutoReleaseState={idleActionState}
+        isPartialReleasePending={false}
+        isClaimAutoReleasePending={false}
+        onClaimAutoRelease={vi.fn()}
+        autoReleaseDeadline={Date.now() - 1}
+      />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /claim auto-release/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("does NOT render 'Claim Auto-Release' when deadline has NOT elapsed", () => {
+    render(
+      <MilestoneCard
+        milestone={{ index: 0, amount: "100", status: "Delivered" }}
+        isClient={false}
+        isFreelancer
+        partialReleaseState={idleActionState}
+        claimAutoReleaseState={idleActionState}
+        isPartialReleasePending={false}
+        isClaimAutoReleasePending={false}
+        onClaimAutoRelease={vi.fn()}
+        autoReleaseDeadline={Date.now() + 100_000}
+      />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /claim auto-release/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("disables 'Claim Auto-Release' button when handler is absent", () => {
+    render(
+      <MilestoneCard
+        milestone={{ index: 0, amount: "100", status: "Delivered" }}
+        isClient={false}
+        isFreelancer
+        partialReleaseState={idleActionState}
+        claimAutoReleaseState={idleActionState}
+        isPartialReleasePending={false}
+        isClaimAutoReleasePending={false}
+        autoReleaseDeadline={Date.now() - 1}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /claim auto-release/i })
+    ).toBeDisabled();
+  });
+
+  it("shows 'Claiming...' text when claim is pending", () => {
+    render(
+      <MilestoneCard
+        milestone={{ index: 0, amount: "100", status: "Delivered" }}
+        isClient={false}
+        isFreelancer
+        partialReleaseState={idleActionState}
+        claimAutoReleaseState={idleActionState}
+        isPartialReleasePending={false}
+        isClaimAutoReleasePending
+        onClaimAutoRelease={vi.fn()}
+        autoReleaseDeadline={Date.now() - 1}
+      />
+    );
+
+    expect(screen.getByText("Claiming...")).toBeInTheDocument();
+  });
+
+  it("does NOT render 'Claim Auto-Release' for non-Delivered status", () => {
+    render(
+      <MilestoneCard
+        milestone={{ index: 0, amount: "100", status: "Released" }}
+        isClient={false}
+        isFreelancer
+        partialReleaseState={idleActionState}
+        claimAutoReleaseState={idleActionState}
+        isPartialReleasePending={false}
+        isClaimAutoReleasePending={false}
+        onClaimAutoRelease={vi.fn()}
+        autoReleaseDeadline={Date.now() - 1}
+      />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /claim auto-release/i })
+    ).not.toBeInTheDocument();
+  });
 });
