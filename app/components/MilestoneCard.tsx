@@ -138,6 +138,13 @@ export default function MilestoneCard({
     liveElapsed ||
     (typeof autoReleaseDeadline === "number" && autoReleaseDeadline <= mountedAt);
 
+  const isDeadlineWarning = 
+    typeof autoReleaseDeadline === "number" &&
+    !isDeadlineElapsed &&
+    (milestone?.status === "Delivered" || milestone?.status === "Pending") && // Only show warning for relevant statuses
+    autoReleaseDeadline - mountedAt <= 24 * 60 * 60 * 1000 && // Within 24 hours
+    autoReleaseDeadline - mountedAt > 0; // Not already passed
+
   /** Client-side validation + submission handler for partial release. */
   function handlePartialReleaseSubmit() {
     if (!milestone) return;
@@ -328,6 +335,15 @@ export default function MilestoneCard({
             >
               {isPartiallyReleased ? "Partially Released" : milestone.status}
             </span>
+            {isDeadlineWarning && (
+              <span
+                aria-label="Warning: Auto-release deadline approaching"
+                data-testid="milestone-warning-badge"
+                className="text-xs px-2 py-1 rounded-full border whitespace-nowrap transition-colors bg-danger-soft/20 text-danger-soft border-danger-soft/40"
+              >
+                Deadline Soon!
+              </span>
+            )}
             {/* Auto-release countdown for delivered milestones */}
             {milestone.status === "Delivered" &&
               typeof autoReleaseDeadline === "number" && (

@@ -65,7 +65,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const result = await StellarWalletsKit.getNetwork();
       setNetworkMismatch(result.networkPassphrase !== NETWORK_PASSPHRASE);
     } catch (e) {
-      console.error("Failed to check network", e);
+      console.error("[NETWORK_SYNC_CHECKER_ERROR]: Failed to check network", e);
       setNetworkMismatch(false);
     }
   }, []);
@@ -128,7 +128,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(STORAGE_KEY, "true");
       }
     } catch (e) {
-      console.error("Wallet connection failed", e);
+      console.error("[NETWORK_SYNC_CHECKER_ERROR]: Wallet connection failed", e);
       showToast("Failed to connect wallet.", "error");
     } finally {
       setIsConnecting(false);
@@ -137,7 +137,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const disconnect = useCallback(() => {
     StellarWalletsKit.disconnect().catch((e) => {
-      console.error("Wallet disconnect failed", e);
+      console.error("[NETWORK_SYNC_CHECKER_ERROR]: Wallet disconnect failed", e);
     });
     localStorage.removeItem(STORAGE_KEY);
     setNetworkMismatch(false);
@@ -150,12 +150,22 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     ensureKitInitialized();
     StellarWalletsKit.setWallet(selectedWalletId);
 
-    const result = (await StellarWalletsKit.signTransaction(xdr, {
-      address,
-      networkPassphrase: NETWORK_PASSPHRASE,
-    })) as KitSignResult;
+    try {
+      const result = (await StellarWalletsKit.signTransaction(xdr, {
+        address,
+        networkPassphrase: NETWORK_PASSPHRASE,
+      })) as KitSignResult;
+      return result.signedTxXdr ?? "";
+    } catch (e: any) {
+      console.error("[NETWORK_SYNC_CHECKER_ERROR]: Transaction signing failed", e);
 
-    return result.signedTxXdr ?? "";
+      let errorMessage = "Transaction failed.";
+      if (e.message && (e.message.includes("gas") || e.message.includes("fee") || e.message.includes("budget"))) {
+        errorMessage = "Gas estimation error: Your transaction might be too expensive.";
+      }
+      showToast(errorMessage, "error");
+      throw e; // Re-throw the error so the calling function can handle it
+    }
   }, [address, ensureKitInitialized, selectedWalletId]);
 
   return (

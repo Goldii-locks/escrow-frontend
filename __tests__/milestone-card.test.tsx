@@ -190,4 +190,71 @@ describe("MilestoneCard", () => {
       screen.queryByRole("button", { name: /claim auto-release/i })
     ).not.toBeInTheDocument();
   });
+
+  describe("Auto-release deadline warning badge", () => {
+    // Helper function to render MilestoneCard with common props for deadline tests
+    const renderDeadlineCard = (milestoneStatus: string, deadline: number | null) =>
+      render(
+        <MilestoneCard
+          milestone={{ index: 0, amount: "100", status: milestoneStatus }}
+          isClient={false}
+          isFreelancer={false}
+          partialReleaseState={idleActionState}
+          claimAutoReleaseState={idleActionState}
+          isPartialReleasePending={false}
+          isClaimAutoReleasePending={false}
+          autoReleaseDeadline={deadline}
+        />
+      );
+
+    it("shows warning badge when deadline is within 24 hours (Delivered status)", () => {
+      const now = Date.now();
+      const deadlineSoon = now + 12 * 60 * 60 * 1000; // 12 hours from now
+      renderDeadlineCard("Delivered", deadlineSoon);
+      expect(screen.getByTestId("milestone-warning-badge")).toBeInTheDocument();
+      expect(screen.getByTestId("milestone-warning-badge")).toHaveTextContent("Deadline Soon!");
+    });
+
+    it("shows warning badge when deadline is within 24 hours (Pending status)", () => {
+      const now = Date.now();
+      const deadlineSoon = now + 6 * 60 * 60 * 1000; // 6 hours from now
+      renderDeadlineCard("Pending", deadlineSoon);
+      expect(screen.getByTestId("milestone-warning-badge")).toBeInTheDocument();
+    });
+
+    it("does NOT show warning badge when deadline is outside 24 hours", () => {
+      const now = Date.now();
+      const deadlineFar = now + 48 * 60 * 60 * 1000; // 48 hours from now
+      renderDeadlineCard("Delivered", deadlineFar);
+      expect(screen.queryByTestId("milestone-warning-badge")).not.toBeInTheDocument();
+    });
+
+    it("does NOT show warning badge for already elapsed deadlines", () => {
+      const now = Date.now();
+      const deadlinePast = now - 1000; // 1 second ago
+      renderDeadlineCard("Delivered", deadlinePast);
+      expect(screen.queryByTestId("milestone-warning-badge")).not.toBeInTheDocument();
+    });
+
+    it("does NOT show warning badge for resolved statuses (Released)", () => {
+      const now = Date.now();
+      const deadlineSoon = now + 12 * 60 * 60 * 1000; // 12 hours from now
+      renderDeadlineCard("Released", deadlineSoon);
+      expect(screen.queryByTestId("milestone-warning-badge")).not.toBeInTheDocument();
+    });
+
+    it("does NOT show warning badge for resolved statuses (Refunded)", () => {
+      const now = Date.now();
+      const deadlineSoon = now + 12 * 60 * 60 * 1000; // 12 hours from now
+      renderDeadlineCard("Refunded", deadlineSoon);
+      expect(screen.queryByTestId("milestone-warning-badge")).not.toBeInTheDocument();
+    });
+
+    it("does NOT show warning badge for resolved statuses (Disputed)", () => {
+      const now = Date.now();
+      const deadlineSoon = now + 12 * 60 * 60 * 1000; // 12 hours from now
+      renderDeadlineCard("Disputed", deadlineSoon);
+      expect(screen.queryByTestId("milestone-warning-badge")).not.toBeInTheDocument();
+    });
+  });
 });
