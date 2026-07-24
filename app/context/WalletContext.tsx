@@ -11,9 +11,10 @@ import {
 import { Networks, StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
 import { defaultModules } from "@creit.tech/stellar-wallets-kit/modules/utils";
 import { NETWORK_PASSPHRASE } from "@/app/lib/contract";
+import { isGasFeeError } from "@/app/lib/errors";
 import { useToast } from "./ToastContext";
 
-const STORAGE_KEY = "milesto_wallet_connected";
+export const STORAGE_KEY = "milesto_wallet_connected";
 
 export const SUPPORTED_WALLETS = [
   { id: "freighter", label: "Freighter" },
@@ -136,7 +137,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [ensureKitInitialized, selectedWalletId, checkNetwork, showToast]);
 
   const disconnect = useCallback(() => {
-    StellarWalletsKit.disconnect().catch((e) => {
+    void Promise.resolve(StellarWalletsKit.disconnect()).catch((e: unknown) => {
       console.error("[NETWORK_SYNC_CHECKER_ERROR]: Wallet disconnect failed", e);
     });
     localStorage.removeItem(STORAGE_KEY);
@@ -159,12 +160,24 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } catch (e: any) {
       console.error("[NETWORK_SYNC_CHECKER_ERROR]: Transaction signing failed", e);
 
+      const rawMessage: string = e?.message ?? "";
       let errorMessage = "Transaction failed.";
-      if (e.message && (e.message.includes("gas") || e.message.includes("fee") || e.message.includes("budget"))) {
-        errorMessage = "Gas estimation error: Your transaction might be too expensive.";
+
+      if (isGasFeeError(rawMessage)) {
+        const lower = rawMessage.toLowerCase();
+        if (lower.includes("insufficient balance") || lower.includes("insufficient funds")) {
+          errorMessage = "Insufficient account balance. Your wallet may not have enough XLM to cover the transaction fees.";
+        } else if (lower.includes("budget") || lower.includes("soroban") || lower.includes("cpu") || lower.includes("memory") || lower.includes("ledger")) {
+          errorMessage = "Gas estimation error: This transaction exceeds the Soroban resource budget. Try a smaller batch or wait for network conditions to improve.";
+        } else if (lower.includes("max fee")) {
+          errorMessage = "Gas estimation error: Network fees are higher than the current max fee setting. Please try again later.";
+        } else {
+          errorMessage = "Gas estimation error: Your transaction might be too expensive. Review the operation and try again.";
+        }
       }
+
       showToast(errorMessage, "error");
-      throw e; // Re-throw the error so the calling function can handle it
+      throw e;
     }
   }, [address, ensureKitInitialized, selectedWalletId]);
 

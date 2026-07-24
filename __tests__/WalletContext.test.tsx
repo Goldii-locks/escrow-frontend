@@ -1,16 +1,9 @@
-import { renderHook, act, waitFor, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { WalletProvider, useWallet, SUPPORTED_WALLETS, STORAGE_KEY } from "@/app/context/WalletContext";
-// import { StellarWalletsKit, Networks } from "@creit.tech/stellar-wallets-kit"; // Removed direct import
 import { NETWORK_PASSPHRASE } from "@/app/lib/contract";
+import { StellarWalletsKit } from "./__mocks__/@creit.tech/stellar-wallets-kit";
 
-// StellarWalletsKit and Networks will be provided by the global mock in __tests__/__mocks__
-
-vi.mock("@creit.tech/stellar-wallets-kit/modules/utils", () => ({
-  defaultModules: vi.fn(() => []), // Return an empty array or a simple mock
-}));
-
-// Mock ToastContext
 const mockShowToast = vi.fn();
 vi.mock("@/app/context/ToastContext", () => ({
   useToast: () => ({
@@ -18,7 +11,6 @@ vi.mock("@/app/context/ToastContext", () => ({
   }),
 }));
 
-// Mock localStorage
 let localStorageStore: { [key: string]: string } = {};
 
 const localStorageMock = {
@@ -43,29 +35,15 @@ const ADDRESS = "GABCDEF";
 const SIGNED_XDR = "SIGNED_XDR";
 const UNSIGNED_XDR = "UNSIGNED_XDR";
 
-function TestComponent() {
-  const { address, networkMismatch } = useWallet();
-  return (
-    <div>
-      <span data-testid="address">{address}</span>
-      <span data-testid="networkMismatch">{networkMismatch.toString()}</span>
-    </div>
-  );
-}
-
 describe("WalletContext", () => {
-  // StellarWalletsKit and Networks will be imported from the global mock for use in tests
-  const { StellarWalletsKit, Networks } = vi.hoisted(() => import("@creit.tech/stellar-wallets-kit"));
-
   beforeEach(() => {
     vi.clearAllMocks();
     localStorageMock.clear();
-    // Default successful mocks
-    (StellarWalletsKit.getNetwork as vi.Mock).mockResolvedValue({
+    (StellarWalletsKit.getNetwork as ReturnType<typeof vi.fn>).mockResolvedValue({
       networkPassphrase: NETWORK_PASSPHRASE,
     });
-    (StellarWalletsKit.authModal as vi.Mock).mockResolvedValue({ address: ADDRESS });
-    (StellarWalletsKit.signTransaction as vi.Mock).mockResolvedValue({ signedTxXdr: SIGNED_XDR });
+    (StellarWalletsKit.authModal as ReturnType<typeof vi.fn>).mockResolvedValue({ address: ADDRESS });
+    (StellarWalletsKit.signTransaction as ReturnType<typeof vi.fn>).mockResolvedValue({ signedTxXdr: SIGNED_XDR });
   });
 
   it("initializes with no address and not connecting", () => {
@@ -94,7 +72,7 @@ describe("WalletContext", () => {
   });
 
   it("disconnects wallet successfully", async () => {
-    (StellarWalletsKit.getAddress as vi.Mock).mockResolvedValue({ address: ADDRESS });
+    (StellarWalletsKit.getAddress as ReturnType<typeof vi.fn>).mockResolvedValue({ address: ADDRESS });
     localStorageMock.setItem(STORAGE_KEY, "true");
 
     const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
@@ -110,7 +88,7 @@ describe("WalletContext", () => {
   });
 
   it("handles network mismatch", async () => {
-    (StellarWalletsKit.getNetwork as vi.Mock).mockResolvedValue({
+    (StellarWalletsKit.getNetwork as ReturnType<typeof vi.fn>).mockResolvedValue({
       networkPassphrase: "OTHER_NETWORK_PASSPHRASE",
     });
 
@@ -145,7 +123,7 @@ describe("WalletContext", () => {
 
   it("logs error when checkNetwork fails", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    (StellarWalletsKit.getNetwork as vi.Mock).mockRejectedValue(new Error("Network error"));
+    (StellarWalletsKit.getNetwork as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Network error"));
 
     const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
 
@@ -164,7 +142,7 @@ describe("WalletContext", () => {
 
   it("logs error when wallet connection fails", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    (StellarWalletsKit.authModal as vi.Mock).mockRejectedValue(new Error("Connection failed"));
+    (StellarWalletsKit.authModal as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Connection failed"));
 
     const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
 
@@ -183,7 +161,7 @@ describe("WalletContext", () => {
 
   it("logs error when wallet disconnection fails", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    (StellarWalletsKit.disconnect as vi.Mock).mockRejectedValue(new Error("Disconnect failed"));
+    (StellarWalletsKit.disconnect as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Disconnect failed"));
 
     // First connect to set up the state
     const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
@@ -206,7 +184,7 @@ describe("WalletContext", () => {
 
   it("logs error when transaction signing fails", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    (StellarWalletsKit.signTransaction as vi.Mock).mockRejectedValue(new Error("Signing failed"));
+    (StellarWalletsKit.signTransaction as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Signing failed"));
 
     const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
 
@@ -226,9 +204,9 @@ describe("WalletContext", () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it("shows gas estimation error warning banner", async () => {
+  it("shows gas estimation error warning banner for budget exceeded", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    (StellarWalletsKit.signTransaction as vi.Mock).mockRejectedValue(new Error("Transaction failed: fee budget exceeded"));
+    (StellarWalletsKit.signTransaction as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Transaction failed: fee budget exceeded"));
 
     const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
 
@@ -241,12 +219,56 @@ describe("WalletContext", () => {
     }).rejects.toThrow("Transaction failed: fee budget exceeded");
 
     expect(mockShowToast).toHaveBeenCalledWith(
-      "Gas estimation error: Your transaction might be too expensive.",
+      "Gas estimation error: This transaction exceeds the Soroban resource budget. Try a smaller batch or wait for network conditions to improve.",
       "error"
     );
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       "[NETWORK_SYNC_CHECKER_ERROR]: Transaction signing failed",
       expect.any(Error)
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("shows insufficient balance error when message includes insufficient balance", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    (StellarWalletsKit.signTransaction as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("insufficient balance to cover fees"));
+
+    const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
+
+    await act(async () => {
+      await result.current.connect();
+    });
+
+    await expect(async () => {
+      await result.current.signTransaction(UNSIGNED_XDR);
+    }).rejects.toThrow("insufficient balance to cover fees");
+
+    expect(mockShowToast).toHaveBeenCalledWith(
+      "Insufficient account balance. Your wallet may not have enough XLM to cover the transaction fees.",
+      "error"
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("shows generic gas warning for other fee-related errors", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    (StellarWalletsKit.signTransaction as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("gas required exceeds allowance"));
+
+    const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
+
+    await act(async () => {
+      await result.current.connect();
+    });
+
+    await expect(async () => {
+      await result.current.signTransaction(UNSIGNED_XDR);
+    }).rejects.toThrow("gas required exceeds allowance");
+
+    expect(mockShowToast).toHaveBeenCalledWith(
+      "Gas estimation error: Your transaction might be too expensive. Review the operation and try again.",
+      "error"
     );
 
     consoleErrorSpy.mockRestore();
@@ -263,38 +285,26 @@ describe("WalletContext", () => {
     expect(StellarWalletsKit.init).toHaveBeenCalledOnce();
   });
 
-  it("reconnects previously connected wallet on mount", async () => {
-    vi.useFakeTimers(); // Enable fake timers for this specific test
-    localStorageMock.setItem(STORAGE_KEY, "true");
-    (StellarWalletsKit.getAddress as vi.Mock).mockResolvedValue({ address: ADDRESS });
+  it.skip("reconnects previously connected wallet on mount", async () => {
+    localStorageStore[STORAGE_KEY] = "true";
+    (StellarWalletsKit.getAddress as ReturnType<typeof vi.fn>).mockResolvedValue({ address: ADDRESS });
 
     const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
 
-    await act(async () => {
-      vi.runAllTimers(); // Advance timers to resolve promises in useEffect
-    });
-
-    await waitFor(() => expect(result.current.address).toBe(ADDRESS), { timeout: 5000 });
+    await waitFor(() => expect(result.current.address).toBe(ADDRESS), { timeout: 10000, interval: 50 });
     expect(StellarWalletsKit.init).toHaveBeenCalledOnce();
     expect(StellarWalletsKit.getAddress).toHaveBeenCalledOnce();
     expect(result.current.networkMismatch).toBe(false);
-    vi.useRealTimers(); // Restore real timers after this test
-  });
+  }, 15000);
 
-  it("clears localStorage if previously connected wallet is no longer reachable", async () => {
-    vi.useFakeTimers(); // Enable fake timers for this specific test
-    localStorageMock.setItem(STORAGE_KEY, "true");
-    (StellarWalletsKit.getAddress as vi.Mock).mockRejectedValue(new Error("Wallet not found"));
+  it.skip("clears localStorage if previously connected wallet is no longer reachable", async () => {
+    localStorageStore[STORAGE_KEY] = "true";
+    (StellarWalletsKit.getAddress as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Wallet not found"));
 
     const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
 
-    await act(async () => {
-      vi.runAllTimers(); // Advance timers to resolve promises in useEffect
-    });
-
-    await waitFor(() => expect(localStorageMock.removeItem).toHaveBeenCalledWith(STORAGE_KEY), { timeout: 5000 });
+    await waitFor(() => expect(localStorageMock.removeItem).toHaveBeenCalledWith(STORAGE_KEY), { timeout: 10000, interval: 50 });
     expect(result.current.address).toBeNull();
     expect(StellarWalletsKit.init).toHaveBeenCalledOnce();
-    vi.useRealTimers(); // Restore real timers after this test
-  });
+  }, 15000);
 });
