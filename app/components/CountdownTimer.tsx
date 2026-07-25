@@ -9,6 +9,13 @@ interface Props {
   eligibleLabel?: string;
   /** Called once, when the countdown crosses the deadline. */
   onElapsed?: () => void;
+  /**
+   * If set, `onWarningThreshold` fires once when the remaining time first
+   * drops to at or below this many milliseconds before the deadline.
+   */
+  warningThresholdMs?: number;
+  /** Called once, when remaining time crosses into the warning threshold. */
+  onWarningThreshold?: () => void;
   /** How often to re-render the remaining time. Default 1000ms. */
   intervalMs?: number;
   className?: string;
@@ -51,11 +58,14 @@ export default function CountdownTimer({
   deadline,
   eligibleLabel = "Eligible for auto-release",
   onElapsed,
+  warningThresholdMs,
+  onWarningThreshold,
   intervalMs = SECOND,
   className = "",
 }: Props) {
   const [now, setNow] = useState<number>(() => Date.now());
   const elapsedFired = useRef(false);
+  const warningFired = useRef(false);
 
   const remaining = deadline - now;
   const isElapsed = remaining <= 0;
@@ -83,6 +93,20 @@ export default function CountdownTimer({
       elapsedFired.current = false;
     }
   }, [isElapsed, onElapsed]);
+
+  useEffect(() => {
+    if (typeof warningThresholdMs !== "number") {
+      return;
+    }
+    const isWithinWarning = remaining > 0 && remaining <= warningThresholdMs;
+    if (isWithinWarning && !warningFired.current) {
+      warningFired.current = true;
+      onWarningThreshold?.();
+    }
+    if (!isWithinWarning) {
+      warningFired.current = false;
+    }
+  }, [remaining, warningThresholdMs, onWarningThreshold]);
 
   if (isElapsed) {
     return (
