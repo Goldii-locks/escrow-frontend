@@ -12,17 +12,28 @@ import { Networks, StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
 import { defaultModules } from "@creit.tech/stellar-wallets-kit/modules/utils";
 import { NETWORK_PASSPHRASE } from "@/app/lib/contract";
 import { useToast } from "./ToastContext";
+import {
+  loadFreighterState,
+  saveFreighterState,
+  clearFreighterState,
+  passphraseToNetwork,
+  DEFAULT_FREIGHTER_WALLET_ID,
+  type SupportedFreighterWalletId,
+} from "@/app/lib/freighter_connector";
 
 const STORAGE_KEY = "milesto_wallet_connected";
 
-export const SUPPORTED_WALLETS = [
+export const SUPPORTED_WALLETS: {
+  id: SupportedFreighterWalletId;
+  label: string;
+}[] = [
   { id: "freighter", label: "Freighter" },
   { id: "albedo", label: "Albedo" },
   { id: "xbull", label: "xBull" },
   { id: "hana", label: "Hana" },
-] as const;
+];
 
-export type SupportedWalletId = (typeof SUPPORTED_WALLETS)[number]["id"];
+export type SupportedWalletId = SupportedFreighterWalletId;
 
 interface KitSignResult {
   signedTxXdr?: string;
@@ -45,16 +56,25 @@ const WalletContext = createContext<WalletContextType>({
   disconnect: () => {},
   isConnecting: false,
   networkMismatch: false,
-  selectedWalletId: SUPPORTED_WALLETS[0].id,
+  selectedWalletId: DEFAULT_FREIGHTER_WALLET_ID,
   setSelectedWalletId: () => {},
   signTransaction: async () => "",
 });
+
+function readInitialWalletId(): SupportedFreighterWalletId {
+  if (typeof window === "undefined") return DEFAULT_FREIGHTER_WALLET_ID;
+  try {
+    return loadFreighterState().selectedWalletId;
+  } catch {
+    return DEFAULT_FREIGHTER_WALLET_ID;
+  }
+}
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [selectedWalletId, setSelectedWalletId] = useState<SupportedWalletId>(
-    SUPPORTED_WALLETS[0].id
+    () => readInitialWalletId()
   );
   const [networkMismatch, setNetworkMismatch] = useState(false);
   const initializedRef = useRef(false);
@@ -90,23 +110,45 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (localStorage.getItem(STORAGE_KEY) !== "true") return;
+    const restored = loadFreighterState();
+    if (!restored.restored || !restored.address) {
+      if (localStorage.getItem(STORAGE_KEY) === "true") {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+      return;
+    }
 
     ensureKitInitialized();
+    StellarWalletsKit.setWallet(restored.selectedWalletId);
 
     let active = true;
     StellarWalletsKit.getAddress()
       .then(async (result: { address?: string }) => {
         if (!active) return;
-        if (result.address) {
+        if (result.address && result.address === restored.address) {
           setAddress(result.address);
           await checkNetwork();
+        } else if (result.address) {
+          setAddress(result.address);
+          const netResult = await StellarWalletsKit.getNetwork().catch(() => null);
+          const network = netResult
+            ? passphraseToNetwork(netResult.networkPassphrase) ?? restored.network
+            : restored.network;
+          if (network) {
+            saveFreighterState({
+              address: result.address,
+              selectedWalletId: restored.selectedWalletId,
+              network,
+            });
+          }
+          await checkNetwork();
         } else {
+          clearFreighterState();
           localStorage.removeItem(STORAGE_KEY);
         }
       })
       .catch(() => {
-        // Previously-connected wallet is no longer reachable.
+        clearFreighterState();
         localStorage.removeItem(STORAGE_KEY);
       });
 
@@ -124,8 +166,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const result = (await StellarWalletsKit.authModal()) as { address?: string };
       if (result.address) {
         setAddress(result.address);
-        await checkNetwork();
+        const netResult = await StellarWalletsKit.getNetwork().catch(() => null);
+        const network = netResult
+          ? passphraseToNetwork(netResult.networkPassphrase) ?? "testnet"
+          : "testnet";
+        saveFreighterState({
+          address: result.address,
+          selectedWalletId,
+          network,
+        });
         localStorage.setItem(STORAGE_KEY, "true");
+        await checkNetwork();
       }
     } catch (e) {
       console.error("Wallet connection failed", e);
@@ -139,6 +190,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     StellarWalletsKit.disconnect().catch((e) => {
       console.error("Wallet disconnect failed", e);
     });
+    clearFreighterState();
     localStorage.removeItem(STORAGE_KEY);
     setNetworkMismatch(false);
     setAddress(null);
