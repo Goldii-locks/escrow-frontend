@@ -2,6 +2,7 @@
 import { useWallet } from "@/app/context/WalletContext";
 import { useIsAdmin } from "@/app/hooks/useIsAdmin";
 import { SUPPORTED_WALLETS } from "@/app/context/WalletContext";
+import NetworkMismatchBanner from "@/app/components/NetworkMismatchBanner";
 import Link from "next/link";
 
 export default function Navbar() {
@@ -10,7 +11,7 @@ export default function Navbar() {
     connect,
     disconnect,
     isConnecting,
-    networkMismatch,
+    networkSyncState,
     selectedWalletId,
     setSelectedWalletId,
   } = useWallet();
@@ -21,16 +22,13 @@ export default function Navbar() {
   const focusRing =
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 rounded";
 
+  // Resolve the human-readable label for the currently selected wallet.
+  const walletLabel =
+    SUPPORTED_WALLETS.find((w) => w.id === selectedWalletId)?.label ?? selectedWalletId;
+
   return (
     <>
-      {networkMismatch && (
-        <div
-          className="bg-warning/40 border-b border-warning px-6 py-3 text-warning-soft text-sm text-center"
-          role="alert"
-        >
-          ⚠️ Network mismatch: Please switch your Freighter wallet to Stellar Testnet.
-        </div>
-      )}
+      <NetworkMismatchBanner syncState={networkSyncState} walletName={walletLabel} />
       <nav
         aria-label="Primary"
         className="border-b border-gray-800 bg-gray-950 px-6 py-4 flex items-center justify-between"
@@ -72,11 +70,10 @@ export default function Navbar() {
               {short(address)}
             </span>
             <button
-              onClick={connect}
-              disabled={isConnecting}
-              className={`bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition ${focusRing}`}
+              onClick={disconnect}
+              className={`bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition ${focusRing}`}
             >
-              {isConnecting ? "Connecting..." : "Connect Wallet"}
+              Disconnect
             </button>
           </>
         ) : (

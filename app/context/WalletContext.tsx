@@ -12,6 +12,15 @@ import { Networks, StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
 import { defaultModules } from "@creit.tech/stellar-wallets-kit/modules/utils";
 import { NETWORK_PASSPHRASE } from "@/app/lib/contract";
 import { useToast } from "./ToastContext";
+import {
+  useNetworkSyncChecker,
+  type NetworkSyncState,
+} from "@/app/hooks/useNetworkSyncChecker";
+import {
+  saveActiveSession,
+  loadActiveSession,
+  clearActiveSession,
+} from "@/app/lib/network_sync_checker_cache";
 
 const STORAGE_KEY = "milesto_wallet_connected";
 
@@ -33,7 +42,10 @@ interface WalletContextType {
   connect: () => Promise<void>;
   disconnect: () => void;
   isConnecting: boolean;
+  /** @deprecated Use networkSyncState.mismatch for richer network information. */
   networkMismatch: boolean;
+  /** Full network sync state from the network_sync_checker module. */
+  networkSyncState: NetworkSyncState;
   selectedWalletId: SupportedWalletId;
   setSelectedWalletId: (walletId: SupportedWalletId) => void;
   signTransaction: (xdr: string) => Promise<string>;
@@ -45,6 +57,7 @@ const WalletContext = createContext<WalletContextType>({
   disconnect: () => {},
   isConnecting: false,
   networkMismatch: false,
+  networkSyncState: { isChecking: false, mismatch: false, result: null, error: null },
   selectedWalletId: SUPPORTED_WALLETS[0].id,
   setSelectedWalletId: () => {},
   signTransaction: async () => "",
@@ -56,19 +69,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [selectedWalletId, setSelectedWalletId] = useState<SupportedWalletId>(
     SUPPORTED_WALLETS[0].id
   );
-  const [networkMismatch, setNetworkMismatch] = useState(false);
   const initializedRef = useRef(false);
   const { showToast } = useToast();
 
-  const checkNetwork = useCallback(async () => {
-    try {
-      const result = await StellarWalletsKit.getNetwork();
-      setNetworkMismatch(result.networkPassphrase !== NETWORK_PASSPHRASE);
-    } catch (e) {
-      console.error("Failed to check network", e);
-      setNetworkMismatch(false);
-    }
-  }, []);
+  // Issue #156 / #158: delegate all network-sync work to the dedicated hook.
+  const networkSyncState = useNetworkSyncChecker(address);
 
   const ensureKitInitialized = useCallback(() => {
     if (initializedRef.current) return;
@@ -90,30 +95,50 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (localStorage.getItem(STORAGE_KEY) !== "true") return;
+    // Issue #157: restore session from the richer persistent cache first;
+    // fall back to the legacy boolean key for backwards-compatibility.
+    const cached = loadActiveSession();
+    const legacyConnected = localStorage.getItem(STORAGE_KEY) === "true";
+
+    if (!cached && !legacyConnected) return;
 
     ensureKitInitialized();
 
+    // Issue #157: restore the wallet provider selection from cache.
+    // We schedule this asynchronously to avoid a synchronous setState-in-effect
+    // that the react-hooks/set-state-in-effect lint rule disallows.
     let active = true;
+    if (cached) {
+      const isKnown = SUPPORTED_WALLETS.some((w) => w.id === cached.walletId);
+      if (isKnown) {
+        void Promise.resolve().then(() => {
+          if (active) setSelectedWalletId(cached.walletId as SupportedWalletId);
+        });
+      }
+    }
     StellarWalletsKit.getAddress()
       .then(async (result: { address?: string }) => {
         if (!active) return;
         if (result.address) {
           setAddress(result.address);
-          await checkNetwork();
+          // Refresh the persistent cache with the latest address.
+          const walletId = cached?.walletId ?? SUPPORTED_WALLETS[0].id;
+          saveActiveSession(result.address, walletId);
         } else {
+          clearActiveSession();
           localStorage.removeItem(STORAGE_KEY);
         }
       })
       .catch(() => {
         // Previously-connected wallet is no longer reachable.
+        clearActiveSession();
         localStorage.removeItem(STORAGE_KEY);
       });
 
     return () => {
       active = false;
     };
-  }, [ensureKitInitialized, checkNetwork]);
+  }, [ensureKitInitialized]);
 
   const connect = useCallback(async () => {
     setIsConnecting(true);
@@ -124,7 +149,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const result = (await StellarWalletsKit.authModal()) as { address?: string };
       if (result.address) {
         setAddress(result.address);
-        await checkNetwork();
+        // Issue #157: persist the full session (address + walletId).
+        saveActiveSession(result.address, selectedWalletId);
         localStorage.setItem(STORAGE_KEY, "true");
       }
     } catch (e) {
@@ -133,14 +159,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsConnecting(false);
     }
-  }, [ensureKitInitialized, selectedWalletId, checkNetwork, showToast]);
+  }, [ensureKitInitialized, selectedWalletId, showToast]);
 
   const disconnect = useCallback(() => {
     StellarWalletsKit.disconnect().catch((e) => {
       console.error("Wallet disconnect failed", e);
     });
+    // Issue #157: clear the persistent session cache on disconnect.
+    clearActiveSession();
     localStorage.removeItem(STORAGE_KEY);
-    setNetworkMismatch(false);
     setAddress(null);
   }, []);
 
@@ -165,7 +192,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         connect,
         disconnect,
         isConnecting,
-        networkMismatch,
+        networkMismatch: networkSyncState.mismatch,
+        networkSyncState,
         selectedWalletId,
         setSelectedWalletId,
         signTransaction,
