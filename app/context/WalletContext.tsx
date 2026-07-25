@@ -8,6 +8,12 @@ import {
   useEffect,
   useRef,
 } from "react";
+import {
+  clearWalletState,
+  deserializeWalletState,
+  serializeWalletState,
+  type StellarNetwork,
+} from "@/app/lib/walletPersistence";
 import { Networks, StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
 import { defaultModules } from "@creit.tech/stellar-wallets-kit/modules/utils";
 import { NETWORK_PASSPHRASE } from "@/app/lib/contract";
@@ -28,8 +34,14 @@ interface KitSignResult {
   signedTxXdr?: string;
 }
 
+const NETWORK_PASSPHRASES: Record<StellarNetwork, string> = {
+  testnet: "Test SDF Network ; September 2015",
+  mainnet: "Public Global Stellar Network ; September 2015",
+};
+
 interface WalletContextType {
   address: string | null;
+  network: StellarNetwork;
   connect: () => Promise<void>;
   disconnect: () => void;
   isConnecting: boolean;
@@ -41,6 +53,7 @@ interface WalletContextType {
 
 const WalletContext = createContext<WalletContextType>({
   address: null,
+  network: "testnet",
   connect: async () => {},
   disconnect: () => {},
   isConnecting: false,
@@ -51,7 +64,10 @@ const WalletContext = createContext<WalletContextType>({
 });
 
 export function WalletProvider({ children }: { children: ReactNode }) {
-  const [address, setAddress] = useState<string | null>(null);
+  const [address, setAddress] = useState<string | null>(() => deserializeWalletState()?.address ?? null);
+  const [network, setNetwork] = useState<StellarNetwork>(
+    () => deserializeWalletState()?.network ?? "testnet",
+  );
   const [isConnecting, setIsConnecting] = useState(false);
   const [selectedWalletId, setSelectedWalletId] = useState<SupportedWalletId>(
     SUPPORTED_WALLETS[0].id
@@ -142,26 +158,31 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(STORAGE_KEY);
     setNetworkMismatch(false);
     setAddress(null);
+    clearWalletState();
   }, []);
 
-  const signTransaction = useCallback(async (xdr: string): Promise<string> => {
-    if (!address) throw new Error("Wallet not connected");
+  const signTransaction = useCallback(
+    async (xdr: string): Promise<string> => {
+      if (!address) throw new Error("Wallet not connected");
 
-    ensureKitInitialized();
-    StellarWalletsKit.setWallet(selectedWalletId);
+      ensureKitInitialized();
+      StellarWalletsKit.setWallet(selectedWalletId);
 
-    const result = (await StellarWalletsKit.signTransaction(xdr, {
-      address,
-      networkPassphrase: NETWORK_PASSPHRASE,
-    })) as KitSignResult;
+      const result = (await StellarWalletsKit.signTransaction(xdr, {
+        address,
+        networkPassphrase: NETWORK_PASSPHRASES[network],
+      })) as KitSignResult;
 
-    return result.signedTxXdr ?? "";
-  }, [address, ensureKitInitialized, selectedWalletId]);
+      return result.signedTxXdr ?? "";
+    },
+    [address, ensureKitInitialized, selectedWalletId, network],
+  );
 
   return (
     <WalletContext.Provider
       value={{
         address,
+        network,
         connect,
         disconnect,
         isConnecting,
