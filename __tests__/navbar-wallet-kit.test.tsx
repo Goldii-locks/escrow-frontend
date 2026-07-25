@@ -18,10 +18,21 @@ vi.mock("@/app/hooks/useIsAdmin", () => ({
   useIsAdmin: () => ({ isAdminUser: false }),
 }));
 
+vi.mock("@/app/components/NetworkMismatchBanner", () => ({
+  default: () => null,
+}));
+
 describe("Navbar wallet selector", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
+
+  const defaultNetworkSyncState = {
+    isChecking: false,
+    mismatch: false,
+    result: null,
+    error: null,
+  };
 
   it("shows wallet provider selector when disconnected", () => {
     mockUseWallet.mockReturnValue({
@@ -29,6 +40,7 @@ describe("Navbar wallet selector", () => {
       connect: vi.fn(),
       disconnect: vi.fn(),
       isConnecting: false,
+      networkSyncState: defaultNetworkSyncState,
       selectedWalletId: "freighter",
       setSelectedWalletId: vi.fn(),
     });
@@ -46,6 +58,7 @@ describe("Navbar wallet selector", () => {
       connect: vi.fn(),
       disconnect: vi.fn(),
       isConnecting: false,
+      networkSyncState: defaultNetworkSyncState,
       selectedWalletId: "freighter",
       setSelectedWalletId,
     });
