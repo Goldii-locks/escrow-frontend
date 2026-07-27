@@ -33,6 +33,7 @@ interface WalletContextType {
   connect: () => Promise<void>;
   disconnect: () => void;
   isConnecting: boolean;
+  isSigning: boolean;
   networkMismatch: boolean;
   selectedWalletId: SupportedWalletId;
   setSelectedWalletId: (walletId: SupportedWalletId) => void;
@@ -44,6 +45,7 @@ const WalletContext = createContext<WalletContextType>({
   connect: async () => {},
   disconnect: () => {},
   isConnecting: false,
+  isSigning: false,
   networkMismatch: false,
   selectedWalletId: SUPPORTED_WALLETS[0].id,
   setSelectedWalletId: () => {},
@@ -53,6 +55,7 @@ const WalletContext = createContext<WalletContextType>({
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isSigning, setIsSigning] = useState(false);
   const [selectedWalletId, setSelectedWalletId] = useState<SupportedWalletId>(
     SUPPORTED_WALLETS[0].id
   );
@@ -145,17 +148,22 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signTransaction = useCallback(async (xdr: string): Promise<string> => {
-    if (!address) throw new Error("Wallet not connected");
+    setIsSigning(true);
+    try {
+      if (!address) throw new Error("Wallet not connected");
 
-    ensureKitInitialized();
-    StellarWalletsKit.setWallet(selectedWalletId);
+      ensureKitInitialized();
+      StellarWalletsKit.setWallet(selectedWalletId);
 
-    const result = (await StellarWalletsKit.signTransaction(xdr, {
-      address,
-      networkPassphrase: NETWORK_PASSPHRASE,
-    })) as KitSignResult;
+      const result = (await StellarWalletsKit.signTransaction(xdr, {
+        address,
+        networkPassphrase: NETWORK_PASSPHRASE,
+      })) as KitSignResult;
 
-    return result.signedTxXdr ?? "";
+      return result.signedTxXdr ?? "";
+    } finally {
+      setIsSigning(false);
+    }
   }, [address, ensureKitInitialized, selectedWalletId]);
 
   return (
@@ -165,6 +173,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         connect,
         disconnect,
         isConnecting,
+        isSigning,
         networkMismatch,
         selectedWalletId,
         setSelectedWalletId,
