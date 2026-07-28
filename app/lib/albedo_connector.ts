@@ -1,314 +1,253 @@
-/**
- * albedo_connector — Albedo popup wallet session helpers.
- * Securely persists non-sensitive active address / session state across reloads.
+﻿/**
+ * albedo_connector — formatted console warnings/errors and transaction
+ * lifecycle tracking for Albedo popup wallet debugging.
  *
- * Never stores private keys, secret keys, seeds, or signing material.
+ * Never logs private keys, seeds, credentials, or full sensitive payloads.
  */
 
-export type AlbedoNetwork = "mainnet" | "testnet";
+export type AlbedoTxPhase =
+  | "idle"
+  | "building"
+  | "assembling"
+  | "popup"
+  | "signing"
+  | "signed"
+  | "submitting"
+  | "confirming"
+  | "success"
+  | "error"
+  | "cancelled";
 
-export const ALBEDO_STORAGE_KEY = "milesto_albedo_session_v1";
-export const ALBEDO_STATE_VERSION = 1 as const;
-
-/** Stellar public key: G + 55 base32 characters. */
-const STELLAR_ADDRESS_RE = /^G[A-Z2-7]{55}$/;
-
-export interface AlbedoSerializedState {
-  version: typeof ALBEDO_STATE_VERSION;
-  /** Active public address only — never a secret key. */
-  address: string;
-  network: AlbedoNetwork;
-  connectedAt: number;
+export interface AlbedoTxTrackEntry {
+  txId: string;
+  phase: AlbedoTxPhase;
+  message: string;
+  timestamp: number;
+  network?: string;
+  operationType?: string;
+  txHash?: string;
+  stack?: string;
 }
 
-export interface AlbedoRestoredState {
-  restored: boolean;
-  parseError: string | null;
-  address: string | null;
-  network: AlbedoNetwork | null;
-  connectedAt: number | null;
+export interface AlbedoConsoleBlock {
+  title: string;
+  body: string;
+  stack: string;
+  txId?: string;
+  phase?: AlbedoTxPhase;
+  network?: string;
+  operationType?: string;
+  txHash?: string;
 }
 
-export interface AlbedoPersistInput {
-  address: string;
-  network: AlbedoNetwork;
-  connectedAt?: number;
+export interface AlbedoLogContext {
+  err?: unknown;
+  txId?: string;
+  phase?: AlbedoTxPhase;
+  network?: string;
+  operationType?: string;
+  txHash?: string;
 }
 
-export type StorageAdapter = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+const WARN_PREFIX = "[albedo_connector]";
 
-export class AlbedoStateParseError extends Error {
-  constructor(
-    message: string,
-    public readonly field?: string
-  ) {
-    super(message);
-    this.name = "AlbedoStateParseError";
-  }
-}
+const SENSITIVE_KEY_PATTERN =
+  /(secret|private[_-]?key|seed|mnemonic|password|credential|auth[_-]?token)/i;
 
-const LOG_PREFIX = "[albedo_connector]";
-
-export function isValidStellarAddress(address: unknown): address is string {
-  return typeof address === "string" && STELLAR_ADDRESS_RE.test(address);
-}
-
-export function isValidNetwork(value: unknown): value is AlbedoNetwork {
-  return value === "mainnet" || value === "testnet";
-}
-
-/**
- * Deep-validates a candidate persisted payload. Throws AlbedoStateParseError
- * on any malformed / stale / invalid field rather than trusting storage.
- */
-export function validateSerializedState(
-  value: unknown
-): AlbedoSerializedState {
-  if (value === null || value === undefined) {
-    throw new AlbedoStateParseError("persisted state is missing", "root");
-  }
-  if (typeof value !== "object" || Array.isArray(value)) {
-    throw new AlbedoStateParseError("persisted state must be an object", "root");
+/** Captures a normalized stack string from an error or the current call site. */
+export function formatStackTrace(err?: unknown): string {
+  if (err instanceof Error && err.stack) {
+    return err.stack;
   }
 
-  const obj = value as Record<string, unknown>;
+  if (typeof err === "string" && err.includes("\n")) {
+    return err;
+  }
 
-  if (obj.version !== ALBEDO_STATE_VERSION) {
-    throw new AlbedoStateParseError(
-      `unsupported state version: ${String(obj.version)}`,
-      "version"
+  const synthetic = new Error(
+    typeof err === "string" ? err : "Albedo connector trace"
+  );
+  return synthetic.stack ?? "Error: Albedo connector trace";
+}
+
+/** Redacts accidental sensitive substrings from log bodies. */
+export function sanitizeAlbedoLogText(text: string): string {
+  return text
+    .replace(/S[A-Z2-7]{55}/g, "[REDACTED_SECRET]")
+    .replace(
+      /(secret|privateKey|seed|mnemonic|password|token)\s*[:=]\s*\S+/gi,
+      "$1=[REDACTED]"
     );
-  }
-  if (typeof obj.address !== "string") {
-    throw new AlbedoStateParseError("address must be a string", "address");
-  }
-  if (!isValidStellarAddress(obj.address)) {
-    throw new AlbedoStateParseError("address is not a valid Stellar public key", "address");
-  }
-  if (!isValidNetwork(obj.network)) {
-    throw new AlbedoStateParseError("network is invalid", "network");
-  }
-  if (typeof obj.connectedAt !== "number" || !Number.isFinite(obj.connectedAt)) {
-    throw new AlbedoStateParseError("connectedAt must be a finite number", "connectedAt");
-  }
-  if (obj.connectedAt <= 0) {
-    throw new AlbedoStateParseError("connectedAt must be positive", "connectedAt");
-  }
+}
 
-  // Reject accidental secret-key shaped fields if present in a future/malicious payload.
-  for (const forbidden of ["secret", "secretKey", "privateKey", "seed", "mnemonic"]) {
-    if (forbidden in obj) {
-      throw new AlbedoStateParseError(
-        `forbidden sensitive field "${forbidden}" must not be persisted`,
-        forbidden
+function assertNoSensitiveFields(context?: AlbedoLogContext): void {
+  if (!context) return;
+  for (const key of Object.keys(context)) {
+    if (SENSITIVE_KEY_PATTERN.test(key)) {
+      throw new Error(
+        `${WARN_PREFIX} refused to log sensitive field "${key}"`
       );
     }
   }
-
-  return {
-    version: ALBEDO_STATE_VERSION,
-    address: obj.address,
-    network: obj.network,
-    connectedAt: obj.connectedAt,
-  };
 }
 
-/** Builds a versioned, validated session payload ready for storage. */
-export function serializeWalletState(
-  input: AlbedoPersistInput
-): AlbedoSerializedState {
-  const candidate: AlbedoSerializedState = {
-    version: ALBEDO_STATE_VERSION,
-    address: input.address,
-    network: input.network,
-    connectedAt: input.connectedAt ?? Date.now(),
-  };
-  return validateSerializedState(candidate);
-}
+/** Builds a multi-line console block for transaction debug tracking. */
+export function formatConsoleWarningBlock(block: AlbedoConsoleBlock): string {
+  const title = sanitizeAlbedoLogText(block.title);
+  const body = sanitizeAlbedoLogText(block.body);
+  const stack = sanitizeAlbedoLogText(block.stack);
 
-/** Parses JSON text and validates the resulting session state. */
-export function parseAlbedoState(raw: string): AlbedoSerializedState {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (err) {
-    throw new AlbedoStateParseError(
-      `invalid JSON: ${err instanceof Error ? err.message : String(err)}`,
-      "json"
+  const lines = [
+    `${WARN_PREFIX} ╔══════════════════════════════════════╗`,
+    `${WARN_PREFIX} ║ ${title.padEnd(36).slice(0, 36)} ║`,
+    `${WARN_PREFIX} ╚══════════════════════════════════════╝`,
+    `${WARN_PREFIX} ${body}`,
+  ];
+
+  if (block.txId) {
+    lines.push(`${WARN_PREFIX} txId: ${sanitizeAlbedoLogText(block.txId)}`);
+  }
+  if (block.txHash) {
+    lines.push(
+      `${WARN_PREFIX} txHash: ${sanitizeAlbedoLogText(block.txHash)}`
     );
   }
-  return validateSerializedState(parsed);
-}
-
-function getDefaultStorage(): StorageAdapter | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const storage = window.localStorage;
-    const testKey = "__albedo_storage_test__";
-    storage.setItem(testKey, "1");
-    storage.removeItem(testKey);
-    return storage;
-  } catch {
-    return null;
+  if (block.phase) {
+    lines.push(`${WARN_PREFIX} phase: ${block.phase}`);
   }
+  if (block.network) {
+    lines.push(
+      `${WARN_PREFIX} network: ${sanitizeAlbedoLogText(block.network)}`
+    );
+  }
+  if (block.operationType) {
+    lines.push(
+      `${WARN_PREFIX} operation: ${sanitizeAlbedoLogText(block.operationType)}`
+    );
+  }
+
+  lines.push(`${WARN_PREFIX} --- stack trace ---`);
+  for (const frame of stack.split("\n")) {
+    lines.push(`${WARN_PREFIX} ${frame}`);
+  }
+  lines.push(`${WARN_PREFIX} --- end stack ---`);
+
+  return lines.join("\n");
 }
 
-function resolveStorage(adapter?: StorageAdapter | null): StorageAdapter | null {
-  if (adapter === null) return null;
-  if (adapter) return adapter;
-  return getDefaultStorage();
+function buildBlock(
+  title: string,
+  body: string,
+  options?: AlbedoLogContext
+): { formatted: string; stack: string } {
+  assertNoSensitiveFields(options);
+  const stack = formatStackTrace(options?.err);
+  const formatted = formatConsoleWarningBlock({
+    title,
+    body,
+    stack,
+    txId: options?.txId,
+    phase: options?.phase,
+    network: options?.network,
+    operationType: options?.operationType,
+    txHash: options?.txHash,
+  });
+  return { formatted, stack };
 }
 
-function emptyRestored(parseError: string | null = null): AlbedoRestoredState {
-  return {
-    restored: false,
-    parseError,
-    address: null,
-    network: null,
-    connectedAt: null,
-  };
+/** Logs a formatted warning block (including stack) via console.warn. */
+export function logAlbedoWarning(
+  title: string,
+  body: string,
+  options?: AlbedoLogContext
+): string {
+  const { formatted } = buildBlock(title, body, options);
+  console.warn(formatted);
+  return formatted;
 }
 
 /**
- * Persists non-sensitive Albedo session state. Returns false on validation or
- * storage failures without throwing.
+ * Logs a formatted error block via console.error while preserving the original
+ * error object (and its stack) as a secondary argument when available.
  */
-export function saveAlbedoState(
-  input: AlbedoPersistInput,
-  options?: { storage?: StorageAdapter | null }
-): boolean {
-  try {
-    const storage = resolveStorage(options?.storage);
-    if (!storage) {
-      console.warn(`${LOG_PREFIX} storage unavailable; session not persisted`);
-      return false;
-    }
-    const serialized = serializeWalletState(input);
-    storage.setItem(ALBEDO_STORAGE_KEY, JSON.stringify(serialized));
-    return true;
-  } catch (err) {
-    console.warn(
-      `${LOG_PREFIX} failed to persist session:`,
-      err instanceof Error ? err.message : err
-    );
-    return false;
+export function logAlbedoError(
+  title: string,
+  body: string,
+  options?: AlbedoLogContext
+): string {
+  const { formatted } = buildBlock(title, body, options);
+  if (options?.err instanceof Error) {
+    console.error(formatted, options.err);
+  } else if (options?.err !== undefined) {
+    console.error(formatted, options.err);
+  } else {
+    console.error(formatted);
   }
+  return formatted;
 }
 
-/**
- * Loads and validates persisted Albedo session state. Malformed / stale /
- * invalid entries are discarded (and the storage key cleared) rather than
- * crashing the app.
- */
-export function loadAlbedoState(options?: {
-  storage?: StorageAdapter | null;
-}): AlbedoRestoredState {
-  const storage = resolveStorage(options?.storage);
-  if (!storage) {
-    return emptyRestored("storage unavailable");
-  }
+export class AlbedoTransactionTracker {
+  private entries: AlbedoTxTrackEntry[] = [];
 
-  let raw: string | null;
-  try {
-    raw = storage.getItem(ALBEDO_STORAGE_KEY);
-  } catch (err) {
-    console.warn(
-      `${LOG_PREFIX} failed to read session:`,
-      err instanceof Error ? err.message : err
-    );
-    return emptyRestored("storage read failed");
-  }
-
-  if (raw === null || raw === undefined || raw === "") {
-    return emptyRestored(null);
-  }
-
-  try {
-    const state = parseAlbedoState(raw);
-    return {
-      restored: true,
-      parseError: null,
-      address: state.address,
-      network: state.network,
-      connectedAt: state.connectedAt,
+  track(
+    txId: string,
+    phase: AlbedoTxPhase,
+    message: string,
+    options?: Omit<AlbedoLogContext, "txId" | "phase"> & { err?: unknown }
+  ): AlbedoTxTrackEntry {
+    const stack = formatStackTrace(options?.err);
+    const entry: AlbedoTxTrackEntry = {
+      txId,
+      phase,
+      message: sanitizeAlbedoLogText(message),
+      timestamp: Date.now(),
+      network: options?.network,
+      operationType: options?.operationType,
+      txHash: options?.txHash,
+      stack,
     };
-  } catch (err) {
-    const message =
-      err instanceof AlbedoStateParseError
-        ? err.message
-        : err instanceof Error
-          ? err.message
-          : String(err);
-    console.warn(`${LOG_PREFIX} discarding invalid persisted session:`, message);
-    try {
-      storage.removeItem(ALBEDO_STORAGE_KEY);
-    } catch {
-      // ignore clear failures after a bad parse
+    this.entries.push(entry);
+
+    const title = `TX ${phase.toUpperCase()}`;
+    const logOptions: AlbedoLogContext = {
+      err: options?.err,
+      txId,
+      phase,
+      network: options?.network,
+      operationType: options?.operationType,
+      txHash: options?.txHash,
+    };
+
+    if (phase === "error") {
+      logAlbedoError(title, message, logOptions);
+    } else {
+      logAlbedoWarning(title, message, logOptions);
     }
-    return emptyRestored(message);
+
+    return entry;
+  }
+
+  getHistory(txId?: string): AlbedoTxTrackEntry[] {
+    if (!txId) return [...this.entries];
+    return this.entries.filter((e) => e.txId === txId);
+  }
+
+  clear(): void {
+    this.entries = [];
   }
 }
 
-/** Clears persisted Albedo session state (e.g. on disconnect / logout). */
-export function clearAlbedoState(options?: {
-  storage?: StorageAdapter | null;
-}): boolean {
-  try {
-    const storage = resolveStorage(options?.storage);
-    if (!storage) return false;
-    storage.removeItem(ALBEDO_STORAGE_KEY);
-    return true;
-  } catch (err) {
-    console.warn(
-      `${LOG_PREFIX} failed to clear session:`,
-      err instanceof Error ? err.message : err
-    );
-    return false;
-  }
-}
+export const albedoTracker = new AlbedoTransactionTracker();
 
 /**
- * OOP session manager that restores from storage on construction and keeps an
- * in-memory mirror of the active (public) Albedo address / network.
+ * Convenience helpers for common Albedo transaction lifecycle stages.
+ * Avoids duplicate noisy logs by going through the shared tracker.
  */
-export class AlbedoSessionManager {
-  private state: AlbedoRestoredState;
-  private readonly storage: StorageAdapter | null;
-
-  constructor(storage?: StorageAdapter | null) {
-    this.storage = resolveStorage(storage);
-    this.state = loadAlbedoState({ storage: this.storage });
-  }
-
-  getState(): AlbedoRestoredState {
-    return { ...this.state };
-  }
-
-  persist(input: AlbedoPersistInput): boolean {
-    const ok = saveAlbedoState(input, { storage: this.storage });
-    if (ok) {
-      this.state = {
-        restored: true,
-        parseError: null,
-        address: input.address,
-        network: input.network,
-        connectedAt: input.connectedAt ?? Date.now(),
-      };
-    }
-    return ok;
-  }
-
-  /** Re-reads storage — simulates a page-reload restoration path. */
-  restore(): AlbedoRestoredState {
-    this.state = loadAlbedoState({ storage: this.storage });
-    return this.getState();
-  }
-
-  clear(): boolean {
-    const ok = clearAlbedoState({ storage: this.storage });
-    this.state = emptyRestored(null);
-    return ok;
-  }
+export function trackAlbedoLifecycle(
+  txId: string,
+  phase: AlbedoTxPhase,
+  message: string,
+  options?: Omit<AlbedoLogContext, "txId" | "phase">
+): AlbedoTxTrackEntry {
+  return albedoTracker.track(txId, phase, message, options);
 }
-
-export const albedoSession = new AlbedoSessionManager();
