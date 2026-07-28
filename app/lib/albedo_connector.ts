@@ -1,174 +1,253 @@
-/**
- * albedo_connector — loading / spinner state management for Albedo wallet ops.
+﻿/**
+ * albedo_connector — formatted console warnings/errors and transaction
+ * lifecycle tracking for Albedo popup wallet debugging.
  *
- * Ensures loader visibility starts before async Albedo calls and always clears
- * on success, failure, cancellation, or unexpected exceptions (try/finally).
- * Concurrent calls use a reference counter so the spinner does not flicker or
- * stick when multiple operations overlap.
+ * Never logs private keys, seeds, credentials, or full sensitive payloads.
  */
 
-export type AlbedoLoadingOperation =
-  | "connect"
-  | "getAddress"
-  | "sign"
-  | "submit"
+export type AlbedoTxPhase =
+  | "idle"
+  | "building"
+  | "assembling"
   | "popup"
-  | "other";
+  | "signing"
+  | "signed"
+  | "submitting"
+  | "confirming"
+  | "success"
+  | "error"
+  | "cancelled";
 
-export interface AlbedoLoadingState {
-  /** True while at least one tracked Albedo operation is in flight. */
-  isLoading: boolean;
-  /** Number of nested / concurrent in-flight operations. */
-  pendingCount: number;
-  /** Most recently started operation label (for UI copy / debugging). */
-  activeOperation: AlbedoLoadingOperation | null;
+export interface AlbedoTxTrackEntry {
+  txId: string;
+  phase: AlbedoTxPhase;
+  message: string;
+  timestamp: number;
+  network?: string;
+  operationType?: string;
+  txHash?: string;
+  stack?: string;
 }
 
-export type AlbedoLoadingListener = (state: AlbedoLoadingState) => void;
-
-const LOG_PREFIX = "[albedo_connector]";
-
-function snapshot(
-  pendingCount: number,
-  activeOperation: AlbedoLoadingOperation | null
-): AlbedoLoadingState {
-  return {
-    isLoading: pendingCount > 0,
-    pendingCount,
-    activeOperation: pendingCount > 0 ? activeOperation : null,
-  };
+export interface AlbedoConsoleBlock {
+  title: string;
+  body: string;
+  stack: string;
+  txId?: string;
+  phase?: AlbedoTxPhase;
+  network?: string;
+  operationType?: string;
+  txHash?: string;
 }
 
-/**
- * Reference-counted loading manager for Albedo popup / wallet operations.
- */
-export class AlbedoLoadingManager {
-  private pendingCount = 0;
-  private activeOperation: AlbedoLoadingOperation | null = null;
-  private readonly listeners = new Set<AlbedoLoadingListener>();
+export interface AlbedoLogContext {
+  err?: unknown;
+  txId?: string;
+  phase?: AlbedoTxPhase;
+  network?: string;
+  operationType?: string;
+  txHash?: string;
+}
 
-  getState(): AlbedoLoadingState {
-    return snapshot(this.pendingCount, this.activeOperation);
+const WARN_PREFIX = "[albedo_connector]";
+
+const SENSITIVE_KEY_PATTERN =
+  /(secret|private[_-]?key|seed|mnemonic|password|credential|auth[_-]?token)/i;
+
+/** Captures a normalized stack string from an error or the current call site. */
+export function formatStackTrace(err?: unknown): string {
+  if (err instanceof Error && err.stack) {
+    return err.stack;
   }
 
-  subscribe(listener: AlbedoLoadingListener): () => void {
-    this.listeners.add(listener);
-    listener(this.getState());
-    return () => {
-      this.listeners.delete(listener);
-    };
+  if (typeof err === "string" && err.includes("\n")) {
+    return err;
   }
 
-  private emit(): void {
-    const state = this.getState();
-    for (const listener of this.listeners) {
-      listener(state);
-    }
-  }
+  const synthetic = new Error(
+    typeof err === "string" ? err : "Albedo connector trace"
+  );
+  return synthetic.stack ?? "Error: Albedo connector trace";
+}
 
-  /** Marks the start of an Albedo async operation (spinner on). */
-  start(operation: AlbedoLoadingOperation = "other"): AlbedoLoadingState {
-    this.pendingCount += 1;
-    this.activeOperation = operation;
-    this.emit();
-    return this.getState();
-  }
+/** Redacts accidental sensitive substrings from log bodies. */
+export function sanitizeAlbedoLogText(text: string): string {
+  return text
+    .replace(/S[A-Z2-7]{55}/g, "[REDACTED_SECRET]")
+    .replace(
+      /(secret|privateKey|seed|mnemonic|password|token)\s*[:=]\s*\S+/gi,
+      "$1=[REDACTED]"
+    );
+}
 
-  /**
-   * Marks completion of one Albedo async operation (spinner off when the
-   * last pending call finishes).
-   */
-  stop(): AlbedoLoadingState {
-    if (this.pendingCount > 0) {
-      this.pendingCount -= 1;
-    }
-    if (this.pendingCount === 0) {
-      this.activeOperation = null;
-    }
-    this.emit();
-    return this.getState();
-  }
-
-  /** Force-clears all pending ops (e.g. after a catastrophic failure). */
-  reset(): AlbedoLoadingState {
-    this.pendingCount = 0;
-    this.activeOperation = null;
-    this.emit();
-    return this.getState();
-  }
-
-  /**
-   * Runs an async Albedo operation with loading state bracketed in try/finally
-   * so success, failure, cancellation, and thrown exceptions all clear the spinner.
-   */
-  async runWithLoading<T>(
-    operation: AlbedoLoadingOperation,
-    fn: () => Promise<T>
-  ): Promise<T> {
-    this.start(operation);
-    try {
-      return await fn();
-    } catch (err) {
-      console.warn(
-        `${LOG_PREFIX} ${operation} failed:`,
-        err instanceof Error ? err.message : err
+function assertNoSensitiveFields(context?: AlbedoLogContext): void {
+  if (!context) return;
+  for (const key of Object.keys(context)) {
+    if (SENSITIVE_KEY_PATTERN.test(key)) {
+      throw new Error(
+        `${WARN_PREFIX} refused to log sensitive field "${key}"`
       );
-      throw err;
-    } finally {
-      this.stop();
     }
   }
 }
 
-/** Shared singleton used by Albedo wallet call sites. */
-export const albedoLoading = new AlbedoLoadingManager();
+/** Builds a multi-line console block for transaction debug tracking. */
+export function formatConsoleWarningBlock(block: AlbedoConsoleBlock): string {
+  const title = sanitizeAlbedoLogText(block.title);
+  const body = sanitizeAlbedoLogText(block.body);
+  const stack = sanitizeAlbedoLogText(block.stack);
 
-/**
- * Convenience wrapper around the shared manager for one-off Albedo calls.
- */
-export async function withAlbedoLoading<T>(
-  operation: AlbedoLoadingOperation,
-  fn: () => Promise<T>,
-  manager: AlbedoLoadingManager = albedoLoading
-): Promise<T> {
-  return manager.runWithLoading(operation, fn);
+  const lines = [
+    `${WARN_PREFIX} ╔══════════════════════════════════════╗`,
+    `${WARN_PREFIX} ║ ${title.padEnd(36).slice(0, 36)} ║`,
+    `${WARN_PREFIX} ╚══════════════════════════════════════╝`,
+    `${WARN_PREFIX} ${body}`,
+  ];
+
+  if (block.txId) {
+    lines.push(`${WARN_PREFIX} txId: ${sanitizeAlbedoLogText(block.txId)}`);
+  }
+  if (block.txHash) {
+    lines.push(
+      `${WARN_PREFIX} txHash: ${sanitizeAlbedoLogText(block.txHash)}`
+    );
+  }
+  if (block.phase) {
+    lines.push(`${WARN_PREFIX} phase: ${block.phase}`);
+  }
+  if (block.network) {
+    lines.push(
+      `${WARN_PREFIX} network: ${sanitizeAlbedoLogText(block.network)}`
+    );
+  }
+  if (block.operationType) {
+    lines.push(
+      `${WARN_PREFIX} operation: ${sanitizeAlbedoLogText(block.operationType)}`
+    );
+  }
+
+  lines.push(`${WARN_PREFIX} --- stack trace ---`);
+  for (const frame of stack.split("\n")) {
+    lines.push(`${WARN_PREFIX} ${frame}`);
+  }
+  lines.push(`${WARN_PREFIX} --- end stack ---`);
+
+  return lines.join("\n");
+}
+
+function buildBlock(
+  title: string,
+  body: string,
+  options?: AlbedoLogContext
+): { formatted: string; stack: string } {
+  assertNoSensitiveFields(options);
+  const stack = formatStackTrace(options?.err);
+  const formatted = formatConsoleWarningBlock({
+    title,
+    body,
+    stack,
+    txId: options?.txId,
+    phase: options?.phase,
+    network: options?.network,
+    operationType: options?.operationType,
+    txHash: options?.txHash,
+  });
+  return { formatted, stack };
+}
+
+/** Logs a formatted warning block (including stack) via console.warn. */
+export function logAlbedoWarning(
+  title: string,
+  body: string,
+  options?: AlbedoLogContext
+): string {
+  const { formatted } = buildBlock(title, body, options);
+  console.warn(formatted);
+  return formatted;
 }
 
 /**
- * High-level helpers mirroring common Albedo popup flows. Callers inject the
- * actual Albedo / kit implementation so tests can stub without network I/O.
+ * Logs a formatted error block via console.error while preserving the original
+ * error object (and its stack) as a secondary argument when available.
  */
-export async function connectWithAlbedoLoading(
-  connectFn: () => Promise<string>,
-  manager: AlbedoLoadingManager = albedoLoading
-): Promise<string> {
-  return withAlbedoLoading("connect", connectFn, manager);
+export function logAlbedoError(
+  title: string,
+  body: string,
+  options?: AlbedoLogContext
+): string {
+  const { formatted } = buildBlock(title, body, options);
+  if (options?.err instanceof Error) {
+    console.error(formatted, options.err);
+  } else if (options?.err !== undefined) {
+    console.error(formatted, options.err);
+  } else {
+    console.error(formatted);
+  }
+  return formatted;
 }
 
-export async function getAddressWithAlbedoLoading(
-  getAddressFn: () => Promise<string>,
-  manager: AlbedoLoadingManager = albedoLoading
-): Promise<string> {
-  return withAlbedoLoading("getAddress", getAddressFn, manager);
+export class AlbedoTransactionTracker {
+  private entries: AlbedoTxTrackEntry[] = [];
+
+  track(
+    txId: string,
+    phase: AlbedoTxPhase,
+    message: string,
+    options?: Omit<AlbedoLogContext, "txId" | "phase"> & { err?: unknown }
+  ): AlbedoTxTrackEntry {
+    const stack = formatStackTrace(options?.err);
+    const entry: AlbedoTxTrackEntry = {
+      txId,
+      phase,
+      message: sanitizeAlbedoLogText(message),
+      timestamp: Date.now(),
+      network: options?.network,
+      operationType: options?.operationType,
+      txHash: options?.txHash,
+      stack,
+    };
+    this.entries.push(entry);
+
+    const title = `TX ${phase.toUpperCase()}`;
+    const logOptions: AlbedoLogContext = {
+      err: options?.err,
+      txId,
+      phase,
+      network: options?.network,
+      operationType: options?.operationType,
+      txHash: options?.txHash,
+    };
+
+    if (phase === "error") {
+      logAlbedoError(title, message, logOptions);
+    } else {
+      logAlbedoWarning(title, message, logOptions);
+    }
+
+    return entry;
+  }
+
+  getHistory(txId?: string): AlbedoTxTrackEntry[] {
+    if (!txId) return [...this.entries];
+    return this.entries.filter((e) => e.txId === txId);
+  }
+
+  clear(): void {
+    this.entries = [];
+  }
 }
 
-export async function signWithAlbedoLoading(
-  signFn: () => Promise<string>,
-  manager: AlbedoLoadingManager = albedoLoading
-): Promise<string> {
-  return withAlbedoLoading("sign", signFn, manager);
-}
+export const albedoTracker = new AlbedoTransactionTracker();
 
-export async function submitWithAlbedoLoading(
-  submitFn: () => Promise<string>,
-  manager: AlbedoLoadingManager = albedoLoading
-): Promise<string> {
-  return withAlbedoLoading("submit", submitFn, manager);
-}
-
-export async function runAlbedoPopupWithLoading(
-  popupFn: () => Promise<unknown>,
-  manager: AlbedoLoadingManager = albedoLoading
-): Promise<unknown> {
-  return withAlbedoLoading("popup", popupFn, manager);
+/**
+ * Convenience helpers for common Albedo transaction lifecycle stages.
+ * Avoids duplicate noisy logs by going through the shared tracker.
+ */
+export function trackAlbedoLifecycle(
+  txId: string,
+  phase: AlbedoTxPhase,
+  message: string,
+  options?: Omit<AlbedoLogContext, "txId" | "phase">
+): AlbedoTxTrackEntry {
+  return albedoTracker.track(txId, phase, message, options);
 }

@@ -1,13 +1,17 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
+  checkLedgerAvailability,
   checkNetworkMatch,
   signCatchingRejection,
+  warnOnMissingLedgerTransport,
+  type LedgerAvailabilityState,
   type LedgerNetwork,
   type LedgerSignResult,
   type LedgerToastHandler,
 } from "@/app/lib/ledger_usb_bridge";
+import LedgerWalletWarningBanner from "./LedgerWalletWarningBanner";
 
 export type LedgerBridgeStatus =
   | "idle"
@@ -16,7 +20,8 @@ export type LedgerBridgeStatus =
   | "signing"
   | "signed"
   | "rejected"
-  | "error";
+  | "error"
+  | "transport-unavailable";
 
 export interface LedgerUsbBridgeProps {
   walletNetwork: LedgerNetwork;
@@ -25,11 +30,15 @@ export interface LedgerUsbBridgeProps {
   showToast: LedgerToastHandler;
   onSigned?: (result: LedgerSignResult) => void;
   onNetworkCheck?: (mismatched: boolean) => void;
+  /** Optional precomputed availability state; when omitted, detects on render. */
+  availability?: LedgerAvailabilityState | null;
+  /** Optional detector override (useful in tests). */
+  detector?: () => { hasWebUsb: boolean; hasWebHid: boolean };
 }
 
 /**
- * UI bridge for Ledger USB wallet actions — network checks and signing flows
- * backed by `ledger_usb_bridge` helpers.
+ * UI bridge for Ledger USB wallet actions — transport availability detection,
+ * network checks, and signing flows backed by `ledger_usb_bridge` helpers.
  */
 export default function LedgerUsbBridge({
   walletNetwork,
@@ -38,19 +47,48 @@ export default function LedgerUsbBridge({
   showToast,
   onSigned,
   onNetworkCheck,
+  availability,
+  detector,
 }: LedgerUsbBridgeProps) {
+  const transportState = useMemo<LedgerAvailabilityState>(
+    () => availability ?? checkLedgerAvailability(detector),
+    [availability, detector]
+  );
+
   const [status, setStatus] = useState<LedgerBridgeStatus>("idle");
 
+  const displayStatus: LedgerBridgeStatus =
+    status === "idle" && !transportState.available
+      ? "transport-unavailable"
+      : status;
+
   const handleCheckNetwork = useCallback(() => {
+    if (!transportState.available) {
+      warnOnMissingLedgerTransport(showToast, detector);
+      setStatus("transport-unavailable");
+      return;
+    }
     const state = checkNetworkMatch(walletNetwork, appNetwork);
     onNetworkCheck?.(state.mismatched);
     setStatus(state.mismatched ? "network-mismatch" : "network-ok");
     if (state.mismatched && state.warningMessage) {
       showToast(state.warningMessage, "warning");
     }
-  }, [walletNetwork, appNetwork, onNetworkCheck, showToast]);
+  }, [
+    walletNetwork,
+    appNetwork,
+    onNetworkCheck,
+    showToast,
+    transportState,
+    detector,
+  ]);
 
   const handleSign = useCallback(async () => {
+    if (!transportState.available) {
+      warnOnMissingLedgerTransport(showToast, detector);
+      setStatus("transport-unavailable");
+      return;
+    }
     setStatus("signing");
     try {
       const result = await signCatchingRejection(signTransaction, showToast);
@@ -66,17 +104,28 @@ export default function LedgerUsbBridge({
         err instanceof Error ? err.message : "Ledger signing failed.";
       showToast(message, "error");
     }
-  }, [signTransaction, showToast, onSigned]);
+  }, [signTransaction, showToast, onSigned, transportState, detector]);
 
   return (
     <div data-testid="ledger-usb-bridge">
-      <button type="button" onClick={handleCheckNetwork}>
+      <LedgerWalletWarningBanner availability={transportState} />
+      <button
+        type="button"
+        onClick={handleCheckNetwork}
+        disabled={!transportState.available}
+        className="disabled:opacity-40 disabled:cursor-not-allowed"
+      >
         Check Ledger network
       </button>
-      <button type="button" onClick={handleSign}>
+      <button
+        type="button"
+        onClick={handleSign}
+        disabled={!transportState.available}
+        className="disabled:opacity-40 disabled:cursor-not-allowed"
+      >
         Sign via Ledger
       </button>
-      <span data-testid="ledger-usb-bridge-status">{status}</span>
+      <span data-testid="ledger-usb-bridge-status">{displayStatus}</span>
     </div>
   );
 }

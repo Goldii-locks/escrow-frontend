@@ -12,6 +12,7 @@ import { Networks, StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
 import { defaultModules } from "@creit.tech/stellar-wallets-kit/modules/utils";
 import { NETWORK_PASSPHRASE } from "@/app/lib/contract";
 import { useToast } from "./ToastContext";
+import { ledgerActiveAddresses } from "@/app/lib/ledger_usb_bridge";
 
 const STORAGE_KEY = "milesto_wallet_connected";
 
@@ -140,6 +141,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       console.error("Wallet disconnect failed", e);
     });
     localStorage.removeItem(STORAGE_KEY);
+    ledgerActiveAddresses.clear();
     setNetworkMismatch(false);
     setAddress(null);
   }, []);
