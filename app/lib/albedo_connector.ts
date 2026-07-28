@@ -1,203 +1,253 @@
-/**
- * albedo_connector — multi-signature transaction assembly helpers for Albedo.
+﻿/**
+ * albedo_connector — formatted console warnings/errors and transaction
+ * lifecycle tracking for Albedo popup wallet debugging.
  *
- * Splits / merges transaction envelopes so multi-sig wallets can prepare XDR,
- * collect co-signatures via Albedo's secure popup signing flow, and assemble
- * a final envelope without exposing private keys in this module.
+ * Never logs private keys, seeds, credentials, or full sensitive payloads.
  */
 
-import {
-  FeeBumpTransaction,
-  Transaction,
-  TransactionBuilder,
-} from "@stellar/stellar-sdk";
+export type AlbedoTxPhase =
+  | "idle"
+  | "building"
+  | "assembling"
+  | "popup"
+  | "signing"
+  | "signed"
+  | "submitting"
+  | "confirming"
+  | "success"
+  | "error"
+  | "cancelled";
 
-const LOG_PREFIX = "[albedo_connector]";
-
-export interface AlbedoMultiSigPart {
-  signerPublicKey: string;
-  signedXdr: string;
+export interface AlbedoTxTrackEntry {
+  txId: string;
+  phase: AlbedoTxPhase;
+  message: string;
+  timestamp: number;
+  network?: string;
+  operationType?: string;
+  txHash?: string;
+  stack?: string;
 }
 
-export interface AlbedoTransactionStructure {
-  sourceAccount: string;
-  fee: string;
-  operationCount: number;
-  signatureCount: number;
+export interface AlbedoConsoleBlock {
+  title: string;
+  body: string;
+  stack: string;
+  txId?: string;
+  phase?: AlbedoTxPhase;
+  network?: string;
+  operationType?: string;
+  txHash?: string;
 }
 
-export interface AlbedoMultiSigAssemblyPlan {
-  baseXdr: string;
-  structure: AlbedoTransactionStructure;
-  pendingSigners: string[];
+export interface AlbedoLogContext {
+  err?: unknown;
+  txId?: string;
+  phase?: AlbedoTxPhase;
+  network?: string;
+  operationType?: string;
+  txHash?: string;
 }
 
-export class AlbedoTransactionAssemblyError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "AlbedoTransactionAssemblyError";
-  }
-}
+const WARN_PREFIX = "[albedo_connector]";
 
-function readAlbedoTransaction(
-  transactionXdr: string,
-  networkPassphrase: string
-): Transaction {
-  if (!transactionXdr || typeof transactionXdr !== "string") {
-    throw new AlbedoTransactionAssemblyError("Missing transaction XDR");
-  }
-  if (!networkPassphrase) {
-    throw new AlbedoTransactionAssemblyError("Missing network passphrase");
-  }
+const SENSITIVE_KEY_PATTERN =
+  /(secret|private[_-]?key|seed|mnemonic|password|credential|auth[_-]?token)/i;
 
-  try {
-    const envelope = TransactionBuilder.fromXDR(
-      transactionXdr,
-      networkPassphrase
-    );
-    if (envelope instanceof FeeBumpTransaction) {
-      return envelope.innerTransaction;
-    }
-    return envelope as Transaction;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.warn(`${LOG_PREFIX} failed to parse transaction XDR:`, message);
-    throw new AlbedoTransactionAssemblyError(
-      `Invalid transaction structure: ${message}`
-    );
-  }
-}
-
-/** Parses a transaction envelope without mutating signing state. */
-export function parseAlbedoTransactionStructure(
-  transactionXdr: string,
-  networkPassphrase: string
-): AlbedoTransactionStructure {
-  const tx = readAlbedoTransaction(transactionXdr, networkPassphrase);
-  return {
-    sourceAccount: tx.source,
-    fee: tx.fee,
-    operationCount: tx.operations.length,
-    signatureCount: tx.signatures.length,
-  };
-}
-
-/** Validates that each partial signature envelope parses for the same network. */
-export function validateAlbedoMultiSigParts(
-  parts: AlbedoMultiSigPart[],
-  networkPassphrase: string
-): AlbedoTransactionStructure[] {
-  if (!Array.isArray(parts) || parts.length === 0) {
-    throw new AlbedoTransactionAssemblyError(
-      "At least one multi-signature part is required"
-    );
+/** Captures a normalized stack string from an error or the current call site. */
+export function formatStackTrace(err?: unknown): string {
+  if (err instanceof Error && err.stack) {
+    return err.stack;
   }
 
-  return parts.map((part, index) => {
-    if (!part?.signerPublicKey) {
-      throw new AlbedoTransactionAssemblyError(
-        `Missing signer public key at part index ${index}`
-      );
-    }
-    if (!part.signedXdr) {
-      throw new AlbedoTransactionAssemblyError(
-        `Missing signed XDR for signer ${part.signerPublicKey}`
-      );
-    }
-    return parseAlbedoTransactionStructure(part.signedXdr, networkPassphrase);
-  });
-}
-
-/**
- * Builds an assembly plan for co-signers that still need to sign the base XDR
- * via Albedo (or another wallet) without bypassing secure signing.
- */
-export function createAlbedoMultiSigAssemblyPlan(
-  baseXdr: string,
-  signerPublicKeys: string[],
-  networkPassphrase: string
-): AlbedoMultiSigAssemblyPlan {
-  if (!Array.isArray(signerPublicKeys) || signerPublicKeys.length === 0) {
-    throw new AlbedoTransactionAssemblyError(
-      "At least one signer public key is required"
-    );
+  if (typeof err === "string" && err.includes("\n")) {
+    return err;
   }
 
-  const structure = parseAlbedoTransactionStructure(
-    baseXdr,
-    networkPassphrase
+  const synthetic = new Error(
+    typeof err === "string" ? err : "Albedo connector trace"
   );
-
-  return {
-    baseXdr,
-    structure,
-    pendingSigners: [...signerPublicKeys],
-  };
+  return synthetic.stack ?? "Error: Albedo connector trace";
 }
 
-/**
- * Merges co-signer envelopes into a single multi-signature transaction XDR.
- * Existing single-signature envelopes remain valid (merge of one part works).
- */
-export function assembleAlbedoMultiSigTransaction(
-  baseXdr: string,
-  parts: AlbedoMultiSigPart[],
-  networkPassphrase: string
-): string {
-  validateAlbedoMultiSigParts(parts, networkPassphrase);
-  const merged = readAlbedoTransaction(baseXdr, networkPassphrase);
+/** Redacts accidental sensitive substrings from log bodies. */
+export function sanitizeAlbedoLogText(text: string): string {
+  return text
+    .replace(/S[A-Z2-7]{55}/g, "[REDACTED_SECRET]")
+    .replace(
+      /(secret|privateKey|seed|mnemonic|password|token)\s*[:=]\s*\S+/gi,
+      "$1=[REDACTED]"
+    );
+}
 
-  for (const part of parts) {
-    const signed = readAlbedoTransaction(part.signedXdr, networkPassphrase);
-    for (const signature of signed.signatures) {
-      const alreadyPresent = merged.signatures.some((existing) =>
-        existing.signature().equals(signature.signature())
+function assertNoSensitiveFields(context?: AlbedoLogContext): void {
+  if (!context) return;
+  for (const key of Object.keys(context)) {
+    if (SENSITIVE_KEY_PATTERN.test(key)) {
+      throw new Error(
+        `${WARN_PREFIX} refused to log sensitive field "${key}"`
       );
-      if (!alreadyPresent) {
-        merged.signatures.push(signature);
-      }
     }
   }
+}
 
-  if (merged.signatures.length === 0) {
-    throw new AlbedoTransactionAssemblyError(
-      "Assembled transaction is missing signatures"
+/** Builds a multi-line console block for transaction debug tracking. */
+export function formatConsoleWarningBlock(block: AlbedoConsoleBlock): string {
+  const title = sanitizeAlbedoLogText(block.title);
+  const body = sanitizeAlbedoLogText(block.body);
+  const stack = sanitizeAlbedoLogText(block.stack);
+
+  const lines = [
+    `${WARN_PREFIX} ╔══════════════════════════════════════╗`,
+    `${WARN_PREFIX} ║ ${title.padEnd(36).slice(0, 36)} ║`,
+    `${WARN_PREFIX} ╚══════════════════════════════════════╝`,
+    `${WARN_PREFIX} ${body}`,
+  ];
+
+  if (block.txId) {
+    lines.push(`${WARN_PREFIX} txId: ${sanitizeAlbedoLogText(block.txId)}`);
+  }
+  if (block.txHash) {
+    lines.push(
+      `${WARN_PREFIX} txHash: ${sanitizeAlbedoLogText(block.txHash)}`
+    );
+  }
+  if (block.phase) {
+    lines.push(`${WARN_PREFIX} phase: ${block.phase}`);
+  }
+  if (block.network) {
+    lines.push(
+      `${WARN_PREFIX} network: ${sanitizeAlbedoLogText(block.network)}`
+    );
+  }
+  if (block.operationType) {
+    lines.push(
+      `${WARN_PREFIX} operation: ${sanitizeAlbedoLogText(block.operationType)}`
     );
   }
 
-  return merged.toXDR();
+  lines.push(`${WARN_PREFIX} --- stack trace ---`);
+  for (const frame of stack.split("\n")) {
+    lines.push(`${WARN_PREFIX} ${frame}`);
+  }
+  lines.push(`${WARN_PREFIX} --- end stack ---`);
+
+  return lines.join("\n");
+}
+
+function buildBlock(
+  title: string,
+  body: string,
+  options?: AlbedoLogContext
+): { formatted: string; stack: string } {
+  assertNoSensitiveFields(options);
+  const stack = formatStackTrace(options?.err);
+  const formatted = formatConsoleWarningBlock({
+    title,
+    body,
+    stack,
+    txId: options?.txId,
+    phase: options?.phase,
+    network: options?.network,
+    operationType: options?.operationType,
+    txHash: options?.txHash,
+  });
+  return { formatted, stack };
+}
+
+/** Logs a formatted warning block (including stack) via console.warn. */
+export function logAlbedoWarning(
+  title: string,
+  body: string,
+  options?: AlbedoLogContext
+): string {
+  const { formatted } = buildBlock(title, body, options);
+  console.warn(formatted);
+  return formatted;
 }
 
 /**
- * Splits a (partially) signed transaction into discrete signer parts for
- * Albedo co-signing workflows while preserving the shared XDR payload.
+ * Logs a formatted error block via console.error while preserving the original
+ * error object (and its stack) as a secondary argument when available.
  */
-export function splitAlbedoMultiSigTransactionParts(
-  signedXdr: string,
-  signerPublicKeys: string[],
-  networkPassphrase: string
-): AlbedoMultiSigPart[] {
-  parseAlbedoTransactionStructure(signedXdr, networkPassphrase);
+export function logAlbedoError(
+  title: string,
+  body: string,
+  options?: AlbedoLogContext
+): string {
+  const { formatted } = buildBlock(title, body, options);
+  if (options?.err instanceof Error) {
+    console.error(formatted, options.err);
+  } else if (options?.err !== undefined) {
+    console.error(formatted, options.err);
+  } else {
+    console.error(formatted);
+  }
+  return formatted;
+}
 
-  if (!Array.isArray(signerPublicKeys) || signerPublicKeys.length === 0) {
-    throw new AlbedoTransactionAssemblyError(
-      "At least one signer public key is required to split parts"
-    );
+export class AlbedoTransactionTracker {
+  private entries: AlbedoTxTrackEntry[] = [];
+
+  track(
+    txId: string,
+    phase: AlbedoTxPhase,
+    message: string,
+    options?: Omit<AlbedoLogContext, "txId" | "phase"> & { err?: unknown }
+  ): AlbedoTxTrackEntry {
+    const stack = formatStackTrace(options?.err);
+    const entry: AlbedoTxTrackEntry = {
+      txId,
+      phase,
+      message: sanitizeAlbedoLogText(message),
+      timestamp: Date.now(),
+      network: options?.network,
+      operationType: options?.operationType,
+      txHash: options?.txHash,
+      stack,
+    };
+    this.entries.push(entry);
+
+    const title = `TX ${phase.toUpperCase()}`;
+    const logOptions: AlbedoLogContext = {
+      err: options?.err,
+      txId,
+      phase,
+      network: options?.network,
+      operationType: options?.operationType,
+      txHash: options?.txHash,
+    };
+
+    if (phase === "error") {
+      logAlbedoError(title, message, logOptions);
+    } else {
+      logAlbedoWarning(title, message, logOptions);
+    }
+
+    return entry;
   }
 
-  return signerPublicKeys.map((signerPublicKey) => ({
-    signerPublicKey,
-    signedXdr,
-  }));
+  getHistory(txId?: string): AlbedoTxTrackEntry[] {
+    if (!txId) return [...this.entries];
+    return this.entries.filter((e) => e.txId === txId);
+  }
+
+  clear(): void {
+    this.entries = [];
+  }
 }
 
+export const albedoTracker = new AlbedoTransactionTracker();
+
 /**
- * Marks which pending signers from a plan are still missing after assembly.
+ * Convenience helpers for common Albedo transaction lifecycle stages.
+ * Avoids duplicate noisy logs by going through the shared tracker.
  */
-export function findMissingAlbedoSigners(
-  plan: AlbedoMultiSigAssemblyPlan,
-  collectedSignerPublicKeys: string[]
-): string[] {
-  const collected = new Set(collectedSignerPublicKeys);
-  return plan.pendingSigners.filter((signer) => !collected.has(signer));
+export function trackAlbedoLifecycle(
+  txId: string,
+  phase: AlbedoTxPhase,
+  message: string,
+  options?: Omit<AlbedoLogContext, "txId" | "phase">
+): AlbedoTxTrackEntry {
+  return albedoTracker.track(txId, phase, message, options);
 }

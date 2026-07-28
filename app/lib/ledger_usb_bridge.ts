@@ -196,6 +196,86 @@ export function clearSensitiveMemory(
   return request;
 }
 
+// Global tracking of active ledger_usb_bridge operations to support concurrency
+let activeOperationsCount = 0;
+const listeners = new Set<(isLoading: boolean) => void>();
+
+export function isLedgerLoading(): boolean {
+  return activeOperationsCount > 0;
+}
+
+export function subscribeToLedgerLoading(
+  listener: (isLoading: boolean) => void
+): () => void {
+  listeners.add(listener);
+  // Initial emit
+  listener(activeOperationsCount > 0);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function notifyListeners(): void {
+  const loading = activeOperationsCount > 0;
+  listeners.forEach((l) => l(loading));
+}
+
+export function startLedgerOperation(): void {
+  activeOperationsCount++;
+  notifyListeners();
+}
+
+export function endLedgerOperation(): void {
+  activeOperationsCount = Math.max(0, activeOperationsCount - 1);
+  notifyListeners();
+}
+
+export function resetLedgerOperations(): void {
+  activeOperationsCount = 0;
+  notifyListeners();
+}
+
+/**
+ * Executes an async ledger operation wrapped in the loading overlay lifecycle.
+ * Uses a try/finally pattern to ensure the loader is hidden even on errors.
+ */
+export async function withLedgerLoader<T>(fn: () => Promise<T>): Promise<T> {
+  startLedgerOperation();
+  try {
+    return await fn();
+  } finally {
+    endLedgerOperation();
+  }
+}
+
+/**
+ * Mock/Placeholder for connect operation wrapped in the loader lifecycle.
+ */
+export async function connectLedgerDevice(delayMs = 50): Promise<void> {
+  return withLedgerLoader(async () => {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  });
+}
+
+/**
+ * Mock/Placeholder for app open operation wrapped in the loader lifecycle.
+ */
+export async function openLedgerApp(delayMs = 50): Promise<void> {
+  return withLedgerLoader(async () => {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  });
+}
+
+/**
+ * Mock/Placeholder for getting public address wrapped in the loader lifecycle.
+ */
+export async function getLedgerAddress(delayMs = 50): Promise<string> {
+  return withLedgerLoader(async () => {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    return "G...";
+  });
+}
+
 /**
  * Races a signature operation against a timeout clock. On timeout the
  * operation is considered aborted and any sensitive payload memory is cleared.
@@ -217,7 +297,9 @@ export async function signWithTimeout(
   });
 
   try {
-    const result = await Promise.race([signFn(request.xdr), timeoutPromise]);
+    const result = await withLedgerLoader(() =>
+      Promise.race([signFn(request.xdr), timeoutPromise])
+    );
     clearSensitiveMemory(request);
     return result;
   } catch (err) {
@@ -238,23 +320,25 @@ export async function signCatchingRejection(
   signFn: () => Promise<LedgerSignResult>,
   showToast: LedgerToastHandler
 ): Promise<LedgerSignResult | null> {
-  try {
-    return await signFn();
-  } catch (err) {
-    if (isUserRejectedError(err)) {
-      logLedgerWarning(
-        "SIGNATURE REJECTED",
-        err instanceof Error ? err.message : String(err),
-        { err, phase: "signing" }
-      );
-      showToast(
-        "Transaction cancelled — you rejected the signature on your Ledger.",
-        "warning"
-      );
-      return null;
+  return withLedgerLoader(async () => {
+    try {
+      return await signFn();
+    } catch (err) {
+      if (isUserRejectedError(err)) {
+        logLedgerWarning(
+          "SIGNATURE REJECTED",
+          err instanceof Error ? err.message : String(err),
+          { err, phase: "signing" }
+        );
+        showToast(
+          "Transaction cancelled — you rejected the signature on your Ledger.",
+          "warning"
+        );
+        return null;
+      }
+      throw err;
     }
-    throw err;
-  }
+  });
 }
 
 export interface NetworkMismatchState {
@@ -383,3 +467,200 @@ export function warnOnSimulationFee(
 
   return state;
 }
+
+export const LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY =
+  "ledger_usb_bridge_active_addresses";
+export const LEDGER_ACTIVE_ADDRESSES_SCHEMA_VERSION = 1;
+
+export interface LedgerActiveAddress {
+  address: string;
+  derivationPath: string;
+  accountIndex: number;
+  label?: string;
+  network: LedgerNetwork;
+  lastUsedAt: number;
+}
+
+interface LedgerActiveAddressesSerializedV1 {
+  version: 1;
+  addresses: LedgerActiveAddress[];
+}
+
+type LedgerActiveAddressesSerialized = LedgerActiveAddressesSerializedV1;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isValidLedgerNetwork(value: unknown): value is LedgerNetwork {
+  return value === "mainnet" || value === "testnet";
+}
+
+function isValidLedgerActiveAddress(value: unknown): value is LedgerActiveAddress {
+  if (!isRecord(value)) return false;
+  if (typeof value.address !== "string" || value.address.length === 0) return false;
+  if (typeof value.derivationPath !== "string" || value.derivationPath.length === 0) {
+    return false;
+  }
+  if (typeof value.accountIndex !== "number" || !Number.isFinite(value.accountIndex)) {
+    return false;
+  }
+  if (value.label !== undefined && typeof value.label !== "string") return false;
+  if (!isValidLedgerNetwork(value.network)) return false;
+  if (typeof value.lastUsedAt !== "number" || !Number.isFinite(value.lastUsedAt)) {
+    return false;
+  }
+  return true;
+}
+
+function sanitizeLedgerActiveAddress(
+  value: unknown
+): LedgerActiveAddress | null {
+  if (!isValidLedgerActiveAddress(value)) return null;
+  const sanitized: LedgerActiveAddress = {
+    address: value.address,
+    derivationPath: value.derivationPath,
+    accountIndex: value.accountIndex,
+    network: value.network,
+    lastUsedAt: value.lastUsedAt,
+  };
+  if (value.label !== undefined) {
+    sanitized.label = value.label;
+  }
+  return sanitized;
+}
+
+function isValidSerializedPayload(
+  value: unknown
+): value is LedgerActiveAddressesSerialized {
+  if (!isRecord(value)) return false;
+  if (value.version !== LEDGER_ACTIVE_ADDRESSES_SCHEMA_VERSION) return false;
+  if (!Array.isArray(value.addresses)) return false;
+  return value.addresses.every(isValidLedgerActiveAddress);
+}
+
+function getStorageAdapter(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const testKey = "__ledger_usb_bridge_storage_test__";
+    window.localStorage.setItem(testKey, "1");
+    window.localStorage.removeItem(testKey);
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+export class LedgerActiveAddressStore {
+  private addresses: LedgerActiveAddress[] = [];
+  private storage: Storage | null;
+
+  constructor(storageOverride?: Storage | null) {
+    this.storage =
+      storageOverride !== undefined ? storageOverride : getStorageAdapter();
+    this.rehydrate();
+  }
+
+  private persist(): void {
+    if (!this.storage) return;
+    try {
+      const payload: LedgerActiveAddressesSerialized = {
+        version: LEDGER_ACTIVE_ADDRESSES_SCHEMA_VERSION,
+        addresses: this.addresses,
+      };
+      this.storage.setItem(
+        LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY,
+        JSON.stringify(payload)
+      );
+    } catch (err) {
+      logLedgerWarning(
+        "PERSIST FAILED",
+        err instanceof Error ? err.message : String(err),
+        { err, phase: "error" }
+      );
+    }
+  }
+
+  private rehydrate(): void {
+    this.addresses = [];
+    if (!this.storage) return;
+    try {
+      const raw = this.storage.getItem(LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as unknown;
+      if (!isValidSerializedPayload(parsed)) {
+        logLedgerWarning(
+          "REHYDRATE SCHEMA MISMATCH",
+          "Persisted active address data failed validation, falling back to clean state.",
+          { phase: "error" }
+        );
+        this.storage.removeItem(LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY);
+        return;
+      }
+      this.addresses = parsed.addresses
+        .map(sanitizeLedgerActiveAddress)
+        .filter((a): a is LedgerActiveAddress => a !== null);
+    } catch (err) {
+      logLedgerWarning(
+        "REHYDRATE FAILED",
+        err instanceof Error ? err.message : String(err),
+        { err, phase: "error" }
+      );
+      try {
+        this.storage.removeItem(LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY);
+      } catch {
+        // no-op — best effort cleanup
+      }
+    }
+  }
+
+  setActiveAddresses(addresses: LedgerActiveAddress[]): void {
+    const sanitized = addresses
+      .map(sanitizeLedgerActiveAddress)
+      .filter((a): a is LedgerActiveAddress => a !== null);
+    this.addresses = sanitized;
+    this.persist();
+  }
+
+  getActiveAddresses(): LedgerActiveAddress[] {
+    return this.addresses.map((a) => ({ ...a }));
+  }
+
+  addOrUpdateAddress(address: LedgerActiveAddress): void {
+    const sanitized = sanitizeLedgerActiveAddress(address);
+    if (!sanitized) return;
+    const existingIndex = this.addresses.findIndex(
+      (a) =>
+        a.address === sanitized.address &&
+        a.derivationPath === sanitized.derivationPath
+    );
+    if (existingIndex >= 0) {
+      this.addresses[existingIndex] = sanitized;
+    } else {
+      this.addresses.push(sanitized);
+    }
+    this.persist();
+  }
+
+  removeAddress(address: string): void {
+    this.addresses = this.addresses.filter((a) => a.address !== address);
+    this.persist();
+  }
+
+  clear(): void {
+    this.addresses = [];
+    if (this.storage) {
+      try {
+        this.storage.removeItem(LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY);
+      } catch (err) {
+        logLedgerWarning(
+          "CLEAR STORAGE FAILED",
+          err instanceof Error ? err.message : String(err),
+          { err, phase: "error" }
+        );
+      }
+    }
+  }
+}
+
+export const ledgerActiveAddresses = new LedgerActiveAddressStore();

@@ -6,6 +6,9 @@ import {
   formatConsoleWarningBlock,
   formatStackTrace,
   isUserRejectedError,
+  LEDGER_ACTIVE_ADDRESSES_SCHEMA_VERSION,
+  LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY,
+  LedgerActiveAddressStore,
   LedgerSignatureTimeoutError,
   LedgerTransactionTracker,
   ledgerTracker,
@@ -14,6 +17,7 @@ import {
   signCatchingRejection,
   signWithTimeout,
   warnOnLedgerNetworkMismatch,
+  type LedgerActiveAddress,
   type LedgerSignRequest,
   type LedgerSignResult,
 } from "@/app/lib/ledger_usb_bridge";
@@ -253,5 +257,326 @@ describe("ledger_usb_bridge console warning blocks", () => {
     const logged = String(warnSpy.mock.calls[0][0]);
     expect(logged).toContain("NETWORK MISMATCH");
     expect(logged).toContain("--- stack trace ---");
+  });
+});
+
+function createMockStorage(): Storage {
+  const store = new Map<string, string>();
+  return {
+    get length() {
+      return store.size;
+    },
+    clear() {
+      store.clear();
+    },
+    getItem(key: string) {
+      const v = store.get(key);
+      return v === undefined ? null : v;
+    },
+    key(index: number) {
+      return Array.from(store.keys())[index] ?? null;
+    },
+    removeItem(key: string) {
+      store.delete(key);
+    },
+    setItem(key: string, value: string) {
+      store.set(key, value);
+    },
+  };
+}
+
+function makeAddress(overrides: Partial<LedgerActiveAddress> = {}): LedgerActiveAddress {
+  return {
+    address: "GABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890",
+    derivationPath: "m/44'/148'/0'",
+    accountIndex: 0,
+    label: "Primary",
+    network: "testnet",
+    lastUsedAt: Date.now(),
+    ...overrides,
+  };
+}
+
+describe("ledger_usb_bridge active address persistence", () => {
+  let storage: Storage;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    storage = createMockStorage();
+    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+  });
+
+  it("starts with an empty active address list when storage is empty", () => {
+    const store = new LedgerActiveAddressStore(storage);
+    expect(store.getActiveAddresses()).toEqual([]);
+  });
+
+  it("serializes active addresses to storage when setActiveAddresses is called", () => {
+    const store = new LedgerActiveAddressStore(storage);
+    const address = makeAddress();
+
+    store.setActiveAddresses([address]);
+
+    const raw = storage.getItem(LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY);
+    expect(raw).not.toBeNull();
+    const parsed = JSON.parse(raw as string);
+    expect(parsed.version).toBe(LEDGER_ACTIVE_ADDRESSES_SCHEMA_VERSION);
+    expect(parsed.addresses).toHaveLength(1);
+    expect(parsed.addresses[0].address).toBe(address.address);
+    expect(parsed.addresses[0].derivationPath).toBe(address.derivationPath);
+    expect(parsed.addresses[0].accountIndex).toBe(0);
+    expect(store.getActiveAddresses()).toHaveLength(1);
+  });
+
+  it("rehydrates persisted addresses when a new store instance reads storage", () => {
+    const address1 = makeAddress({
+      address: "GADDR1",
+      derivationPath: "m/44'/148'/0'",
+      accountIndex: 0,
+    });
+    const address2 = makeAddress({
+      address: "GADDR2",
+      derivationPath: "m/44'/148'/1'",
+      accountIndex: 1,
+    });
+
+    const storeA = new LedgerActiveAddressStore(storage);
+    storeA.setActiveAddresses([address1, address2]);
+
+    const storeB = new LedgerActiveAddressStore(storage);
+    const rehydrated = storeB.getActiveAddresses();
+    expect(rehydrated).toHaveLength(2);
+    expect(rehydrated.map((a) => a.address)).toEqual(["GADDR1", "GADDR2"]);
+    expect(rehydrated[0].derivationPath).toBe("m/44'/148'/0'");
+    expect(rehydrated[1].accountIndex).toBe(1);
+  });
+
+  it("addOrUpdateAddress inserts new addresses and updates existing matches", () => {
+    const store = new LedgerActiveAddressStore(storage);
+    const addr = makeAddress({ address: "G1", derivationPath: "m/0" });
+
+    store.addOrUpdateAddress(addr);
+    expect(store.getActiveAddresses()).toHaveLength(1);
+
+    store.addOrUpdateAddress(
+      makeAddress({ address: "G2", derivationPath: "m/1" })
+    );
+    expect(store.getActiveAddresses()).toHaveLength(2);
+
+    store.addOrUpdateAddress(
+      makeAddress({
+        address: "G1",
+        derivationPath: "m/0",
+        label: "Updated Label",
+      })
+    );
+    const result = store.getActiveAddresses();
+    expect(result).toHaveLength(2);
+    const updated = result.find((a) => a.address === "G1");
+    expect(updated?.label).toBe("Updated Label");
+  });
+
+  it("removeAddress filters out entries by address string", () => {
+    const store = new LedgerActiveAddressStore(storage);
+    store.setActiveAddresses([
+      makeAddress({ address: "GKEEP" }),
+      makeAddress({ address: "GREMOVE" }),
+    ]);
+
+    store.removeAddress("GREMOVE");
+
+    const remaining = store.getActiveAddresses();
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].address).toBe("GKEEP");
+    const raw = storage.getItem(LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY);
+    expect(raw).toContain("GKEEP");
+    expect(raw).not.toContain("GREMOVE");
+  });
+
+  it("clear empties in-memory state and removes the persisted storage key", () => {
+    const store = new LedgerActiveAddressStore(storage);
+    store.setActiveAddresses([makeAddress()]);
+    expect(storage.getItem(LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY)).not.toBeNull();
+    expect(store.getActiveAddresses()).not.toEqual([]);
+
+    store.clear();
+
+    expect(store.getActiveAddresses()).toEqual([]);
+    expect(storage.getItem(LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY)).toBeNull();
+  });
+
+  it("drops invalid entries silently in setActiveAddresses (no private data leak)", () => {
+    const store = new LedgerActiveAddressStore(storage);
+    const mixed = [
+      makeAddress({ address: "GVALID" }),
+      {
+        address: "",
+        derivationPath: "m/0",
+        accountIndex: 0,
+        network: "testnet",
+        lastUsedAt: Date.now(),
+      } as unknown as LedgerActiveAddress,
+      {
+        address: "GSECRET",
+        derivationPath: "m/0",
+        accountIndex: "oops" as unknown as number,
+        network: "testnet",
+        lastUsedAt: Date.now(),
+        privateKey: "SHOULD_NEVER_EXIST",
+      } as unknown as LedgerActiveAddress,
+    ];
+
+    store.setActiveAddresses(mixed);
+
+    const result = store.getActiveAddresses();
+    expect(result).toHaveLength(1);
+    expect(result[0].address).toBe("GVALID");
+
+    const raw = storage.getItem(LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY);
+    expect(raw).toContain("GVALID");
+    expect(raw).not.toContain("SHOULD_NEVER_EXIST");
+    expect(raw).not.toContain("privateKey");
+  });
+
+  it("handles corrupted JSON in storage by falling back to empty state", () => {
+    storage.setItem(LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY, "{not valid json!!");
+
+    const store = new LedgerActiveAddressStore(storage);
+
+    expect(store.getActiveAddresses()).toEqual([]);
+    expect(storage.getItem(LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY)).toBeNull();
+    expect(warnSpy).toHaveBeenCalled();
+    const logged = warnSpy.mock.calls
+      .map((c: unknown[]) => String(c[0]))
+      .join("\n");
+    expect(logged).toContain("REHYDRATE FAILED");
+  });
+
+  it("handles wrong schema version by discarding persisted data", () => {
+    const futurePayload = JSON.stringify({
+      version: 99,
+      addresses: [makeAddress()],
+    });
+    storage.setItem(LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY, futurePayload);
+
+    const store = new LedgerActiveAddressStore(storage);
+
+    expect(store.getActiveAddresses()).toEqual([]);
+    expect(storage.getItem(LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY)).toBeNull();
+    const logged = warnSpy.mock.calls
+      .map((c: unknown[]) => String(c[0]))
+      .join("\n");
+    expect(logged).toContain("REHYDRATE SCHEMA MISMATCH");
+  });
+
+  it("handles malformed payload shape (non-object addresses field)", () => {
+    const badPayload = JSON.stringify({
+      version: LEDGER_ACTIVE_ADDRESSES_SCHEMA_VERSION,
+      addresses: "totally-not-an-array",
+    });
+    storage.setItem(LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY, badPayload);
+
+    const store = new LedgerActiveAddressStore(storage);
+
+    expect(store.getActiveAddresses()).toEqual([]);
+    expect(storage.getItem(LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY)).toBeNull();
+  });
+
+  it("handles address entries with missing required fields during rehydrate", () => {
+    const badEntries = JSON.stringify({
+      version: LEDGER_ACTIVE_ADDRESSES_SCHEMA_VERSION,
+      addresses: [
+        { address: "GTEST" },
+        makeAddress({ address: "GGOOD" }),
+      ],
+    });
+    storage.setItem(LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY, badEntries);
+
+    const store = new LedgerActiveAddressStore(storage);
+
+    expect(store.getActiveAddresses()).toEqual([]);
+    expect(storage.getItem(LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY)).toBeNull();
+  });
+
+  it("never serializes private, secret, or seed-like fields", () => {
+    const store = new LedgerActiveAddressStore(storage);
+    const tainted = makeAddress({ address: "GSAFE" }) as LedgerActiveAddress & {
+      privateKey?: string;
+      seed?: string;
+      mnemonic?: string;
+    };
+    tainted.privateKey = "SCXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+    tainted.seed = "deadbeef";
+    tainted.mnemonic = "word word word";
+
+    store.addOrUpdateAddress(tainted);
+
+    const raw = storage.getItem(LEDGER_ACTIVE_ADDRESSES_STORAGE_KEY);
+    expect(raw).not.toBeNull();
+    expect(raw).not.toContain("SCXXXXXXXX");
+    expect(raw).not.toContain("deadbeef");
+    expect(raw).not.toContain("word word word");
+    expect(raw).not.toContain("privateKey");
+    expect(raw).not.toContain("seed");
+    expect(raw).not.toContain("mnemonic");
+
+    const parsed = JSON.parse(raw as string);
+    const serialized = parsed.addresses[0];
+    expect(serialized.address).toBe("GSAFE");
+    expect(Object.keys(serialized)).toEqual(
+      expect.arrayContaining([
+        "address",
+        "derivationPath",
+        "accountIndex",
+        "label",
+        "network",
+        "lastUsedAt",
+      ])
+    );
+    expect(Object.keys(serialized)).not.toEqual(
+      expect.arrayContaining(["privateKey", "seed", "mnemonic"])
+    );
+  });
+
+  it("passes only public fields through the isValidLedgerActiveAddress validator", () => {
+    const store = new LedgerActiveAddressStore(storage);
+    const withSensitive = makeAddress() as LedgerActiveAddress & {
+      privateKey?: string;
+    };
+    withSensitive.privateKey = "SENSITIVE";
+
+    store.setActiveAddresses([withSensitive]);
+    const result = store.getActiveAddresses();
+    for (const entry of result) {
+      const keys = Object.keys(entry);
+      expect(keys).not.toContain("privateKey");
+    }
+  });
+
+  it("gracefully handles a null storage adapter (SSR / unavailable storage)", () => {
+    const store = new LedgerActiveAddressStore(null);
+    expect(store.getActiveAddresses()).toEqual([]);
+
+    store.setActiveAddresses([makeAddress()]);
+    expect(store.getActiveAddresses()).toHaveLength(1);
+
+    store.clear();
+    expect(store.getActiveAddresses()).toEqual([]);
+  });
+
+  it("returns defensive copies from getActiveAddresses to prevent mutation", () => {
+    const store = new LedgerActiveAddressStore(storage);
+    const original = makeAddress({ address: "GCOPY" });
+    store.setActiveAddresses([original]);
+
+    const copy1 = store.getActiveAddresses();
+    const copy2 = store.getActiveAddresses();
+    expect(copy1).not.toBe(copy2);
+    copy1[0].address = "GMUTATED";
+    expect(store.getActiveAddresses()[0].address).toBe("GCOPY");
   });
 });
