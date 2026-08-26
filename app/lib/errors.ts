@@ -25,6 +25,22 @@ export function isWalletRejectedError(err: unknown): boolean {
   );
 }
 
+export function isWalletAvailabilityError(err: unknown): boolean {
+  if (!(err instanceof Error)) {
+    return false;
+  }
+
+  const message = err.message.toLowerCase();
+  return (
+    message.includes("freighter not found") ||
+    message.includes("wallet not found") ||
+    message.includes("wallet extension") ||
+    message.includes("extension not installed") ||
+    message.includes("no wallet") ||
+    message.includes("wallet unavailable")
+  );
+}
+
 export function formatTxError(err: unknown): string {
   if (isWalletRejectedError(err)) {
     return "You declined the transaction in your wallet.";
@@ -33,7 +49,7 @@ export function formatTxError(err: unknown): string {
   if (err instanceof Error) {
     const message = err.message.toLowerCase();
 
-    if (message.includes("freighter not found") || message.includes("wallet")) {
+    if (isWalletAvailabilityError(err)) {
       return "Wallet not available. Install Freighter and connect your wallet.";
     }
 
