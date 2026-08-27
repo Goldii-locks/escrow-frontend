@@ -285,7 +285,7 @@ describe("WalletContext", () => {
     expect(StellarWalletsKit.init).toHaveBeenCalledOnce();
   });
 
-  it.skip("reconnects previously connected wallet on mount", async () => {
+  it("reconnects previously connected wallet on mount", async () => {
     localStorageStore[STORAGE_KEY] = "true";
     (StellarWalletsKit.getAddress as ReturnType<typeof vi.fn>).mockResolvedValue({ address: ADDRESS });
 
@@ -297,7 +297,7 @@ describe("WalletContext", () => {
     expect(result.current.networkMismatch).toBe(false);
   }, 15000);
 
-  it.skip("clears localStorage if previously connected wallet is no longer reachable", async () => {
+  it("clears localStorage if previously connected wallet is no longer reachable", async () => {
     localStorageStore[STORAGE_KEY] = "true";
     (StellarWalletsKit.getAddress as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("Wallet not found"));
 

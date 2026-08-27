@@ -179,7 +179,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       showToast(errorMessage, "error");
       throw e;
     }
-  }, [address, ensureKitInitialized, selectedWalletId]);
+  }, [address, ensureKitInitialized, selectedWalletId, showToast]);
 
   return (
     <WalletContext.Provider
