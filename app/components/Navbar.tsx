@@ -3,6 +3,8 @@ import { useWallet } from "@/app/context/WalletContext";
 import { useIsAdmin } from "@/app/hooks/useIsAdmin";
 import { SUPPORTED_WALLETS } from "@/app/context/WalletContext";
 import Link from "next/link";
+import DarkModeSwitcher from "@/app/components/DarkModeSwitcher";
+import NotificationBell from "@/app/components/NotificationBell";
 
 export default function Navbar() {
   const {
@@ -43,6 +45,8 @@ export default function Navbar() {
           <span aria-hidden="true">🔐</span> Escrow
         </Link>
         <div className="flex items-center gap-4">
+          <DarkModeSwitcher />
+          <NotificationBell />
           {address ? (
             <>
               <Link
