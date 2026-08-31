@@ -17,5 +17,16 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./vitest.setup.ts"],
+    server: {
+      deps: {
+        // `@stellar/freighter-api` ships CommonJS (main: build/index.min.js,
+        // no "exports"/"module"), so its named exports cannot be resolved
+        // statically. `@creit.tech/stellar-wallets-kit` re-exports them, which
+        // is how `WalletContext` pulls them in — every test that renders a
+        // context-dependent component hits this. Inlining both routes them
+        // through the dep optimizer, which interops the named exports.
+        inline: ["@stellar/freighter-api", /@creit\.tech\/stellar-wallets-kit/],
+      },
+    },
   },
 });

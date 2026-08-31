@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useWallet } from "@/app/context/WalletContext";
 import { NETWORK_PASSPHRASE } from "@/app/lib/contract";
 import {
@@ -50,7 +50,6 @@ export default function SignatureTimeoutAlert({
   const albedoAssembly = useAlbedoMultiSigAssembly(NETWORK_PASSPHRASE);
   const ledgerAssembly = useLedgerMultiSigAssembly(NETWORK_PASSPHRASE);
   const [isRetrying, setIsRetrying] = useState(false);
-  const [parseMessage, setParseMessage] = useState<string | null>(null);
 
   const activeError = error ?? signatureTimeoutError;
   const activeTransactionXdr = transactionXdr ?? signatureTimeoutXdr ?? undefined;
@@ -69,21 +68,16 @@ export default function SignatureTimeoutAlert({
     });
   }, [activeError, hasTimeout, networkMismatchMessage, transactionId]);
 
-  useEffect(() => {
-    if (!activeTransactionXdr) {
-      setParseMessage(null);
-      return;
-    }
+  const parseMessage = useMemo(() => {
+    if (!activeTransactionXdr) return null;
 
     try {
       parseMultiSigEnvelope(activeTransactionXdr, {
         parseEnvelopeXdr: createStellarEnvelopeParser(NETWORK_PASSPHRASE),
       });
-      setParseMessage(null);
+      return null;
     } catch (parseError) {
-      setParseMessage(
-        parseError instanceof Error ? parseError.message : String(parseError)
-      );
+      return parseError instanceof Error ? parseError.message : String(parseError);
     }
   }, [activeTransactionXdr]);
 
