@@ -6,6 +6,8 @@ import Link from "next/link";
 import DarkModeSwitcher from "@/app/components/DarkModeSwitcher";
 import NotificationBell from "@/app/components/NotificationBell";
 
+import WalletBadge, { formatAddress } from "@/app/components/WalletBadge";
+
 export default function Navbar() {
   const {
     address,
@@ -18,10 +20,10 @@ export default function Navbar() {
   } = useWallet();
   const { isAdminUser } = useIsAdmin(address);
 
-  const short = (addr: string) => `${addr.slice(0, 4)}...${addr.slice(-4)}`;
-
   const focusRing =
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 rounded";
+
+  const selectedWallet = SUPPORTED_WALLETS.find((w) => w.id === selectedWalletId);
 
   return (
     <>
@@ -69,12 +71,18 @@ export default function Navbar() {
                   Admin
                 </Link>
               )}
+              <WalletBadge
+                address={address}
+                isConnecting={isConnecting}
+                providerName={selectedWallet?.label}
+                networkMismatch={networkMismatchMessage}
+              />
               <span
                 role="status"
                 className="text-xs sm:text-sm text-gray-300 font-mono bg-gray-800 px-2 py-0.5 sm:px-3 sm:py-1 rounded-full transition-colors duration-200"
                 aria-label={`Connected wallet ${address}`}
               >
-                {short(address)}
+                {formatAddress(address)}
               </span>
               <button
                 onClick={disconnect}

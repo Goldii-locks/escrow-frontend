@@ -1,7 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import FreighterConnector from "@/app/components/FreighterConnector";
-import { HIGH_FEE_THRESHOLD_STROOPS } from "@/app/lib/freighter_connector";
 
 // ---------------------------------------------------------------------------
 // #110 — Gas estimation error warning banners integration in FreighterConnector
