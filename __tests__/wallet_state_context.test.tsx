@@ -138,7 +138,8 @@ describe("wallet_state_context / WalletContext (#122)", () => {
 
   it("connect() leaves the address unset and logs a warning block on failure", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    kitState.authModal.mockRejectedValue(new Error("user rejected"));
+    const error = new Error("user rejected");
+    kitState.authModal.mockRejectedValue(error);
     renderWallet();
 
     screen.getByText("connect").click();
@@ -149,7 +150,31 @@ describe("wallet_state_context / WalletContext (#122)", () => {
     expect(warnSpy).toHaveBeenCalled();
     const logged = warnSpy.mock.calls.map((call) => String(call[0])).join("\n");
     expect(logged).toContain("[wallet_state_context]");
+    expect(logged).toContain("TX ERROR");
+    expect(logged).toContain("Wallet connection failed");
+    expect(logged).toContain(error.stack);
     expect(logged).toContain("--- stack trace ---");
+    expect(logged).toContain("--- end stack ---");
+    warnSpy.mockRestore();
+  });
+
+  it("tracks the wallet selector lifecycle with formatted warning blocks", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    kitState.authModal.mockResolvedValue({ address: "GCONNECTED" });
+    renderWallet();
+
+    screen.getByText("connect").click();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("address")).toHaveTextContent("GCONNECTED");
+    });
+
+    const logged = warnSpy.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(logged).toContain("phase: connecting");
+    expect(logged).toContain("Opening wallet selector");
+    expect(logged).toContain("phase: success");
+    expect(logged).toContain("Wallet connected");
+    expect(logged.match(/--- stack trace ---/g)).toHaveLength(2);
     warnSpy.mockRestore();
   });
 
