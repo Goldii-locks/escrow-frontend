@@ -224,14 +224,14 @@ export default function WalletSelectorModal({
       data-testid="wallet-selector-modal"
       role="dialog"
       aria-label="Select Wallet"
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 ${className}`}
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-surface-page/80 ${className}`}
     >
       <div
         data-testid="wallet-selector-modal-content"
-        className="bg-surface rounded-xl shadow-xl max-w-md w-full mx-4 p-6"
+        className="bg-surface-card border border-border-subtle text-text-primary rounded-xl shadow-xl max-w-md w-full mx-4 p-6"
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-primary">
+          <h2 className="text-lg font-semibold text-text-primary">
             Select Wallet
           </h2>
           <button
@@ -239,7 +239,7 @@ export default function WalletSelectorModal({
             onClick={onClose}
             data-testid="wallet-selector-modal-close"
             aria-label="Close"
-            className="text-secondary hover:text-primary transition-colors"
+            className="text-text-secondary hover:text-text-primary transition-colors"
           >
             ✕
           </button>
@@ -249,7 +249,7 @@ export default function WalletSelectorModal({
         {networkMismatch.mismatched && mismatchMessage && (
           <div
             data-testid="wallet-selector-network-warning"
-            className="bg-warning/40 border border-warning rounded-lg px-4 py-3 mb-4 text-warning-soft text-sm"
+            className="bg-warning-soft/10 border border-warning-soft/40 rounded-lg px-4 py-3 mb-4 text-warning-soft text-sm"
             role="alert"
           >
             {mismatchMessage}
@@ -261,7 +261,7 @@ export default function WalletSelectorModal({
           <div
             data-testid="wallet-selector-availability-warning"
             role="alert"
-            className="bg-warning/40 border border-warning rounded-lg px-4 py-3 mb-4 text-warning-soft text-sm"
+            className="bg-warning-soft/10 border border-warning-soft/40 rounded-lg px-4 py-3 mb-4 text-warning-soft text-sm"
           >
             <p data-testid="wallet-selector-setup-instruction">
               {availability.setupInstruction}
@@ -282,7 +282,7 @@ export default function WalletSelectorModal({
         {errorMessage && (
           <div
             data-testid="wallet-selector-error-message"
-            className="bg-danger/20 border border-danger rounded-lg px-4 py-3 mb-4 text-danger-soft text-sm text-center"
+            className="bg-danger/20 border border-danger/40 rounded-lg px-4 py-3 mb-4 text-danger-soft text-sm text-center"
             role="alert"
           >
             {errorMessage}
@@ -294,7 +294,7 @@ export default function WalletSelectorModal({
           <div
             data-testid="wallet-selector-rejection-warning"
             role="alert"
-            className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg px-4 py-3 mb-4 text-sm text-yellow-300"
+            className="bg-warning-soft/10 border border-warning-soft/40 rounded-lg px-4 py-3 mb-4 text-sm text-warning-soft"
           >
             Signature cancelled — you rejected the request in your wallet.
           </div>
@@ -305,7 +305,7 @@ export default function WalletSelectorModal({
           <div
             data-testid="wallet-selector-error-warning"
             role="alert"
-            className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 mb-4 text-sm text-red-300"
+            className="bg-danger/10 border border-danger/30 rounded-lg px-4 py-3 mb-4 text-sm text-danger-soft"
           >
             Failed to connect wallet. Please try again.
           </div>
@@ -315,11 +315,11 @@ export default function WalletSelectorModal({
         {effectiveLoading && (
           <div
             data-testid="wallet-selector-spinner"
-            className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 rounded-lg"
+            className="absolute inset-0 z-10 flex items-center justify-center bg-surface-page/60 rounded-lg"
           >
             <div className="flex flex-col items-center space-y-2">
               <svg
-                className="h-8 w-8 text-indigo-500 animate-spin"
+                className="h-8 w-8 text-accent-soft animate-spin"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -339,7 +339,7 @@ export default function WalletSelectorModal({
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                 />
               </svg>
-              <span className="text-sm text-gray-300">
+              <span className="text-sm text-text-secondary">
                 Wallet operation in progress…
               </span>
             </div>
@@ -350,19 +350,19 @@ export default function WalletSelectorModal({
         {activeAddress && (
           <div
             data-testid="wallet-selector-active-info"
-            className="mb-4 p-3 border border-white/10 rounded-lg"
+            className="mb-4 p-3 border border-border-subtle rounded-lg bg-surface-field"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-sm text-gray-300 font-mono">
+                <span className="h-2 w-2 rounded-full bg-success-soft animate-pulse" />
+                <span className="text-sm text-text-secondary font-mono">
                   {activeAddress.slice(0, 4)}...{activeAddress.slice(-4)}
                 </span>
               </div>
               <button
                 onClick={handleDisconnect}
                 disabled={effectiveLoading}
-                className="text-sm text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                className="text-sm text-danger-soft hover:text-danger-soft-hover transition-colors disabled:opacity-50"
                 data-testid="wallet-selector-disconnect-btn"
               >
                 Disconnect
@@ -389,8 +389,8 @@ export default function WalletSelectorModal({
                 data-connected={isConnected}
                 className={`w-full text-left px-4 py-3 rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                   isSelected
-                    ? "border-indigo-500 bg-indigo-600/20 text-white"
-                    : "border-white/10 hover:border-white/20 hover:bg-white/5 text-primary"
+                    ? "border-accent-soft bg-accent/10 text-text-primary"
+                    : "border-border-subtle hover:border-accent-soft/60 hover:bg-surface-field text-text-primary"
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -400,7 +400,7 @@ export default function WalletSelectorModal({
                   {isConnected && (
                     <span
                       data-testid="wallet-selector-connected-badge"
-                      className="text-xs text-green-400"
+                      className="text-xs text-success-soft"
                     >
                       Connected
                     </span>

@@ -1,7 +1,8 @@
 /**
  * network_sync_checker — active network status validator:
  * alignment checks, wallet availability detection, signature time limits,
- * and graceful handling of wallet signature rejections during sync probes.
+ * gas estimation error warnings, and graceful handling of wallet signature
+ * rejections during sync probes.
  */
 
 import type { ToastType } from "@/app/context/ToastContext";
@@ -260,6 +261,115 @@ export function warnOnMissingWallet(
   if (!state.available && state.warningMessage) {
     showToast(state.warningMessage, "warning");
   }
+  return state;
+}
+
+// =============================================================
+// Gas estimation warning support (#160)
+// -------------------------------------------------------------
+// Simulation / fee estimation result inspection and warning
+// state derivation for network sync operations. Mirrors the
+// pattern from freighter_connector / ledger_usb_bridge but
+// adapted to network_sync_checker conventions.
+// =============================================================
+
+/** Simulation / fee estimation result as returned by Soroban RPC. */
+export interface NetworkSyncSimulationResult {
+  /** Estimated fee in stroops (1 XLM = 10_000_000 stroops). */
+  fee: number;
+  /** Optional error string from the simulation response. */
+  error?: string;
+  /** Raw simulation error object when the RPC reports a failure. */
+  simulationError?: unknown;
+}
+
+export interface NetworkSyncGasWarningState {
+  hasWarning: boolean;
+  highFee: boolean;
+  simulationError: boolean;
+  warningMessage: string | null;
+}
+
+/**
+ * Fee ceiling above which a high-fee warning is emitted.
+ * 1_000_000 stroops = 0.1 XLM.
+ */
+export const HIGH_FEE_THRESHOLD_STROOPS = 1_000_000;
+
+/**
+ * Inspects a simulation result and produces a user-facing warning state
+ * when fee limits exceed standard bounds or the simulation reported an error.
+ */
+export function checkSimulationFeeWarning(
+  result: NetworkSyncSimulationResult
+): NetworkSyncGasWarningState {
+  if (result.error || result.simulationError) {
+    const message =
+      typeof result.error === "string" && result.error
+        ? `Transaction simulation failed: ${result.error}`
+        : "Transaction simulation failed. The contract may have rejected this operation.";
+
+    return {
+      hasWarning: true,
+      highFee: false,
+      simulationError: true,
+      warningMessage: message,
+    };
+  }
+
+  if (result.fee > HIGH_FEE_THRESHOLD_STROOPS) {
+    const xlm = (result.fee / 10_000_000).toFixed(7);
+    return {
+      hasWarning: true,
+      highFee: true,
+      simulationError: false,
+      warningMessage: `Estimated fee is unusually high (${result.fee} stroops / ${xlm} XLM). Review before signing.`,
+    };
+  }
+
+  return {
+    hasWarning: false,
+    highFee: false,
+    simulationError: false,
+    warningMessage: null,
+  };
+}
+
+/**
+ * Inspects a simulation result and, when a warning applies, logs a
+ * formatted console warning. Returns the warning state for caller consumption.
+ */
+export function warnOnSimulationFee(
+  result: NetworkSyncSimulationResult,
+  options?: { txId?: string }
+): NetworkSyncGasWarningState {
+  const state = checkSimulationFeeWarning(result);
+
+  if (state.hasWarning && state.warningMessage) {
+    const title = state.simulationError ? "SIMULATION ERROR" : "HIGH FEE WARNING";
+    console.warn(
+      `${LOG_PREFIX} ${title}: ${state.warningMessage}`,
+      options?.txId ? `txId: ${options.txId}` : ""
+    );
+  }
+
+  return state;
+}
+
+/**
+ * Inspects a simulation result during network sync operations and displays
+ * a toast warning when a gas estimation error or high fee is detected.
+ */
+export function warnOnNetworkSyncSimulation(
+  result: NetworkSyncSimulationResult,
+  showToast: SyncToastHandler
+): NetworkSyncGasWarningState {
+  const state = checkSimulationFeeWarning(result);
+
+  if (state.hasWarning && state.warningMessage) {
+    showToast(state.warningMessage, "warning");
+  }
+
   return state;
 }
 

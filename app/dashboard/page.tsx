@@ -5,6 +5,7 @@ import { useWallet } from "@/app/context/WalletContext";
 import Navbar from "@/app/components/Navbar";
 import MilestoneCard from "@/app/components/MilestoneCard";
 import LoadingSkeleton from "@/app/components/LoadingSkeleton";
+import EmptyStateCard from "@/app/components/EmptyStateCard";
 import { useActionStates } from "@/app/hooks/useActionStates";
 import { useToast } from "@/app/context/ToastContext";
 import {
@@ -487,11 +488,18 @@ export default function Dashboard() {
             {fetchLoading ? (
               <LoadingSkeleton />
             ) : error ? (
-              <div className="text-center text-red-400" role="alert">
+              <div className="text-center text-red-400 animate-shake" role="alert" data-testid="dashboard-error-alert">
                 Error: {error}
               </div>
             ) : jobs.length === 0 ? (
-              <p className="text-center text-gray-400">No jobs found for this wallet</p>
+              <EmptyStateCard
+                testId="dashboard-empty-state"
+                ariaLabel="No jobs"
+                title="No jobs found"
+                description="You don't have any jobs yet. Connect your wallet to see jobs you're involved in as a client, freelancer, or arbiter. Create one to get started."
+                icon="briefcase"
+                badges={["Client", "Freelancer", "Arbiter"]}
+              />
             ) : (
               <div className="space-y-5">
                 <div className="border border-gray-800 rounded-xl bg-gray-900 overflow-hidden">
@@ -504,11 +512,15 @@ export default function Dashboard() {
                     ].filter(Boolean) as string[];
 
                     return (
-                      <div key={job.id} className="border-b border-gray-800 last:border-b-0">
+                      <div
+                        key={job.id}
+                        data-testid="dashboard-list-item"
+                        className="border-b border-gray-800 last:border-b-0 animate-slide-in"
+                      >
                         <button
                           type="button"
                           onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
-                          className="w-full text-left px-5 py-4 hover:bg-gray-800/50 transition"
+                          className="w-full text-left px-5 py-4 hover:bg-gray-800/50 transition-colors duration-150 active:scale-[0.99] active:bg-gray-800/70"
                           aria-expanded={isExpanded}
                         >
                           <div className="flex items-center justify-between gap-4">
@@ -535,7 +547,10 @@ export default function Dashboard() {
                         </button>
 
                         {isExpanded && (
-                          <div className="px-5 pb-5 space-y-4">
+                          <div
+                            data-testid="dashboard-expanded-panel"
+                            className="px-5 pb-5 space-y-4 animate-fade-in"
+                          >
                             {detailsLoading[job.id] ? (
                               <LoadingSkeleton />
                             ) : !expandedJob ? (

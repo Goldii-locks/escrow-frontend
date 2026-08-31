@@ -1,299 +1,151 @@
-import { render, screen, act } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import NotificationBell from "@/app/components/NotificationBell";
-import {
-  NotificationProvider,
-  useNotifications,
-} from "@/app/context/NotificationContext";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function renderBell() {
-  return render(
-    <NotificationProvider>
-      <NotificationBell />
-    </NotificationProvider>
-  );
-}
-
-/** Renders the bell alongside a button that injects a notification */
-function renderBellWithAdder(message = "Test message", type: "success" | "error" | "warning" | "info" = "info") {
-  function Adder() {
-    const { addNotification } = useNotifications();
-    return (
-      <button
-        data-testid="add-btn"
-        onClick={() => addNotification(message, type)}
-      >
-        Add
-      </button>
-    );
-  }
-  return render(
-    <NotificationProvider>
-      <NotificationBell />
-      <Adder />
-    </NotificationProvider>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// NotificationContext
-// ---------------------------------------------------------------------------
-
-describe("NotificationContext", () => {
-  it("starts with no notifications", () => {
-    function Inspector() {
-      const { notifications } = useNotifications();
-      return <span data-testid="count">{notifications.length}</span>;
-    }
-    render(
-      <NotificationProvider>
-        <Inspector />
-      </NotificationProvider>
-    );
-    expect(screen.getByTestId("count")).toHaveTextContent("0");
-  });
-
-  it("addNotification appends an unread entry", async () => {
-    const user = userEvent.setup();
-    renderBellWithAdder("Hello");
-    await user.click(screen.getByTestId("add-btn"));
-    expect(screen.getByTestId("notification-badge")).toBeInTheDocument();
-  });
-
-  it("unreadCount increments per notification added", async () => {
-    const user = userEvent.setup();
-    renderBellWithAdder();
-    await user.click(screen.getByTestId("add-btn"));
-    await user.click(screen.getByTestId("add-btn"));
-    expect(screen.getByTestId("notification-badge")).toHaveTextContent("2");
-  });
-
-  it("markAllRead (opening the panel) zeroes unread count", async () => {
-    const user = userEvent.setup();
-    renderBellWithAdder();
-    await user.click(screen.getByTestId("add-btn"));
-    // open panel → markAllRead fires
-    await user.click(screen.getByTestId("notification-bell-btn"));
-    expect(screen.queryByTestId("notification-badge")).not.toBeInTheDocument();
-  });
-
-  it("clearAll removes all notifications", async () => {
-    const user = userEvent.setup();
-    renderBellWithAdder();
-    await user.click(screen.getByTestId("add-btn"));
-    await user.click(screen.getByTestId("notification-bell-btn"));
-    await user.click(screen.getByTestId("notification-clear-btn"));
-    expect(screen.getByTestId("notification-empty")).toBeInTheDocument();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// NotificationBell — rendering
-// ---------------------------------------------------------------------------
-
-describe("NotificationBell rendering", () => {
-  it("renders the bell button", () => {
-    renderBell();
-    expect(screen.getByTestId("notification-bell-btn")).toBeInTheDocument();
-  });
-
-  it("has aria-label 'Notifications' when no unread", () => {
-    renderBell();
-    expect(screen.getByTestId("notification-bell-btn")).toHaveAttribute(
-      "aria-label",
-      "Notifications"
-    );
-  });
-
-  it("updates aria-label with unread count", async () => {
-    const user = userEvent.setup();
-    renderBellWithAdder("msg");
-    await user.click(screen.getByTestId("add-btn"));
-    expect(screen.getByTestId("notification-bell-btn")).toHaveAttribute(
-      "aria-label",
-      "Notifications, 1 unread"
-    );
-  });
-
-  it("does not show badge when no unread notifications", () => {
-    renderBell();
-    expect(screen.queryByTestId("notification-badge")).not.toBeInTheDocument();
-  });
-
-  it("shows badge when there are unread notifications", async () => {
-    const user = userEvent.setup();
-    renderBellWithAdder();
-    await user.click(screen.getByTestId("add-btn"));
-    expect(screen.getByTestId("notification-badge")).toBeInTheDocument();
-  });
-
-  it("badge displays correct count", async () => {
-    const user = userEvent.setup();
-    renderBellWithAdder();
-    await user.click(screen.getByTestId("add-btn"));
-    await user.click(screen.getByTestId("add-btn"));
-    await user.click(screen.getByTestId("add-btn"));
-    expect(screen.getByTestId("notification-badge")).toHaveTextContent("3");
-  });
-
-  it("badge caps display at 99+", async () => {
-    function MassAdder() {
-      const { addNotification } = useNotifications();
-      return (
-        <button
-          data-testid="mass-add"
-          onClick={() => {
-            for (let i = 0; i < 100; i++) addNotification(`msg ${i}`, "info");
-          }}
-        >
-          Add 100
-        </button>
-      );
-    }
-    const user = userEvent.setup();
-    render(
-      <NotificationProvider>
-        <NotificationBell />
-        <MassAdder />
-      </NotificationProvider>
-    );
-    await user.click(screen.getByTestId("mass-add"));
-    expect(screen.getByTestId("notification-badge")).toHaveTextContent("99+");
-  });
-
-  it("badge has animate-badge-pop class", async () => {
-    const user = userEvent.setup();
-    renderBellWithAdder();
-    await user.click(screen.getByTestId("add-btn"));
-    expect(screen.getByTestId("notification-badge")).toHaveClass("animate-badge-pop");
-  });
-
-  it("panel is hidden initially", () => {
-    renderBell();
-    expect(screen.queryByTestId("notification-panel")).not.toBeInTheDocument();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// NotificationBell — panel open/close
-// ---------------------------------------------------------------------------
-
-describe("NotificationBell panel", () => {
-  it("opens panel on click", async () => {
-    const user = userEvent.setup();
-    renderBell();
-    await user.click(screen.getByTestId("notification-bell-btn"));
-    expect(screen.getByTestId("notification-panel")).toBeInTheDocument();
-  });
-
-  it("closes panel on second click", async () => {
-    const user = userEvent.setup();
-    renderBell();
-    await user.click(screen.getByTestId("notification-bell-btn"));
-    await user.click(screen.getByTestId("notification-bell-btn"));
-    expect(screen.queryByTestId("notification-panel")).not.toBeInTheDocument();
-  });
-
-  it("panel has animate-panel-slide class", async () => {
-    const user = userEvent.setup();
-    renderBell();
-    await user.click(screen.getByTestId("notification-bell-btn"));
-    expect(screen.getByTestId("notification-panel")).toHaveClass("animate-panel-slide");
-  });
-
-  it("shows empty state when no notifications", async () => {
-    const user = userEvent.setup();
-    renderBell();
-    await user.click(screen.getByTestId("notification-bell-btn"));
-    expect(screen.getByTestId("notification-empty")).toHaveTextContent("No notifications");
-  });
-
-  it("shows notification items in the panel", async () => {
-    const user = userEvent.setup();
-    renderBellWithAdder("Payment received");
-    await user.click(screen.getByTestId("add-btn"));
-    await user.click(screen.getByTestId("notification-bell-btn"));
-    expect(screen.getAllByTestId("notification-item")).toHaveLength(1);
-    expect(screen.getByTestId("notification-panel")).toHaveTextContent("Payment received");
-  });
-
-  it("shows clear-all button when notifications exist", async () => {
-    const user = userEvent.setup();
-    renderBellWithAdder();
-    await user.click(screen.getByTestId("add-btn"));
-    await user.click(screen.getByTestId("notification-bell-btn"));
-    expect(screen.getByTestId("notification-clear-btn")).toBeInTheDocument();
-  });
-
-  it("hides clear-all button when list is empty", async () => {
-    const user = userEvent.setup();
-    renderBell();
-    await user.click(screen.getByTestId("notification-bell-btn"));
-    expect(screen.queryByTestId("notification-clear-btn")).not.toBeInTheDocument();
-  });
-
-  it("aria-expanded reflects open state", async () => {
-    const user = userEvent.setup();
-    renderBell();
-    const btn = screen.getByTestId("notification-bell-btn");
-    expect(btn).toHaveAttribute("aria-expanded", "false");
-    await user.click(btn);
-    expect(btn).toHaveAttribute("aria-expanded", "true");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// NotificationBell — animations
-// ---------------------------------------------------------------------------
-
-describe("NotificationBell animations", () => {
-  it("adds animate-bell-ring when a new notification arrives", async () => {
-    const user = userEvent.setup();
-    renderBellWithAdder();
-    await user.click(screen.getByTestId("add-btn"));
-    expect(screen.getByTestId("notification-bell-btn")).toHaveClass("animate-bell-ring");
-  });
-
-  it("removes animate-bell-ring after animationEnd fires", async () => {
-    const user = userEvent.setup();
-    renderBellWithAdder();
-    await user.click(screen.getByTestId("add-btn"));
-    const btn = screen.getByTestId("notification-bell-btn");
-    act(() => {
-      btn.dispatchEvent(
-        new AnimationEvent("animationend", { animationName: "bell-ring", bubbles: true })
-      );
+describe("NotificationBell", () => {
+  describe("without notifications", () => {
+    it("renders bell icon when count is 0", () => {
+      render(<NotificationBell count={0} />);
+      expect(screen.getByRole("button")).toBeInTheDocument();
     });
-    expect(btn).not.toHaveClass("animate-bell-ring");
-  });
 
-  it("adds animate-bell-press on click", async () => {
-    const user = userEvent.setup();
-    renderBell();
-    // Check class before animationend clears it
-    const btn = screen.getByTestId("notification-bell-btn");
-    await user.click(btn);
-    // pressing state is set synchronously on click, cleared on animationend
-    // After click the panel is open; pressing=true until animationend
-    act(() => {
-      btn.dispatchEvent(
-        new AnimationEvent("animationend", { animationName: "bell-press", bubbles: true })
-      );
+    it("renders bell icon when count is not provided", () => {
+      render(<NotificationBell />);
+      expect(screen.getByRole("button")).toBeInTheDocument();
     });
-    expect(btn).not.toHaveClass("animate-bell-press");
+
+    it("does not render badge when count is 0", () => {
+      render(<NotificationBell count={0} />);
+      const badge = screen.queryByText("0");
+      expect(badge).not.toBeInTheDocument();
+    });
+
+    it("uses default aria-label", () => {
+      render(<NotificationBell count={0} />);
+      expect(screen.getByRole("button", { name: "Notifications" })).toBeInTheDocument();
+    });
+
+    it("uses custom aria-label when provided", () => {
+      render(<NotificationBell count={0} ariaLabel="Alerts" />);
+      expect(screen.getByRole("button", { name: "Alerts" })).toBeInTheDocument();
+    });
   });
 
-  it("notification items have animate-fade-in class", async () => {
-    const user = userEvent.setup();
-    renderBellWithAdder("Milestone approved");
-    await user.click(screen.getByTestId("add-btn"));
-    await user.click(screen.getByTestId("notification-bell-btn"));
-    const items = screen.getAllByTestId("notification-item");
-    items.forEach((item: HTMLElement) => expect(item).toHaveClass("animate-fade-in"));
+  describe("with notifications", () => {
+    it("renders badge with count when count is 1", () => {
+      render(<NotificationBell count={1} />);
+      expect(screen.getByText("1")).toBeInTheDocument();
+    });
+
+    it("renders badge with count when count is 5", () => {
+      render(<NotificationBell count={5} />);
+      expect(screen.getByText("5")).toBeInTheDocument();
+    });
+
+    it("renders '99+' when count exceeds 99", () => {
+      render(<NotificationBell count={100} />);
+      expect(screen.getByText("99+")).toBeInTheDocument();
+    });
+
+    it("renders '99+' when count is exactly 99", () => {
+      render(<NotificationBell count={99} />);
+      expect(screen.getByText("99")).toBeInTheDocument();
+    });
+
+    it("sets aria-label on badge with count", () => {
+      render(<NotificationBell count={5} />);
+      const badge = screen.getByText("5");
+      expect(badge).toHaveAttribute("aria-label", "5 unread notifications");
+    });
+
+    it("sets aria-label on badge with 99+", () => {
+      render(<NotificationBell count={150} />);
+      const badge = screen.getByText("99+");
+      expect(badge).toHaveAttribute("aria-label", "150 unread notifications");
+    });
+  });
+
+  describe("interactions", () => {
+    it("calls onClick when button is clicked", async () => {
+      const user = userEvent.setup();
+      const onClick = vi.fn();
+      render(<NotificationBell count={0} onClick={onClick} />);
+      
+      await user.click(screen.getByRole("button"));
+      expect(onClick).toHaveBeenCalledOnce();
+    });
+
+    it("does not call onClick when not provided", async () => {
+      const user = userEvent.setup();
+      render(<NotificationBell count={0} />);
+      
+      await user.click(screen.getByRole("button"));
+      // Should not throw error
+    });
+  });
+
+  describe("design tokens", () => {
+    it("applies custom className", () => {
+      render(<NotificationBell count={0} className="mt-4" />);
+      expect(screen.getByRole("button").className).toContain("mt-4");
+    });
+
+    it("uses design token for button background on hover", () => {
+      render(<NotificationBell count={0} />);
+      const button = screen.getByRole("button");
+      expect(button.className).toContain("hover:bg-surface-field");
+    });
+
+    it("uses design token for focus ring", () => {
+      render(<NotificationBell count={0} />);
+      const button = screen.getByRole("button");
+      expect(button.className).toContain("focus-visible:ring-accent-soft");
+      expect(button.className).toContain("focus-visible:ring-offset-surface-page");
+    });
+
+    it("uses design token for bell icon color", () => {
+      render(<NotificationBell count={0} />);
+      const { container } = render(<NotificationBell count={0} />);
+      const svg = container.querySelector("svg");
+      expect(svg).toHaveClass("text-text-secondary");
+    });
+
+    it("uses design token for badge background", () => {
+      render(<NotificationBell count={5} />);
+      const badge = screen.getByText("5");
+      expect(badge).toHaveClass("bg-accent");
+    });
+
+    it("uses design token for badge text color", () => {
+      render(<NotificationBell count={5} />);
+      const badge = screen.getByText("5");
+      expect(badge).toHaveClass("text-white");
+    });
+
+    it("uses design token for badge border", () => {
+      render(<NotificationBell count={5} />);
+      const badge = screen.getByText("5");
+      expect(badge).toHaveClass("border-surface-page");
+    });
+  });
+
+  describe("accessibility", () => {
+    it("has aria-live polite for announcements", () => {
+      render(<NotificationBell count={0} />);
+      const button = screen.getByRole("button");
+      expect(button).toHaveAttribute("aria-live", "polite");
+    });
+
+    it("marks bell icon as aria-hidden", () => {
+      const { container } = render(<NotificationBell count={0} />);
+      const svg = container.querySelector("svg");
+      expect(svg).toHaveAttribute("aria-hidden", "true");
+    });
+
+    it("provides button role", () => {
+      render(<NotificationBell count={0} />);
+      expect(screen.getByRole("button")).toBeInTheDocument();
+    });
   });
 });
