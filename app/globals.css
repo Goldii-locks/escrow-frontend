@@ -80,3 +80,80 @@ body {
 .animate-fade-in  { animation: var(--animate-fade-in);  }
 .animate-slide-in { animation: var(--animate-slide-in); }
 .animate-shake    { animation: var(--animate-shake);    }
+
+/* ── Dark-mode switcher micro-animations (Issue #315) ──────────────────────── */
+
+/* Icon swap: rotates 180° and scales up from nothing, then settles */
+@keyframes theme-icon-swap {
+  0%   { opacity: 0; transform: rotate(-90deg) scale(0.4); }
+  60%  { opacity: 1; transform: rotate(12deg)  scale(1.15); }
+  80%  { transform: rotate(-6deg) scale(0.95); }
+  100% { opacity: 1; transform: rotate(0deg)   scale(1);    }
+}
+
+/* Button press: quick scale-down + bounce back on activation */
+@keyframes theme-btn-press {
+  0%   { transform: scale(1);    }
+  40%  { transform: scale(0.88); }
+  70%  { transform: scale(1.06); }
+  100% { transform: scale(1);    }
+}
+
+@theme inline {
+  --animate-theme-icon-swap: theme-icon-swap 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-theme-btn-press: theme-btn-press 0.25s ease both;
+}
+
+.animate-theme-icon-swap { animation: var(--animate-theme-icon-swap); }
+
+/* Press effect via :active — no JS needed */
+.animate-theme-press:active {
+  animation: var(--animate-theme-btn-press);
+}
+
+/* ── Notification bell micro-animations (Issue #325) ───────────────────────── */
+
+/* Bell ring: pivots around top-centre like a hanging bell */
+@keyframes bell-ring {
+  0%   { transform: rotate(0deg);    transform-origin: top center; }
+  15%  { transform: rotate(18deg);   transform-origin: top center; }
+  30%  { transform: rotate(-14deg);  transform-origin: top center; }
+  45%  { transform: rotate(10deg);   transform-origin: top center; }
+  60%  { transform: rotate(-6deg);   transform-origin: top center; }
+  75%  { transform: rotate(3deg);    transform-origin: top center; }
+  100% { transform: rotate(0deg);    transform-origin: top center; }
+}
+
+/* Badge pop: spring scale from zero */
+@keyframes badge-pop {
+  0%   { opacity: 0; transform: scale(0);    }
+  60%  { opacity: 1; transform: scale(1.25); }
+  80%  { transform: scale(0.9);              }
+  100% { opacity: 1; transform: scale(1);    }
+}
+
+/* Bell press: quick scale-down on click */
+@keyframes bell-press {
+  0%   { transform: scale(1);    }
+  40%  { transform: scale(0.86); }
+  70%  { transform: scale(1.05); }
+  100% { transform: scale(1);    }
+}
+
+/* Panel slide: dropdown appears from slightly above */
+@keyframes panel-slide {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@theme inline {
+  --animate-bell-ring:   bell-ring   0.5s  cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  --animate-badge-pop:   badge-pop   0.3s  cubic-bezier(0.34, 1.56, 0.64, 1)    both;
+  --animate-bell-press:  bell-press  0.22s ease                                  both;
+  --animate-panel-slide: panel-slide 0.18s ease                                  both;
+}
+
+.animate-bell-ring   { animation: var(--animate-bell-ring);   }
+.animate-badge-pop   { animation: var(--animate-badge-pop);   }
+.animate-bell-press  { animation: var(--animate-bell-press);  }
+.animate-panel-slide { animation: var(--animate-panel-slide); }
