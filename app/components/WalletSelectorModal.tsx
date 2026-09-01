@@ -11,6 +11,10 @@ import {
 } from "@/app/lib/errors";
 import { useToast } from "@/app/context/ToastContext";
 import {
+  checkSimulationFeeWarning,
+  type LedgerSimulationResult,
+} from "@/app/lib/ledger_usb_bridge";
+import {
   SUPPORTED_WALLETS,
   type SupportedWalletId,
 } from "@/app/context/WalletContext";
@@ -62,6 +66,12 @@ export interface WalletSelectorModalProps {
   freighterDetector?: () => boolean;
   /** Optional detector override for window globals (useful in tests). */
   windowDetector?: () => boolean;
+  /**
+   * Fee simulation for the transaction about to be signed. When it reports a
+   * failure or an unusually high fee, the modal surfaces a warning banner so
+   * the cost is visible before the wallet prompt opens.
+   */
+  simulationResult?: LedgerSimulationResult | null;
   className?: string;
 }
 
@@ -135,6 +145,7 @@ export default function WalletSelectorModal({
   isLoading = false,
   errorMessage = null,
   freighterDetector,
+  simulationResult = null,
   className = "",
 }: WalletSelectorModalProps) {
   const { showToast } = useToast();
@@ -168,6 +179,13 @@ export default function WalletSelectorModal({
   // react-hooks/set-state-in-effect lint rule).
   const availability = isOpen
     ? checkFreighterAvailability(freighterDetector)
+    : null;
+
+  // Gas estimation warning — derived from the simulation the caller passes in.
+  // checkSimulationFeeWarning is a pure sync call, like the availability check
+  // above, so it needs no effect.
+  const gasWarning = simulationResult
+    ? checkSimulationFeeWarning(simulationResult)
     : null;
 
   // Persistent caching: persist the cached key when the wallet connects
@@ -253,6 +271,17 @@ export default function WalletSelectorModal({
             role="alert"
           >
             {mismatchMessage}
+          </div>
+        )}
+
+        {/* Gas estimation warning */}
+        {gasWarning?.hasWarning && (
+          <div
+            data-testid="wallet-selector-gas-warning"
+            role="alert"
+            className="bg-warning-soft/10 border border-warning-soft/40 rounded-lg px-4 py-3 mb-4 text-warning-soft text-sm"
+          >
+            {gasWarning.warningMessage}
           </div>
         )}
 

@@ -7,9 +7,9 @@ import WalletSelectorModal, {
 import { FREIGHTER_INSTALL_URL } from "@/app/lib/freighter_connector";
 import { WalletRejectedError } from "@/app/lib/errors";
 
-// ---------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 // Mocks
-// ---------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 const showToast = vi.hoisted(() => vi.fn());
 
@@ -26,9 +26,9 @@ vi.mock("@/app/context/WalletContext", () => ({
   ],
 }));
 
-// ---------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 // detectAnyWalletExtension unit tests
-// ---------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 describe("detectAnyWalletExtension", () => {
   afterEach(() => {
@@ -57,9 +57,9 @@ describe("detectAnyWalletExtension", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 // handleWalletError unit tests
-// ---------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 describe("handleWalletError", () => {
   it("identifies user rejected transaction errors", () => {
@@ -92,9 +92,9 @@ describe("handleWalletError", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 // Task 3 — Wallet availability check errors
-// ---------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 describe("WalletSelectorModal wallet availability (#103)", () => {
   beforeEach(() => {
@@ -202,9 +202,9 @@ describe("WalletSelectorModal wallet availability (#103)", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 // Task 4 — Graceful handling of user signature rejection exceptions
-// ---------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 
 describe("WalletSelectorModal design tokens", () => {
   it("uses semantic design token classes for modal shell and alert surfaces", () => {
@@ -342,5 +342,55 @@ describe("WalletSelectorModal signature rejection handling (#105)", () => {
     const result = handleWalletError(null);
     expect(result.isRejection).toBe(false);
     expect(result.message).toBe("An unexpected error occurred.");
+  });
+});
+
+// ------------------------------------------------------------------------------
+// Task 5 — Gas estimation error warning banners
+// -----------------------------------------------------------------------------
+
+describe("WalletSelectorModal gas estimation warnings", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("shows a simulation warning banner when the simulation result contains an error", () => {
+    render(
+      <WalletSelectorModal
+        isOpen={true}
+        onClose={vi.fn()}
+        simulationResult={{ fee: 0, error: "Fee limits need to exceed standard bounds." }}
+      />
+    );
+
+    const warning = screen.getByTestId("wallet-selector-gas-warning");
+    expect(warning).toBeInTheDocument();
+    expect(warning).toHaveAttribute("role", "alert");
+    expect(warning).toHaveTextContent(/simulation failed/i);
+    expect(warning).toHaveTextContent(/fee limits need to exceed/i);
+  });
+
+  it("does not show a simulation warning banner when the simulation result has no error", () => {
+    render(
+      <WalletSelectorModal
+        isOpen={true}
+        onClose={vi.fn()}
+        simulationResult={{ fee: 100 }}
+      />
+    );
+
+    expect(
+      screen.queryByTestId("wallet-selector-gas-warning")
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not show a simulation warning banner when no simulation result is provided", () => {
+    render(
+      <WalletSelectorModal isOpen={true} onClose={vi.fn()} />
+    );
+
+    expect(
+      screen.queryByTestId("wallet-selector-gas-warning")
+    ).not.toBeInTheDocument();
   });
 });
