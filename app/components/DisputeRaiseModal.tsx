@@ -9,6 +9,8 @@ import {
   getDisputeModalLayout,
 } from "@/app/lib/dispute_raise_modal";
 import ButtonSpinner from "./ButtonSpinner";
+import TxStatusBanner from "./TxStatusBanner";
+import type { ActionState } from "@/app/hooks/useActionStates";
 
 export interface DisputeRaiseModalProps {
   /** Whether the modal is currently visible. */
@@ -17,6 +19,12 @@ export interface DisputeRaiseModalProps {
   onClose: () => void;
   /** Called with the validated reason when the user confirms the dispute. */
   onConfirm?: (reason: string) => void;
+  /**
+   * Optional transaction state for the raise-dispute call. When it leaves
+   * `idle` the modal shows a TxStatusBanner beneath the body, so the user sees
+   * the submission progress without the modal having to close first.
+   */
+  disputeState?: ActionState | null;
   /** Alias of `onConfirm`; both fire with the trimmed reason. */
   onSubmit?: (reason: string) => void | Promise<void>;
   /** Job the dispute is being raised against. */
@@ -68,6 +76,7 @@ export default function DisputeRaiseModal({
   isLoading = false,
   errorMessage = null,
   submissionError = null,
+  disputeState = null,
   className = "",
 }: DisputeRaiseModalProps) {
   const viewport = useDisputeViewport();
@@ -175,7 +184,10 @@ export default function DisputeRaiseModal({
           </div>
 
           <div className={DISPUTE_MODAL_CLASSES.scrollableContent}>
-            <p className="mb-4 text-sm text-secondary">
+            <p
+              data-testid="dispute-raise-modal-warning"
+              className="mb-4 text-sm text-secondary"
+            >
               Raising a dispute pauses the escrow and hands the decision to the
               arbiter. This cannot be undone from here.
             </p>
@@ -262,6 +274,18 @@ export default function DisputeRaiseModal({
                 className="mt-3 rounded-lg border border-danger bg-danger/20 px-4 py-3 text-sm text-danger-soft animate-shake"
               >
                 {generalError}
+              </div>
+            )}
+
+            {disputeState && disputeState.phase !== "idle" && (
+              <div
+                className="mt-4"
+                data-testid="dispute-raise-modal-status-banner"
+              >
+                <TxStatusBanner
+                  state={disputeState}
+                  successMessage="Dispute raised successfully. The arbiter has been notified."
+                />
               </div>
             )}
           </div>

@@ -464,4 +464,63 @@ describe("DisputeRaiseModal", () => {
       expect(screen.queryByTestId("dispute-raise-modal-error")).toBeNull();
     });
   });
+  // Transaction feedback (#368). The banner lets the user watch the submission
+  // without the modal closing first, so it is gated on the state leaving idle.
+  describe("Transaction status banner", () => {
+    it("is absent when no disputeState is supplied", () => {
+      render(<DisputeRaiseModal {...defaultProps} />);
+      expect(
+        screen.queryByTestId("dispute-raise-modal-status-banner")
+      ).toBeNull();
+    });
+
+    it("stays absent while the transaction state is idle", () => {
+      render(
+        <DisputeRaiseModal
+          {...defaultProps}
+          disputeState={{ phase: "idle", error: null, txHash: null }}
+        />
+      );
+      expect(
+        screen.queryByTestId("dispute-raise-modal-status-banner")
+      ).toBeNull();
+    });
+
+    it("appears once the transaction is in flight", () => {
+      render(
+        <DisputeRaiseModal
+          {...defaultProps}
+          disputeState={{ phase: "submitting", error: null, txHash: null }}
+        />
+      );
+      expect(
+        screen.getByTestId("dispute-raise-modal-status-banner")
+      ).toBeInTheDocument();
+    });
+
+    it("reports the failure when the transaction errors", () => {
+      render(
+        <DisputeRaiseModal
+          {...defaultProps}
+          disputeState={{
+            phase: "error",
+            error: "Transaction rejected by the network.",
+            txHash: null,
+          }}
+        />
+      );
+      expect(
+        screen.getByTestId("dispute-raise-modal-status-banner")
+      ).toHaveTextContent(/transaction rejected by the network/i);
+    });
+  });
+
+  // The irreversibility warning carries no visible anchor of its own, so a
+  // test id keeps a future refactor from dropping it unnoticed.
+  it("always shows the irreversibility warning", () => {
+    render(<DisputeRaiseModal {...defaultProps} />);
+    expect(
+      screen.getByTestId("dispute-raise-modal-warning")
+    ).toHaveTextContent(/cannot be undone/i);
+  });
 });
