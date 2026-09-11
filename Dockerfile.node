@@ -1,0 +1,60 @@
+# escrow-frontend/Dockerfile.node — FALLBACK ONLY
+#
+# Use this if output: "export" turns out not to work (middleware present,
+# a server component doing dynamic work, or anything else that blocks
+# static export). Requires output: "standalone" in next.config.ts instead.
+#
+# Standalone trims the 1.0G production tree to only what's actually
+# imported — typically 100-200M. Do not ship a plain `next start` image
+# with full node_modules; that's the 1.3G path.
+#
+# With this variant, nginx moves OUT of the frontend image and becomes its
+# own service in docker-compose, reverse-proxying to this container on 3000
+# and to backend on 3001. See DECISIONS.md.
+
+FROM node:24-bookworm-slim AS build
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
+
+COPY . .
+
+ARG NEXT_PUBLIC_BACKEND_URL
+ARG NEXT_PUBLIC_CONTRACT_ID
+ARG NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
+ARG NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE="Test SDF Network ; September 2015"
+
+ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL \
+    NEXT_PUBLIC_CONTRACT_ID=$NEXT_PUBLIC_CONTRACT_ID \
+    NEXT_PUBLIC_SOROBAN_RPC_URL=$NEXT_PUBLIC_SOROBAN_RPC_URL \
+    NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=$NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE
+
+RUN test -n "$NEXT_PUBLIC_BACKEND_URL" \
+      || (echo "ERROR: NEXT_PUBLIC_BACKEND_URL must be set at build time" && exit 1)
+
+RUN npm run build
+RUN test -d /app/.next/standalone || (echo "ERROR: .next/standalone missing — set output:'standalone'" && exit 1)
+
+# ---- runtime ----
+FROM node:24-bookworm-slim AS runtime
+
+WORKDIR /app
+ENV NODE_ENV=production \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
+
+RUN groupadd --system --gid 1001 nodejs \
+    && useradd --system --uid 1001 --gid nodejs nextjs
+
+COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=build --chown=nextjs:nodejs /app/public ./public
+
+USER nextjs
+EXPOSE 3000
+
+# HOSTNAME=0.0.0.0 above is load-bearing: Next's standalone server binds
+# to localhost by default, which is unreachable from a sibling container.
+CMD ["node", "server.js"]
