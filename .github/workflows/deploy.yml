@@ -63,7 +63,7 @@ jobs:
         with:
           context: .
           push: true
-          platforms: linux/amd64
+          platforms: linux/arm64
           build-args: |
             NEXT_PUBLIC_BACKEND_URL=${{ vars.PUBLIC_ORIGIN }}
             NEXT_PUBLIC_CONTRACT_ID=${{ steps.contract.outputs.id }}
