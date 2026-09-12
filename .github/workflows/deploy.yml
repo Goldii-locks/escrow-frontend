@@ -1,0 +1,123 @@
+# escrow-frontend/.github/workflows/deploy.yml
+#
+# Differs from the backend workflow because NEXT_PUBLIC_* values must be
+# passed as build args — they're inlined into the bundle, so the image is
+# environment-specific and a contract change requires a rebuild.
+#
+# Keep the existing ci.yml as-is. This runs alongside it, not instead.
+
+name: Deploy frontend to AWS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      contract_id:
+        description: "Override NEXT_PUBLIC_CONTRACT_ID (leave blank to use the repo variable)"
+        required: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: af-south-1
+  SERVICE: frontend
+  ECR_REPOSITORY: escrow-frontend
+
+concurrency:
+  group: deploy-frontend-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        run: echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Resolve contract ID
+        id: contract
+        run: |
+          CID="${{ inputs.contract_id }}"
+          [ -n "$CID" ] || CID="${{ vars.CONTRACT_ID }}"
+          [ -n "$CID" ] || { echo "::error::no CONTRACT_ID — set the repo variable"; exit 1; }
+          echo "id=${CID}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          build-args: |
+            NEXT_PUBLIC_BACKEND_URL=${{ vars.PUBLIC_ORIGIN }}
+            NEXT_PUBLIC_CONTRACT_ID=${{ steps.contract.outputs.id }}
+            NEXT_PUBLIC_SOROBAN_RPC_URL=${{ vars.SOROBAN_RPC_URL }}
+            NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=${{ vars.SOROBAN_NETWORK_PASSPHRASE }}
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: send
+        run: |
+          set -euo pipefail
+          CMD_ID=$(aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --targets "Key=tag:Role,Values=escrow-prod" \
+            --comment "deploy frontend ${{ needs.build.outputs.image_tag }}" \
+            --parameters "commands=[\"/opt/escrow/deploy.sh frontend ${{ needs.build.outputs.image_tag }}\"]" \
+            --query 'Command.CommandId' --output text)
+          echo "command_id=${CMD_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Wait and print instance output
+        run: |
+          set -euo pipefail
+          CMD_ID="${{ steps.send.outputs.command_id }}"
+          STATUS=Pending
+          for i in $(seq 1 60); do
+            STATUS=$(aws ssm list-command-invocations --command-id "$CMD_ID" \
+              --query 'CommandInvocations[0].Status' --output text)
+            echo "attempt ${i}: ${STATUS}"
+            case "$STATUS" in
+              Success|Failed|Cancelled|TimedOut) break ;;
+              *) sleep 5 ;;
+            esac
+          done
+          aws ssm list-command-invocations --command-id "$CMD_ID" --details \
+            --query 'CommandInvocations[0].CommandPlugins[0].Output' --output text
+          [ "$STATUS" = "Success" ] || exit 1
+
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          BASE="${{ vars.PUBLIC_ORIGIN }}"
+          curl -fsS --max-time 10 "${BASE}/healthz"
+          # Deep link must return the exported .html, not a 404 and not index.
+          curl -fsS --max-time 10 -o /dev/null -w '%{http_code}\n' "${BASE}/dashboard"
+          curl -fsS --max-time 15 "${BASE}/health" \
+            || echo "::warning::backend /health unreachable — expected while the soroban-sdk migration is outstanding"
