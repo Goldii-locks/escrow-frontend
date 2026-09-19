@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Milestone landing page</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  body { margin: 0; display: flex; justify-content: center; background: #070A0F; font-family: 'Inter', system-ui, sans-serif; }
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; cursor: pointer; }
+  @keyframes orbit-spin { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+  @keyframes orbit-counter { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes core-pulse { 0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.88; } 50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; } }
+  @keyframes camera-drift { 0%, 100% { transform: translate(-50%, -50%) scale(1) rotate(-1.5deg); } 50% { transform: translate(-50%, -50%) scale(1.035) rotate(1.5deg); } }
+  @keyframes bloom-a { 0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.65; } 50% { transform: translate(36px, 26px) scale(1.14); opacity: 0.95; } }
+  @keyframes bloom-b { 0%, 100% { transform: translate(0, 0) scale(1.1); opacity: 0.55; } 50% { transform: translate(-44px, 18px) scale(1); opacity: 0.85; } }
+  @keyframes bokeh-float { 0%, 100% { transform: translate(0, 0); opacity: 0.5; } 50% { transform: translate(-14px, -22px); opacity: 0.95; } }
+</style>
+</head>
+<body>
+
+<div style="position: relative; width: 1440px; height: 3144px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background:
+  radial-gradient(1px 1px at 8% 6%, rgba(255,255,255,0.45), transparent),
+  radial-gradient(1px 1px at 17% 24%, rgba(255,255,255,0.28), transparent),
+  radial-gradient(1.5px 1.5px at 27% 13%, rgba(240,185,10,0.45), transparent),
+  radial-gradient(1px 1px at 38% 4%, rgba(255,255,255,0.35), transparent),
+  radial-gradient(1px 1px at 52% 19%, rgba(255,255,255,0.22), transparent),
+  radial-gradient(1.5px 1.5px at 63% 6%, rgba(31,186,166,0.45), transparent),
+  radial-gradient(1px 1px at 9% 34%, rgba(255,255,255,0.3), transparent),
+  radial-gradient(900px 640px at 84% 7%, rgba(31,186,166,0.10), transparent 72%),
+  radial-gradient(1000px 760px at 8% 12%, rgba(240,185,10,0.09), transparent 72%),
+  radial-gradient(900px 700px at 50% 62%, rgba(240,185,10,0.05), transparent 72%),
+  linear-gradient(180deg, #0A0E15 0%, #080B11 26%, #06080C 100%); color: #F5F5F0;">
+
+  <!-- faded grid mesh -->
+  <div style="position: absolute; inset: 0; z-index: 0; pointer-events: none; background-image:
+    linear-gradient(rgba(245,245,240,0.026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245,245,240,0.026) 1px, transparent 1px);
+    background-size: 80px 80px; -webkit-mask-image: radial-gradient(120% 34% at 50% 12%, #000 35%, transparent 80%); mask-image: radial-gradient(120% 34% at 50% 12%, #000 35%, transparent 80%);"></div>
+
+  <!-- NAV -->
+  <div style="position: relative; z-index: 8; height: 76px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 56px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 11px;">
+      <svg width="24" height="24" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <rect x="4" y="4" width="56" height="56" rx="16" stroke="#F0B90A" stroke-width="4"/>
+        <path d="M18 44 L32 32 L46 20" stroke="#F0B90A" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="18" cy="44" r="4" fill="#F0B90A" opacity="0.45"/>
+        <circle cx="32" cy="32" r="4.5" fill="#F0B90A" opacity="0.75"/>
+        <circle cx="46" cy="20" r="6" fill="#F0B90A"/>
+      </svg>
+      <span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 22px; letter-spacing: 0.01em;">Milestone.</span>
+      <span style="margin-left: 4px; display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; border: 1px solid rgba(31,186,166,0.35); background: rgba(31,186,166,0.08); font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 500; color: #1FBAA6; letter-spacing: 0.06em;">
+        <span style="width: 5px; height: 5px; border-radius: 50%; background: #1FBAA6;"></span>TESTNET
+      </span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 32px;">
+      <a href="#how-it-works" style="font-size: 13px; color: #A8AFC0; font-weight: 500;">How it works</a>
+      <a href="#product" style="font-size: 13px; color: #A8AFC0; font-weight: 500;">Product</a>
+      <a href="#security" style="font-size: 13px; color: #A8AFC0; font-weight: 500;">Security</a>
+      <a href="#" style="font-size: 13px; color: #A8AFC0; font-weight: 500;">GitHub</a>
+    </div>
+    <button type="button" style="display: inline-flex; align-items: center; gap: 9px; background: #F5F5F0; color: #14110A; border: none; padding: 8px 10px 8px 18px; border-radius: 999px; font-size: 13px; font-weight: 600;">
+      Launch App
+      <span style="width: 22px; height: 22px; border-radius: 50%; background: #14110A; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3.2 8.8 L8.8 3.2 M8.8 3.2 H4.6 M8.8 3.2 V7.4" stroke="#F0B90A" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+    </button>
+  </div>
+
+  <!-- HERO -->
+  <div style="position: relative; z-index: 2; height: 820px; flex-shrink: 0; overflow: hidden;">
+
+    <!-- ghosted wordmark -->
+    <div style="position: absolute; top: 51%; left: 662px; transform: translateY(-50%); font-family: 'Instrument Serif', Georgia, serif; font-size: 196px; white-space: nowrap; z-index: 3; user-select: none;
+      background: linear-gradient(160deg, rgba(240,185,10,0.46) 0%, rgba(240,185,10,0.34) 30%, rgba(31,186,166,0.24) 58%, rgba(185,167,230,0.16) 82%, rgba(185,167,230,0.09) 100%);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;">Milestone</div>
+
+    <!-- CINEMATIC SCENE -->
+    <div style="position: absolute; top: 50%; right: -150px; width: 880px; height: 880px; transform: translateY(calc(-50% + 54px)); z-index: 4;">
+      <div style="position: absolute; top: 50%; left: 50%; width: 880px; height: 880px; margin: -440px 0 0 -440px; animation: camera-drift 26s ease-in-out infinite; animation-play-state: running; transform: translate(-50%, -50%);">
+
+        <div style="position: absolute; top: 50%; left: 50%; width: 600px; height: 600px; margin: -300px 0 0 -300px; border-radius: 50%; background: radial-gradient(circle, rgba(240,185,10,0.30), rgba(240,185,10,0.05) 55%, transparent 72%); filter: blur(80px); animation: bloom-a 20s ease-in-out infinite;"></div>
+        <div style="position: absolute; top: 46%; left: 58%; width: 460px; height: 460px; margin: -230px 0 0 -230px; border-radius: 50%; background: radial-gradient(circle, rgba(31,186,166,0.26), transparent 66%); filter: blur(76px); animation: bloom-b 24s ease-in-out infinite;"></div>
+
+        <div style="position: absolute; top: 50%; left: 50%; width: 840px; height: 420px; margin: -210px 0 0 -420px; border: 1px solid rgba(240,185,10,0.10); border-radius: 50%; filter: blur(3.5px);"></div>
+        <div style="position: absolute; top: 50%; left: 50%; width: 700px; height: 350px; margin: -175px 0 0 -350px; border: 1px solid rgba(31,186,166,0.16); border-radius: 50%; filter: blur(2px);"></div>
+        <div style="position: absolute; top: 50%; left: 50%; width: 660px; height: 330px; margin: -165px 0 0 -330px; border: 1px solid rgba(240,185,10,0.26); border-radius: 50%;"></div>
+        <div style="position: absolute; top: 50%; left: 50%; width: 470px; height: 235px; margin: -117.5px 0 0 -235px; border: 1px solid rgba(185,167,230,0.20); border-radius: 50%; filter: blur(1px);"></div>
+        <div style="position: absolute; top: 50%; left: 50%; width: 300px; height: 150px; margin: -75px 0 0 -150px; border: 1px solid rgba(245,245,240,0.09); border-radius: 50%; filter: blur(2.5px);"></div>
+
+        <div style="position: absolute; top: 50%; left: 50%; width: 118px; height: 118px; border-radius: 50%; background: radial-gradient(circle at 42% 38%, #FFF3D0, #F0B90A 34%, rgba(240,185,10,0.22) 62%, transparent 74%); box-shadow: 0 0 90px 26px rgba(240,185,10,0.32); animation: core-pulse 5s ease-in-out infinite;"></div>
+
+        <div style="position: absolute; top: 18%; left: 24%; width: 22px; height: 22px; border-radius: 50%; background: rgba(240,185,10,0.5); filter: blur(7px); animation: bokeh-float 14s ease-in-out infinite;"></div>
+        <div style="position: absolute; top: 70%; left: 16%; width: 14px; height: 14px; border-radius: 50%; background: rgba(31,186,166,0.55); filter: blur(4px); animation: bokeh-float 18s ease-in-out infinite 2s;"></div>
+        <div style="position: absolute; top: 78%; left: 66%; width: 28px; height: 28px; border-radius: 50%; background: rgba(185,167,230,0.4); filter: blur(9px); animation: bokeh-float 22s ease-in-out infinite 1s;"></div>
+        <div style="position: absolute; top: 26%; left: 74%; width: 10px; height: 10px; border-radius: 50%; background: rgba(245,245,240,0.6); filter: blur(2px); animation: bokeh-float 16s ease-in-out infinite 3s;"></div>
+        <div style="position: absolute; top: 52%; left: 8%; width: 8px; height: 8px; border-radius: 50%; background: rgba(240,185,10,0.7); filter: blur(1.5px); animation: bokeh-float 20s ease-in-out infinite 1.5s;"></div>
+
+        <div style="position: absolute; top: 50%; left: 50%; width: 0; height: 0; transform: scaleY(0.5);">
+          <div style="position: absolute; animation: orbit-spin 44s linear infinite; animation-play-state: running;">
+
+            <div style="position: absolute; width: 0; height: 0; transform: rotate(0deg) translateX(330px);">
+              <div style="transform: rotate(0deg);">
+                <div style="animation: orbit-counter 44s linear infinite; animation-play-state: running;">
+                  <div style="transform: scaleY(2);">
+                    <div style="transform: translate(-50%, -50%); display: flex; align-items: center; gap: 10px; padding: 11px 17px; border-radius: 999px; background: rgba(10,14,21,0.82); border: 1px solid rgba(240,185,10,0.45); box-shadow: 0 0 30px rgba(240,185,10,0.3); white-space: nowrap;">
+                      <span style="width: 8px; height: 8px; border-radius: 50%; background: #F0B90A; box-shadow: 0 0 12px #F0B90A; flex-shrink: 0;"></span>
+                      <span style="font-size: 11px; color: #8A92A6; font-weight: 600;">01</span>
+                      <span style="font-size: 13px; font-weight: 500;">Create milestone</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="position: absolute; width: 0; height: 0; transform: rotate(120deg) translateX(330px);">
+              <div style="transform: rotate(-120deg);">
+                <div style="animation: orbit-counter 44s linear infinite; animation-play-state: running;">
+                  <div style="transform: scaleY(2);">
+                    <div style="transform: translate(-50%, -50%); display: flex; align-items: center; gap: 10px; padding: 11px 17px; border-radius: 999px; background: rgba(10,14,21,0.82); border: 1px solid rgba(31,186,166,0.45); box-shadow: 0 0 30px rgba(31,186,166,0.3); white-space: nowrap;">
+                      <span style="width: 8px; height: 8px; border-radius: 50%; background: #1FBAA6; box-shadow: 0 0 12px #1FBAA6; flex-shrink: 0;"></span>
+                      <span style="font-size: 11px; color: #8A92A6; font-weight: 600;">02</span>
+                      <span style="font-size: 13px; font-weight: 500;">Deliver work</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="position: absolute; width: 0; height: 0; transform: rotate(240deg) translateX(330px);">
+              <div style="transform: rotate(-240deg);">
+                <div style="animation: orbit-counter 44s linear infinite; animation-play-state: running;">
+                  <div style="transform: scaleY(2);">
+                    <div style="transform: translate(-50%, -50%); display: flex; align-items: center; gap: 10px; padding: 11px 17px; border-radius: 999px; background: rgba(10,14,21,0.82); border: 1px solid rgba(185,167,230,0.45); box-shadow: 0 0 30px rgba(185,167,230,0.28); white-space: nowrap;">
+                      <span style="width: 8px; height: 8px; border-radius: 50%; background: #B9A7E6; box-shadow: 0 0 12px #B9A7E6; flex-shrink: 0;"></span>
+                      <span style="font-size: 11px; color: #8A92A6; font-weight: 600;">03</span>
+                      <span style="font-size: 13px; font-weight: 500;">Approve &amp; release</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div style="position: absolute; inset: 0; z-index: 2; pointer-events: none; background: linear-gradient(95deg, #070A0F 16%, rgba(7,10,15,0.85) 34%, rgba(7,10,15,0.15) 52%, transparent 66%);"></div>
+
+    <!-- HERO COPY -->
+    <div style="position: absolute; z-index: 5; left: 56px; top: 50%; transform: translateY(-50%); width: 598px;">
+      <div style="display: inline-flex; align-items: center; gap: 9px; padding: 6px 14px; border-radius: 999px; border: 1px solid rgba(240,185,10,0.3); background: rgba(240,185,10,0.07); font-size: 11px; font-weight: 600; color: #F0B90A; letter-spacing: 0.1em;">ESCROW, SETTLED ON-CHAIN</div>
+      <h1 style="margin: 22px 0 0 0; font-family: 'Instrument Serif', Georgia, serif; font-size: 78px; line-height: 1.03; font-weight: 400; letter-spacing: -0.005em;">Escrow that <em style="font-style: italic; color: #F0B90A;">finishes</em><br>what it starts.</h1>
+      <p style="margin: 26px 0 0 0; font-size: 16px; line-height: 1.65; color: #A8AFC0; max-width: 452px;">Funds lock into a Stellar smart contract the moment work begins, and release the moment it's approved. No wire transfers, no chasing invoices, no intermediary holding your money.</p>
+      <div style="display: flex; gap: 12px; margin-top: 34px;">
+        <button type="button" style="display: inline-flex; align-items: center; gap: 10px; background: #F0B90A; color: #14110A; border: none; padding: 9px 11px 9px 22px; border-radius: 999px; font-size: 14px; font-weight: 600;">
+          Launch App
+          <span style="width: 26px; height: 26px; border-radius: 50%; background: #14110A; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3.2 8.8 L8.8 3.2 M8.8 3.2 H4.6 M8.8 3.2 V7.4" stroke="#F0B90A" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </button>
+        <a href="#security" style="display: inline-flex; align-items: center; gap: 10px; background: rgba(245,245,240,0.04); color: #F5F5F0; border: 1px solid rgba(245,245,240,0.16); padding: 9px 11px 9px 22px; border-radius: 999px; font-size: 14px; font-weight: 500;">
+          Read the contract
+          <span style="width: 26px; height: 26px; border-radius: 50%; background: rgba(245,245,240,0.1); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3.2 8.8 L8.8 3.2 M8.8 3.2 H4.6 M8.8 3.2 V7.4" stroke="#F5F5F0" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </a>
+      </div>
+      <div style="display: flex; align-items: center; gap: 9px; margin-top: 40px; font-size: 12px; color: #8A92A6; letter-spacing: 0.02em;">
+        <svg width="14" height="14" viewBox="0 0 64 64" fill="none" aria-hidden="true"><rect x="4" y="4" width="56" height="56" rx="16" stroke="#8A92A6" stroke-width="4"/><path d="M18 44 L32 32 L46 20" stroke="#8A92A6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="46" cy="20" r="6" fill="#8A92A6"/></svg>
+        Built on the Stellar network
+      </div>
+    </div>
+
+    <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 130px; z-index: 6; pointer-events: none; background: linear-gradient(180deg, transparent, #070A0F);"></div>
+  </div>
+
+  <!-- PROOF STRIP -->
+  <div style="position: relative; z-index: 3; height: 108px; flex-shrink: 0; margin: 0 56px; border-top: 1px solid rgba(245,245,240,0.08); border-bottom: 1px solid rgba(245,245,240,0.08); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: center;">
+
+    <div style="padding-right: 28px; border-right: 1px solid rgba(245,245,240,0.07);">
+      <div style="font-size: 10px; letter-spacing: 0.1em; color: #8A92A6; margin-bottom: 7px;">LIVE CONTRACT</div>
+      <a href="#" style="display: inline-flex; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #F5F5F0;">
+        CARZQM…X3UCLJA
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3.2 8.8 L8.8 3.2 M8.8 3.2 H4.6 M8.8 3.2 V7.4" stroke="#F0B90A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+    </div>
+
+    <div style="padding: 0 28px; border-right: 1px solid rgba(245,245,240,0.07);">
+      <div style="font-size: 10px; letter-spacing: 0.1em; color: #8A92A6; margin-bottom: 7px;">TEST SUITE</div>
+      <div style="font-size: 14px; font-weight: 600;">708 / 708 passing</div>
+    </div>
+
+    <div style="padding: 0 28px; border-right: 1px solid rgba(245,245,240,0.07);">
+      <div style="font-size: 10px; letter-spacing: 0.1em; color: #8A92A6; margin-bottom: 7px;">SOURCE</div>
+      <a href="#" style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600;">
+        Open source on GitHub
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3.2 8.8 L8.8 3.2 M8.8 3.2 H4.6 M8.8 3.2 V7.4" stroke="#F0B90A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+    </div>
+
+    <div style="padding-left: 28px;">
+      <div style="font-size: 10px; letter-spacing: 0.1em; color: #8A92A6; margin-bottom: 7px;">CUSTODY</div>
+      <div style="font-size: 14px; font-weight: 600;">Non-custodial</div>
+    </div>
+
+  </div>
+
+  <!-- PRODUCT -->
+  <div id="product" style="position: relative; z-index: 3; height: 640px; flex-shrink: 0; padding: 54px 56px 0; box-sizing: border-box;">
+
+    <div style="text-align: center; margin-bottom: 34px;">
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: #F0B90A; margin-bottom: 11px;">THE PRODUCT</div>
+      <h2 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-size: 44px; font-weight: 400; line-height: 1.1;">Every milestone, <em style="font-style: italic; color: #A8AFC0;">one screen.</em></h2>
+    </div>
+
+    <!-- glow beneath the panel -->
+    <div style="position: absolute; top: 300px; left: 50%; width: 900px; height: 300px; margin-left: -450px; border-radius: 50%; background: radial-gradient(ellipse, rgba(240,185,10,0.18), transparent 66%); filter: blur(70px); z-index: 0;"></div>
+
+    <!-- APP PANEL -->
+    <div style="position: relative; z-index: 1; width: 1040px; margin: 0 auto; border-radius: 18px; border: 1px solid rgba(245,245,240,0.1); background: #0C1119; overflow: hidden; box-shadow: 0 40px 90px rgba(0,0,0,0.6);">
+
+      <!-- panel header -->
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid rgba(245,245,240,0.07);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="width: 30px; height: 30px; border-radius: 9px; background: rgba(240,185,10,0.13); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #F0B90A;">BI</div>
+          <div>
+            <div style="font-size: 14px; font-weight: 600;">Brand identity system</div>
+            <div style="font-size: 11px; color: #8A92A6; margin-top: 2px;">Escrow #14 · counterparty GBQ4…7YHK</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: rgba(31,186,166,0.09); border: 1px solid rgba(31,186,166,0.28); font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #1FBAA6;">
+          <span style="width: 5px; height: 5px; border-radius: 50%; background: #1FBAA6;"></span>ACTIVE ON LEDGER
+        </div>
+      </div>
+
+      <!-- panel body -->
+      <div style="display: flex; gap: 22px; padding: 22px 24px 26px;">
+
+        <!-- milestone rows -->
+        <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 9px;">
+
+          <div style="display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 12px; background: rgba(245,245,240,0.02); border: 1px solid rgba(245,245,240,0.06);">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: #B9A7E6; flex-shrink: 0;"></span>
+            <div style="flex-grow: 1;">
+              <div style="font-size: 13px; font-weight: 500;">Discovery &amp; research</div>
+              <div style="font-size: 11px; color: #8A92A6; margin-top: 3px;">Released 12 Aug</div>
+            </div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #A8AFC0;">400 USDC</div>
+            <div style="width: 132px; text-align: right;"><span style="display: inline-block; padding: 4px 10px; border-radius: 999px; background: rgba(185,167,230,0.12); color: #B9A7E6; font-size: 10px; font-weight: 600; letter-spacing: 0.04em;">APPROVED</span></div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 12px; background: rgba(245,245,240,0.02); border: 1px solid rgba(245,245,240,0.06);">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: #B9A7E6; flex-shrink: 0;"></span>
+            <div style="flex-grow: 1;">
+              <div style="font-size: 13px; font-weight: 500;">Concept directions</div>
+              <div style="font-size: 11px; color: #8A92A6; margin-top: 3px;">Released 29 Aug</div>
+            </div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #A8AFC0;">600 USDC</div>
+            <div style="width: 132px; text-align: right;"><span style="display: inline-block; padding: 4px 10px; border-radius: 999px; background: rgba(185,167,230,0.12); color: #B9A7E6; font-size: 10px; font-weight: 600; letter-spacing: 0.04em;">APPROVED</span></div>
+          </div>
+
+          <!-- active row -->
+          <div style="display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 12px; background: rgba(31,186,166,0.07); border: 1px solid rgba(31,186,166,0.34);">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: #1FBAA6; box-shadow: 0 0 10px #1FBAA6; flex-shrink: 0;"></span>
+            <div style="flex-grow: 1;">
+              <div style="font-size: 13px; font-weight: 600;">Final identity system</div>
+              <div style="font-size: 11px; color: #8A92A6; margin-top: 3px;">Delivered 17 Sep · review closes in 4 days</div>
+            </div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #F5F5F0;">800 USDC</div>
+            <div style="width: 132px; display: flex; justify-content: flex-end;">
+              <button type="button" style="background: #F0B90A; color: #14110A; border: none; padding: 7px 14px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap;">Approve &amp; release</button>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 12px; background: rgba(245,245,240,0.02); border: 1px solid rgba(245,245,240,0.06);">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: #F0B90A; flex-shrink: 0;"></span>
+            <div style="flex-grow: 1;">
+              <div style="font-size: 13px; font-weight: 500;">Brand guidelines</div>
+              <div style="font-size: 11px; color: #8A92A6; margin-top: 3px;">Funded · due 12 Oct</div>
+            </div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #A8AFC0;">400 USDC</div>
+            <div style="width: 132px; text-align: right;"><span style="display: inline-block; padding: 4px 10px; border-radius: 999px; background: rgba(240,185,10,0.12); color: #F0B90A; font-size: 10px; font-weight: 600; letter-spacing: 0.04em;">IN PROGRESS</span></div>
+          </div>
+
+        </div>
+
+        <!-- summary rail -->
+        <div style="width: 248px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px;">
+          <div style="padding: 16px; border-radius: 12px; background: rgba(245,245,240,0.03); border: 1px solid rgba(245,245,240,0.07);">
+            <div style="font-size: 10px; letter-spacing: 0.08em; color: #8A92A6;">HELD IN ESCROW</div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 26px; margin-top: 8px; color: #F0B90A;">1,200</div>
+            <div style="font-size: 11px; color: #8A92A6; margin-top: 2px;">USDC · locked in contract</div>
+          </div>
+          <div style="padding: 16px; border-radius: 12px; background: rgba(245,245,240,0.03); border: 1px solid rgba(245,245,240,0.07);">
+            <div style="font-size: 10px; letter-spacing: 0.08em; color: #8A92A6;">RELEASED TO DATE</div>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 26px; margin-top: 8px;">1,000</div>
+            <div style="font-size: 11px; color: #8A92A6; margin-top: 2px;">USDC · 2 of 4 milestones</div>
+          </div>
+          <a href="#" style="display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-radius: 12px; border: 1px solid rgba(245,245,240,0.09); font-size: 12px; color: #A8AFC0;">
+            View on Stellar Expert
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3.2 8.8 L8.8 3.2 M8.8 3.2 H4.6 M8.8 3.2 V7.4" stroke="#F0B90A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+        </div>
+
+      </div>
+    </div>
+
+    <p style="position: relative; z-index: 1; text-align: center; margin: 18px 0 0 0; font-size: 12px; color: #8A92A6;">Illustrative escrow. The figures shown are an example, not live ledger data.</p>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <div id="how-it-works" style="position: relative; z-index: 3; height: 470px; flex-shrink: 0; padding: 40px 56px 0; box-sizing: border-box;">
+    <div style="display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 36px;">
+      <div>
+        <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: #F0B90A; margin-bottom: 12px;">HOW IT WORKS</div>
+        <h2 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-size: 44px; font-weight: 400; line-height: 1.1;">Three steps, <em style="font-style: italic; color: #A8AFC0;">one contract.</em></h2>
+      </div>
+      <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #A8AFC0; max-width: 360px; text-align: right;">Each step emits an event to the Stellar ledger. Both sides read the same record, and so can anyone auditing.</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px;">
+
+      <div style="background: linear-gradient(180deg, rgba(240,185,10,0.06), rgba(16,21,29,0.4)); border: 1px solid rgba(240,185,10,0.16); border-radius: 18px; padding: 28px; display: flex; flex-direction: column; gap: 13px; min-height: 246px; box-sizing: border-box;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="width: 9px; height: 9px; border-radius: 50%; background: #F0B90A; box-shadow: 0 0 14px #F0B90A;"></span>
+          <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: #8A92A6;">01</span>
+        </div>
+        <h3 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-size: 26px; font-weight: 400;">Create &amp; fund</h3>
+        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #A8AFC0; flex-grow: 1;">The contract records each milestone's amount and deadline, then takes custody of the funds. They leave the client's wallet but never reach the provider's. They sit in the contract.</p>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #F0B90A; padding-top: 10px; border-top: 1px solid rgba(245,245,240,0.07);">emits init · fund</div>
+      </div>
+
+      <div style="background: linear-gradient(180deg, rgba(31,186,166,0.06), rgba(16,21,29,0.4)); border: 1px solid rgba(31,186,166,0.16); border-radius: 18px; padding: 28px; display: flex; flex-direction: column; gap: 13px; min-height: 246px; box-sizing: border-box;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="width: 9px; height: 9px; border-radius: 50%; background: #1FBAA6; box-shadow: 0 0 14px #1FBAA6;"></span>
+          <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: #8A92A6;">02</span>
+        </div>
+        <h3 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-size: 26px; font-weight: 400;">Deliver work</h3>
+        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #A8AFC0; flex-grow: 1;">The provider marks the milestone delivered. The ledger timestamps it and the review window opens, a clock neither side can quietly reset.</p>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #1FBAA6; padding-top: 10px; border-top: 1px solid rgba(245,245,240,0.07);">emits deliver</div>
+      </div>
+
+      <div style="background: linear-gradient(180deg, rgba(185,167,230,0.06), rgba(16,21,29,0.4)); border: 1px solid rgba(185,167,230,0.16); border-radius: 18px; padding: 28px; display: flex; flex-direction: column; gap: 13px; min-height: 246px; box-sizing: border-box;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="width: 9px; height: 9px; border-radius: 50%; background: #B9A7E6; box-shadow: 0 0 14px #B9A7E6;"></span>
+          <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: #8A92A6;">03</span>
+        </div>
+        <h3 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-size: 26px; font-weight: 400;">Approve &amp; release</h3>
+        <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #A8AFC0; flex-grow: 1;">Approval moves the funds in the same transaction. Partial approval is supported, so a milestone can settle proportionally instead of all-or-nothing.</p>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #B9A7E6; padding-top: 10px; border-top: 1px solid rgba(245,245,240,0.07);">emits approve</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SECURITY / WHAT IF -->
+  <div id="security" style="position: relative; z-index: 3; height: 540px; flex-shrink: 0; padding: 44px 56px 0; box-sizing: border-box;">
+    <div style="display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 32px;">
+      <div>
+        <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: #F0B90A; margin-bottom: 12px;">SECURITY</div>
+        <h2 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-size: 44px; font-weight: 400; line-height: 1.1;">When things <em style="font-style: italic; color: #A8AFC0;">go wrong.</em></h2>
+      </div>
+      <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #A8AFC0; max-width: 380px; text-align: right;">Escrow only matters when a deal sours. Here is exactly what the contract does then, including the parts that require trusting us.</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px;">
+
+      <div style="background: rgba(245,245,240,0.025); border: 1px solid rgba(245,245,240,0.08); border-radius: 16px; padding: 24px; min-height: 176px; box-sizing: border-box;">
+        <h3 style="margin: 0 0 10px 0; font-size: 15px; font-weight: 600;">The client never approves.</h3>
+        <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #A8AFC0;">Every milestone carries a deadline. Once the review window closes, the provider claims auto-release directly from the contract. No counter-signature needed.</p>
+      </div>
+
+      <div style="background: rgba(245,245,240,0.025); border: 1px solid rgba(245,245,240,0.08); border-radius: 16px; padding: 24px; min-height: 176px; box-sizing: border-box;">
+        <h3 style="margin: 0 0 10px 0; font-size: 15px; font-weight: 600;">You genuinely disagree.</h3>
+        <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #A8AFC0;">Either side can raise a dispute. Resolution can split a milestone between both parties, so a half-finished job doesn't have to end in a total loss for someone.</p>
+      </div>
+
+      <div style="background: rgba(245,245,240,0.025); border: 1px solid rgba(245,245,240,0.08); border-radius: 16px; padding: 24px; min-height: 176px; box-sizing: border-box;">
+        <h3 style="margin: 0 0 10px 0; font-size: 15px; font-weight: 600;">The work needs more time.</h3>
+        <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #A8AFC0;">Deadlines can be extended, but consent from both sides is recorded on-chain first. Neither party can move the finish line alone.</p>
+      </div>
+
+      <div style="background: rgba(240,185,10,0.045); border: 1px solid rgba(240,185,10,0.22); border-radius: 16px; padding: 24px; min-height: 176px; box-sizing: border-box;">
+        <h3 style="margin: 0 0 10px 0; font-size: 15px; font-weight: 600; color: #F0B90A;">Who can touch the funds.</h3>
+        <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #A8AFC0;">Milestone never custodies your money. The contract does. But an admin key exists and can pause the contract or force a release or refund. We'd rather say so plainly than let you find it in the source.</p>
+      </div>
+
+      <div style="background: rgba(245,245,240,0.025); border: 1px solid rgba(245,245,240,0.08); border-radius: 16px; padding: 24px; min-height: 176px; box-sizing: border-box;">
+        <h3 style="margin: 0 0 10px 0; font-size: 15px; font-weight: 600;">Why that key is bounded.</h3>
+        <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #A8AFC0;">The most sensitive overrides are multisig-gated, admin transfers are proposed and executed in separate steps, and every action emits an event you can audit on the ledger.</p>
+      </div>
+
+      <div style="background: rgba(245,245,240,0.025); border: 1px solid rgba(245,245,240,0.08); border-radius: 16px; padding: 24px; min-height: 176px; box-sizing: border-box;">
+        <h3 style="margin: 0 0 10px 0; font-size: 15px; font-weight: 600;">What it costs.</h3>
+        <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #A8AFC0;">A platform fee allocation is set in the contract and can be locked so it cannot change mid-project. Free while we're on testnet, then <span style="color: #F0B90A;">[SET YOUR FEE]</span>.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CINEMATIC CTA -->
+  <div style="position: relative; z-index: 3; height: 380px; flex-shrink: 0; margin: 40px 56px 0; border-radius: 24px; overflow: hidden; border: 1px solid rgba(245,245,240,0.07); background: linear-gradient(180deg, #0C1119, #080B11); display: flex; align-items: center; justify-content: center;">
+    <div style="position: absolute; top: 50%; left: 50%; width: 700px; height: 700px; margin: -350px 0 0 -350px; border-radius: 50%; background: radial-gradient(circle, rgba(240,185,10,0.22), rgba(240,185,10,0.04) 44%, transparent 64%); filter: blur(60px); animation: bloom-a 18s ease-in-out infinite;"></div>
+    <div style="position: absolute; top: 50%; left: 50%; width: 560px; height: 280px; margin: -140px 0 0 -280px; border: 1px solid rgba(240,185,10,0.16); border-radius: 50%; filter: blur(2px);"></div>
+    <div style="position: absolute; top: 50%; left: 50%; width: 400px; height: 200px; margin: -100px 0 0 -200px; border: 1px solid rgba(31,186,166,0.16); border-radius: 50%;"></div>
+    <div style="position: absolute; top: 50%; left: 50%; width: 250px; height: 125px; margin: -62.5px 0 0 -125px; border: 1px solid rgba(245,245,240,0.08); border-radius: 50%; filter: blur(1.5px);"></div>
+
+    <div style="position: relative; z-index: 2; text-align: center; max-width: 640px;">
+      <h2 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-size: 52px; font-weight: 400; line-height: 1.1;">Ready to release your<br>first <em style="font-style: italic; color: #F0B90A;">milestone</em>?</h2>
+      <p style="margin: 18px 0 30px 0; font-size: 15px; color: #A8AFC0;">Set up an escrow in minutes. Funded, timestamped and enforced by the contract, not a promise.</p>
+      <button type="button" style="display: inline-flex; align-items: center; gap: 10px; background: #F5F5F0; color: #14110A; border: none; padding: 10px 12px 10px 24px; border-radius: 999px; font-size: 15px; font-weight: 600;">
+        Launch App
+        <span style="width: 28px; height: 28px; border-radius: 50%; background: #14110A; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3.2 8.8 L8.8 3.2 M8.8 3.2 H4.6 M8.8 3.2 V7.4" stroke="#F0B90A" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div style="position: relative; z-index: 3; flex-grow: 1; display: flex; align-items: center; justify-content: space-between; padding: 0 56px; box-sizing: border-box;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <svg width="17" height="17" viewBox="0 0 64 64" fill="none" aria-hidden="true"><rect x="4" y="4" width="56" height="56" rx="16" stroke="#8A92A6" stroke-width="4"/><path d="M18 44 L32 32 L46 20" stroke="#8A92A6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="46" cy="20" r="6" fill="#8A92A6"/></svg>
+      <span style="font-size: 12px; color: #8A92A6;">© 2026 Milestone. Running on Stellar testnet.</span>
+    </div>
+    <div style="display: flex; gap: 26px;">
+      <a href="#security" style="font-size: 12px; color: #8A92A6;">Security</a>
+      <a href="#" style="font-size: 12px; color: #8A92A6;">GitHub</a>
+      <a href="#" style="font-size: 12px; color: #8A92A6;">Contact</a>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
