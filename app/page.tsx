@@ -468,8 +468,9 @@ export default function Home() {
             <h3>What it costs.</h3>
             <p>
               A platform fee allocation is set in the contract and can be locked so it
-              cannot change mid-project. Free while we&apos;re on testnet, then{" "}
-              <span className="landing-fee-placeholder">[SET YOUR FEE]</span>.
+              cannot change mid-project. No fee while we&apos;re on testnet. At mainnet
+              launch, <span className="landing-fee-rate">1% of each milestone</span>, taken
+              only from a successful release, never from funds still in escrow or a refund.
             </p>
           </div>
         </div>
@@ -515,13 +516,7 @@ export default function Home() {
           <a href="https://github.com/Goldii-locks" target="_blank" rel="noopener noreferrer">
             GitHub
           </a>
-          <a
-            href="https://github.com/Goldii-locks/escrow-frontend/issues"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Contact
-          </a>
+          <a href="mailto:douglasfrancis054@gmail.com">Contact</a>
         </div>
       </footer>
     </div>
