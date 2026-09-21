@@ -149,13 +149,21 @@
 .landing-ghost {
   position: absolute;
   top: 51%;
-  left: 662px;
+  left: 730px;
   transform: translateY(-50%);
   font-size: 196px;
   white-space: nowrap;
   z-index: 3;
   user-select: none;
   pointer-events: none;
+  /*
+   * Instrument Serif ships a single weight, so `font-weight: bold` would be
+   * synthesised and smear the glyphs. The stroke thickens them cleanly
+   * instead, and `paint-order` puts it behind the gradient fill so the fill
+   * stays the colour it is meant to be.
+   */
+  -webkit-text-stroke: 1.8px rgba(240, 185, 10, 0.32);
+  paint-order: stroke fill;
   background: linear-gradient(160deg,
     rgba(240, 185, 10, 0.46) 0%, rgba(240, 185, 10, 0.34) 30%,
     rgba(31, 186, 166, 0.24) 58%, rgba(185, 167, 230, 0.16) 82%,
@@ -204,10 +212,27 @@
   transform-origin: center center;
 }
 
+/*
+ * The orbit centre sits on the scene box's top-left corner, which is what puts
+ * the sun high under the nav with the top of the outer ring bleeding above the
+ * fold. That offset is expressed once, in layout: top/left 0 plus a -440px
+ * margin on an 880px box.
+ *
+ * It used to be `top/left: 50%` plus `transform: translate(-50%, -50%)`, with
+ * the same translate repeated in every landing-camera-drift keyframe so the
+ * animation would not drop it. Keeping a position offset in `transform` means
+ * re-declaring it in every keyframe of every animation that ever touches this
+ * element; in layout it cannot be dropped. Nothing moved: the sun measures at
+ * (710, 100) at 1440px either way.
+ *
+ * Deliberate divergence: design/landing-reference.html drops the offset rather
+ * than relocating it, so the reference renders the sun at (1150, 540), 440px
+ * down and right of this. The position here is the one that was signed off.
+ * Do not "fix" this by diffing against the reference.
+ */
 .landing-scene-inner {
-  position: absolute; top: 50%; left: 50%;
+  position: absolute; top: 0; left: 0;
   width: 880px; height: 880px; margin: -440px 0 0 -440px;
-  transform: translate(-50%, -50%);
 }
 
 .landing-bloom-a {
@@ -473,7 +498,6 @@
     color: #f5f5f0; flex-shrink: 0;
   }
   .landing-nav { padding: 12px 20px; gap: 10px; }
-  .landing-nav > .landing-cta { display: none; }
 
   /*
    * Hero stacks: copy first, scene beneath. The scene precedes the copy in the
@@ -501,11 +525,11 @@
   }
   /*
    * Desktop deliberately leaves the orbit centre on the scene box's top-left
-   * corner (the margin and the translate stack), which is what pushes the core
-   * up and right behind the headline. Stacked, that puts the centre off the
-   * left edge, so drop the margin and let the inner box centre itself.
+   * corner, which is what pushes the core up and right behind the headline.
+   * Stacked, that puts the centre off the left edge, so re-centre the inner
+   * box here by moving its origin back to 50%/50%.
    */
-  .landing-scene-inner { margin: 0; }
+  .landing-scene-inner { top: 50%; left: 50%; }
 
   /* Fewer big blur layers below 900px: two blooms at most, no bokeh. */
   .landing-bokeh { display: none; }
@@ -542,6 +566,15 @@
   .landing-footer { padding: 32px 20px; gap: 14px; }
 }
 
+@media (max-width: 479px) {
+  /*
+   * Under 480px the brand lockup, the menu button and the pill stop fitting on
+   * one line. The hero repeats the same Launch App CTA just below the fold, so
+   * dropping it from the bar here costs nothing.
+   */
+  .landing-navcontrols .landing-cta { display: none; }
+}
+
 @media (max-width: 420px) {
   .landing-h1 { font-size: 34px; }
   .landing-hero-actions .landing-cta { width: 100%; justify-content: space-between; }
@@ -560,8 +593,8 @@
   50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
 }
 @keyframes landing-camera-drift {
-  0%, 100% { transform: translate(-50%, -50%) scale(1) rotate(-1.5deg); }
-  50% { transform: translate(-50%, -50%) scale(1.035) rotate(1.5deg); }
+  0%, 100% { transform: scale(1) rotate(-1.5deg); }
+  50% { transform: scale(1.035) rotate(1.5deg); }
 }
 @keyframes landing-bloom-a {
   0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.65; }
