@@ -224,11 +224,6 @@
  * re-declaring it in every keyframe of every animation that ever touches this
  * element; in layout it cannot be dropped. Nothing moved: the sun measures at
  * (710, 100) at 1440px either way.
- *
- * Deliberate divergence: design/landing-reference.html drops the offset rather
- * than relocating it, so the reference renders the sun at (1150, 540), 440px
- * down and right of this. The position here is the one that was signed off.
- * Do not "fix" this by diffing against the reference.
  */
 .landing-scene-inner {
   position: absolute; top: 0; left: 0;
@@ -433,7 +428,7 @@
 .landing-card h3 { margin: 0 0 10px; font-size: 15px; font-weight: 600; }
 .landing-card-flag h3 { color: #f0b90a; }
 .landing-card p { margin: 0; font-size: 13px; line-height: 1.6; color: #a8afc0; }
-.landing-fee-placeholder { color: #f0b90a; }
+.landing-fee-rate { color: #f0b90a; }
 
 /* ----------------------------------------------------------------- CTA --- */
 
