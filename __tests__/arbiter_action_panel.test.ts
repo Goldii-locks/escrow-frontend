@@ -59,6 +59,7 @@ describe("getArbiterPanelLayout", () => {
       outcomeColumns: 1,
       stackActions: true,
       fullWidthActions: true,
+      constrainHeight: true,
     });
   });
 
@@ -68,6 +69,7 @@ describe("getArbiterPanelLayout", () => {
       outcomeColumns: 2,
       stackActions: false,
       fullWidthActions: false,
+      constrainHeight: false,
     });
   });
 });
