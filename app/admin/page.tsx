@@ -7,6 +7,17 @@ import ButtonSpinner from "@/app/components/ButtonSpinner";
 import TxStatusBanner from "@/app/components/TxStatusBanner";
 import { useActionStates } from "@/app/hooks/useActionStates";
 import { useIsAdmin } from "@/app/hooks/useIsAdmin";
+import { useToast } from "@/app/context/ToastContext";
+import { formatTxError } from "@/app/lib/errors";
+import {
+  downloadWhitelistCsv,
+  whitelistErrorToast,
+  whitelistExportEmptyToast,
+  whitelistExportSuccessToast,
+  whitelistLoadErrorToast,
+  whitelistSuccessToast,
+  type WhitelistAction,
+} from "@/app/lib/admin_whitelist_panel";
 import {
   BACKEND_URL,
   CONTRACT_ID,
@@ -22,6 +33,7 @@ export default function AdminPage() {
   const [whitelist, setWhitelist] = useState<string[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
+  const { showToast } = useToast();
   const { getState, isPending, setPhase, setError, setTxHash } =
     useActionStates();
 
@@ -38,14 +50,20 @@ export default function AdminPage() {
       } else if (res.ok && Array.isArray(data)) {
         setWhitelist(data);
       } else {
-        setListError(data.error || "Could not load whitelisted tokens.");
+        const message = data.error || "Could not load whitelisted tokens.";
+        setListError(message);
+        const toast = whitelistLoadErrorToast(message);
+        showToast(toast.message, toast.type);
       }
     } catch {
-      setListError("Could not connect to backend to load whitelist.");
+      const message = "Could not connect to backend to load whitelist.";
+      setListError(message);
+      const toast = whitelistLoadErrorToast(message);
+      showToast(toast.message, toast.type);
     } finally {
       setListLoading(false);
     }
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     let active = true;
@@ -64,44 +82,70 @@ export default function AdminPage() {
 
   const executeTx = async (
     actionKey: string,
+    action: WhitelistAction,
+    token: string,
     method: string,
     args: { type: string; value: unknown }[],
   ) => {
     if (!address) return;
 
+    let failure: string | null = null;
     const txHash = await runContractAction(
       actionKey,
-      (onPhase) =>
-        submitContractTransaction({
-          method,
-          args,
-          sourceAddress: address,
-          signTransaction,
-          onPhase,
-        }),
+      async (onPhase) => {
+        try {
+          return await submitContractTransaction({
+            method,
+            args,
+            sourceAddress: address,
+            signTransaction,
+            onPhase,
+          });
+        } catch (err) {
+          failure = formatTxError(err);
+          throw err;
+        }
+      },
       { isPending, setPhase, setError, setTxHash },
     );
 
     if (txHash !== null) {
-      setTokenAddress("");
+      const toast = whitelistSuccessToast(action, token);
+      showToast(toast.message, toast.type);
+      if (action === "add") setTokenAddress("");
       await fetchWhitelist();
+    } else if (failure !== null) {
+      const toast = whitelistErrorToast(action, token, failure);
+      showToast(toast.message, toast.type);
     }
+  };
+
+  const handleExport = () => {
+    if (whitelist.length === 0) {
+      const toast = whitelistExportEmptyToast();
+      showToast(toast.message, toast.type);
+      return;
+    }
+    downloadWhitelistCsv(whitelist);
+    const toast = whitelistExportSuccessToast(whitelist.length);
+    showToast(toast.message, toast.type);
   };
 
   const handleAddToken = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!address || !tokenAddress.trim()) return;
 
-    await executeTx("add-token", "add_whitelisted_token", [
+    const token = tokenAddress.trim();
+    await executeTx("add-token", "add", token, "add_whitelisted_token", [
       { type: "address", value: address },
-      { type: "address", value: tokenAddress.trim() },
+      { type: "address", value: token },
     ]);
   };
 
   const handleRemoveToken = async (token: string) => {
     if (!address) return;
 
-    await executeTx(`remove-${token}`, "remove_whitelisted_token", [
+    await executeTx(`remove-${token}`, "remove", token, "remove_whitelisted_token", [
       { type: "address", value: address },
       { type: "address", value: token },
     ]);
@@ -113,7 +157,13 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <Navbar />
-      <main className="max-w-xl mx-auto px-6 py-12">
+      <main
+        className={`mx-auto px-6 py-12 ${
+          address && isAdminUser && !adminCheckLoading
+            ? "max-w-5xl"
+            : "max-w-xl"
+        }`}
+      >
         <h1 className="text-2xl font-bold mb-2">Token Whitelist Admin</h1>
         <p className="text-sm text-gray-400 mb-8">
           Manage whitelisted payment tokens for the escrow contract. Admin
@@ -148,7 +198,10 @@ export default function AdminPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-8">
+          <div
+            data-testid="whitelist-grid"
+            className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start"
+          >
             <form
               onSubmit={handleAddToken}
               className="space-y-4 border border-gray-800 rounded-xl bg-gray-900 p-6"
@@ -188,7 +241,17 @@ export default function AdminPage() {
             </form>
 
             <section className="border border-gray-800 rounded-xl bg-gray-900 p-6 space-y-4">
-              <h2 className="font-semibold">Whitelisted Tokens</h2>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="font-semibold">Whitelisted Tokens</h2>
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  disabled={listLoading}
+                  className="inline-flex items-center justify-center min-h-[44px] text-xs bg-gray-800 hover:bg-gray-700 disabled:opacity-50 border border-gray-700 text-white px-4 py-2.5 rounded-lg transition"
+                >
+                  Export CSV
+                </button>
+              </div>
               {listLoading ? (
                 <p className="text-sm text-gray-400">Loading whitelist...</p>
               ) : listError ? (
