@@ -54,14 +54,22 @@ export default function ArbitratorEvidenceList({
   useEffect(() => {
     if (!isAuthorized) return;
     if (initialEvidence && initialEvidence.length > 0) {
-      setEvidenceList(initialEvidence);
-      setLoading(false);
+      // Both pieces of state already start from this prop, so this only fires
+      // when the prop changes. Deferred through startTransition -- the same
+      // treatment the fetch path below gets -- so mounting does not trigger a
+      // synchronous cascading re-render.
+      startTransition(() => {
+        setEvidenceList(initialEvidence);
+        setLoading(false);
+      });
       return;
     }
 
     let isMounted = true;
     const controller = new AbortController();
-    setLoading(true);
+    // Deferred for the same reason as above: on mount `loading` already starts
+    // true, so this only matters when the deps change and a refetch begins.
+    startTransition(() => setLoading(true));
 
     fetchArbitratorEvidence(disputeId, { apiUrl: apiEndpoint, signal: controller.signal })
       .then((data) => {
