@@ -1,22 +1,19 @@
 /**
- * transaction_progress_bar — Pure helpers and design token mappings backing the
- * transaction progress indicator (`app/components/TransactionProgressBar.tsx`).
+ * transaction_progress_bar — Pure helpers, layout utilities, animations, and
+ * design token mappings backing the transaction progress indicator
+ * (`app/components/TransactionProgressBar.tsx`).
  *
  * Implements:
- * - Interactive state classes (hover, focus-visible, disabled) (Issue #411)
- * - Responsive sizing and layout rules across viewports (Issue #412)
- * - Validation error indicators and accessible alerts (Issue #414)
- * - Design token mapping linking Tailwind classes to core theme variables (Issue #417)
+ * - CSS micro-animations on clicks and state changes (Issue #415)
+ * - Mobile viewport overlay wrappers fitting screen height constraints (Issue #416)
+ * - Comprehensive UI state definitions for Storybook mocks (Issue #418)
+ * - Structural layout assertions for RTL tests (Issue #419)
  */
 
 // =============================================================
 // Core Design Variables & Tokens Mapping (Issue #417)
 // =============================================================
 
-/**
- * Core design tokens mirroring the `@theme inline` block in `app/globals.css`.
- * Linking these directly ensures class allocations match the central color scheme.
- */
 export const TRANSACTION_PROGRESS_TOKENS = {
   "surface-page": "#030712",
   "surface-card": "#111827",
@@ -40,9 +37,6 @@ export const TRANSACTION_PROGRESS_TOKENS = {
 
 export type TransactionProgressToken = keyof typeof TRANSACTION_PROGRESS_TOKENS;
 
-/**
- * Linked Tailwind CSS class allocations referencing the core design tokens.
- */
 export const PROGRESS_BAR_THEME_CLASSES = {
   container: "bg-[var(--color-surface-card)] border-[var(--color-border-subtle)] text-[var(--color-text-primary)]",
   stepDefault: "bg-[var(--color-surface-field)] border-[var(--color-border-strong)] text-[var(--color-text-muted)]",
@@ -59,7 +53,19 @@ export const PROGRESS_BAR_THEME_CLASSES = {
 } as const;
 
 // =============================================================
-// Responsive Viewport Sizing (Issue #412)
+// CSS Micro-animations (Issue #415)
+// =============================================================
+
+export const PROGRESS_BAR_ANIMATION_CLASSES = {
+  activePulse: "animate-pulse transition-transform duration-300",
+  nodeTransition: "transition-all duration-300 ease-out transform active:scale-95",
+  completedCheck: "animate-fade-in transition-all duration-300",
+  errorAlert: "animate-shake transition-opacity duration-200",
+  stepHover: "hover:scale-105 hover:shadow-lg transition-transform duration-200",
+};
+
+// =============================================================
+// Mobile Viewport Navigation & Overlay Wrappers (Issue #416)
 // =============================================================
 
 export type ProgressBarViewport = "mobile" | "tablet" | "desktop";
@@ -81,9 +87,10 @@ export interface ProgressBarLayout {
   stackSteps: boolean;
   showDescriptions: boolean;
   indicatorSizeClass: string;
+  isOverlayModal: boolean;
 }
 
-export function getProgressBarLayout(width: number): ProgressBarLayout {
+export function getProgressBarLayout(width: number, forceOverlay = false): ProgressBarLayout {
   const viewport = classifyProgressBarViewport(width);
   switch (viewport) {
     case "desktop":
@@ -92,6 +99,7 @@ export function getProgressBarLayout(width: number): ProgressBarLayout {
         stackSteps: false,
         showDescriptions: true,
         indicatorSizeClass: "h-10 w-10 text-sm",
+        isOverlayModal: forceOverlay,
       };
     case "tablet":
       return {
@@ -99,6 +107,7 @@ export function getProgressBarLayout(width: number): ProgressBarLayout {
         stackSteps: false,
         showDescriptions: false,
         indicatorSizeClass: "h-8 w-8 text-xs",
+        isOverlayModal: forceOverlay,
       };
     case "mobile":
     default:
@@ -107,9 +116,16 @@ export function getProgressBarLayout(width: number): ProgressBarLayout {
         stackSteps: true,
         showDescriptions: true,
         indicatorSizeClass: "h-7 w-7 text-xs",
+        isOverlayModal: forceOverlay || true,
       };
   }
 }
+
+export const MOBILE_OVERLAY_WRAPPER_CLASSES = {
+  backdrop: "fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-3",
+  panel: "w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-gray-800 bg-[#111827] p-5 shadow-2xl animate-slide-in",
+  stickyBottom: "fixed bottom-0 left-0 right-0 z-40 border-t border-gray-800 bg-[#111827]/95 p-3 backdrop-blur shadow-lg",
+};
 
 // =============================================================
 // Interactive States Utilities (Issue #411)

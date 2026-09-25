@@ -4,6 +4,8 @@ import {
   type StepItem,
   PROGRESS_BAR_THEME_CLASSES,
   PROGRESS_BAR_INTERACTIVE_CLASSES,
+  PROGRESS_BAR_ANIMATION_CLASSES,
+  MOBILE_OVERLAY_WRAPPER_CLASSES,
   getProgressBarLayout,
   validateProgressBarConfig,
 } from "@/app/lib/transaction_progress_bar";
@@ -22,6 +24,13 @@ export interface TransactionProgressBarProps {
   disabled?: boolean;
   /** Explicit error message override to render in an alert */
   errorMessage?: string | null;
+  /**
+   * When true, renders inside a mobile overlay modal wrapper fitting constraints
+   * on mobile device screen heights (Issue #416).
+   */
+  mobileOverlay?: boolean;
+  /** Optional close callback when displayed in overlay mode */
+  onCloseOverlay?: () => void;
   className?: string;
 }
 
@@ -39,6 +48,8 @@ export default function TransactionProgressBar({
   onStepClick,
   disabled = false,
   errorMessage = null,
+  mobileOverlay = false,
+  onCloseOverlay,
   className = "",
 }: TransactionProgressBarProps) {
   const viewportWidth = useTransactionProgressWidth();
@@ -47,21 +58,38 @@ export default function TransactionProgressBar({
   const validation = validateProgressBarConfig(steps, currentStepIndex);
   const activeAlert = errorMessage || validation.alertMessage;
 
-  // 2. Responsive Layout (Issue #412)
-  const layout = getProgressBarLayout(viewportWidth);
+  // 2. Responsive Layout (Issue #412, #416)
+  const layout = getProgressBarLayout(viewportWidth, mobileOverlay);
 
-  return (
+  const content = (
     <div
       className={`rounded-xl border p-4 sm:p-6 ${PROGRESS_BAR_THEME_CLASSES.container} ${className}`}
       data-testid="transaction-progress-bar-container"
       data-viewport={layout.viewport}
     >
-      {/* Validation Message / Alert (Issue #414) */}
+      {/* Mobile Overlay Header if active */}
+      {mobileOverlay && (
+        <div className="flex items-center justify-between border-b border-gray-800 pb-3 mb-4">
+          <div className="text-sm font-bold text-white">Transaction Status</div>
+          {onCloseOverlay && (
+            <button
+              type="button"
+              onClick={onCloseOverlay}
+              className="text-gray-400 hover:text-white text-xs px-2 py-1 rounded bg-gray-800"
+              aria-label="Close transaction overlay"
+            >
+              Close ✕
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Validation Alert with Micro-animation shake (Issue #414, #415) */}
       {activeAlert && (
         <div
           role="alert"
           aria-live="assertive"
-          className={`mb-4 flex items-center gap-2 rounded-lg border p-3 text-xs font-medium ${PROGRESS_BAR_THEME_CLASSES.alertError}`}
+          className={`mb-4 flex items-center gap-2 rounded-lg border p-3 text-xs font-medium ${PROGRESS_BAR_THEME_CLASSES.alertError} ${PROGRESS_BAR_ANIMATION_CLASSES.errorAlert}`}
           data-testid="progress-bar-validation-alert"
         >
           <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -76,7 +104,7 @@ export default function TransactionProgressBar({
         </div>
       )}
 
-      {/* Steps Flow (Issue #417, #412, #411) */}
+      {/* Steps Flow (Issue #417, #412, #411, #415) */}
       <ol
         className={`flex ${
           layout.stackSteps ? "flex-col space-y-4" : "flex-row items-center justify-between"
@@ -90,13 +118,13 @@ export default function TransactionProgressBar({
           const isPending = idx > currentStepIndex;
 
           let stepThemeClass: string = PROGRESS_BAR_THEME_CLASSES.stepDefault;
-          if (isActive) stepThemeClass = PROGRESS_BAR_THEME_CLASSES.stepActive;
-          else if (isCompleted) stepThemeClass = PROGRESS_BAR_THEME_CLASSES.stepCompleted;
+          if (isActive) stepThemeClass = `${PROGRESS_BAR_THEME_CLASSES.stepActive} ${PROGRESS_BAR_ANIMATION_CLASSES.activePulse}`;
+          else if (isCompleted) stepThemeClass = `${PROGRESS_BAR_THEME_CLASSES.stepCompleted} ${PROGRESS_BAR_ANIMATION_CLASSES.completedCheck}`;
           else if (isFailed) stepThemeClass = PROGRESS_BAR_THEME_CLASSES.stepFailed;
 
           const isClickable = !disabled && Boolean(onStepClick) && idx <= currentStepIndex;
           const interactiveClass = isClickable
-            ? PROGRESS_BAR_INTERACTIVE_CLASSES.stepInteractive
+            ? `${PROGRESS_BAR_INTERACTIVE_CLASSES.stepInteractive} ${PROGRESS_BAR_ANIMATION_CLASSES.stepHover}`
             : disabled
             ? PROGRESS_BAR_INTERACTIVE_CLASSES.stepDisabled
             : "";
@@ -111,7 +139,7 @@ export default function TransactionProgressBar({
               {!layout.stackSteps && idx > 0 && (
                 <div
                   aria-hidden="true"
-                  className={`absolute top-4 sm:top-5 -left-1/2 w-full h-0.5 -z-0 transition-colors ${
+                  className={`absolute top-4 sm:top-5 -left-1/2 w-full h-0.5 -z-0 transition-colors duration-300 ${
                     isCompleted || isActive
                       ? PROGRESS_BAR_THEME_CLASSES.connectorCompleted
                       : PROGRESS_BAR_THEME_CLASSES.connectorDefault
@@ -119,14 +147,14 @@ export default function TransactionProgressBar({
                 />
               )}
 
-              {/* Step indicator node */}
+              {/* Step indicator node with micro-animation transitions */}
               <button
                 type="button"
                 disabled={disabled || !isClickable}
                 onClick={() => isClickable && onStepClick?.(idx)}
                 aria-current={isActive ? "step" : undefined}
                 aria-label={`Step ${idx + 1}: ${step.title}`}
-                className={`relative z-10 flex shrink-0 items-center justify-center rounded-full border font-semibold ${layout.indicatorSizeClass} ${stepThemeClass} ${interactiveClass}`}
+                className={`relative z-10 flex shrink-0 items-center justify-center rounded-full border font-semibold ${layout.indicatorSizeClass} ${stepThemeClass} ${interactiveClass} ${PROGRESS_BAR_ANIMATION_CLASSES.nodeTransition}`}
                 data-testid={`step-node-${idx}`}
               >
                 {isCompleted ? (
@@ -167,4 +195,21 @@ export default function TransactionProgressBar({
       </ol>
     </div>
   );
+
+  // Mobile Viewport Navigation Overlay Wrapper (Issue #416)
+  if (mobileOverlay) {
+    return (
+      <div
+        className={MOBILE_OVERLAY_WRAPPER_CLASSES.backdrop}
+        data-testid="mobile-overlay-wrapper"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Transaction progress dialog"
+      >
+        <div className={MOBILE_OVERLAY_WRAPPER_CLASSES.panel}>{content}</div>
+      </div>
+    );
+  }
+
+  return content;
 }
