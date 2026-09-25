@@ -100,7 +100,8 @@ describe("outcome options", () => {
     expect(screen.getByTestId(`arbiter-outcome-${value}`)).toHaveClass(
       "hover:border-accent-soft/60",
       "hover:bg-surface-field/80",
-      "transition-colors",
+      "transition",
+      "duration-200",
     );
   });
 
