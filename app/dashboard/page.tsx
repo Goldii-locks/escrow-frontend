@@ -7,6 +7,8 @@ import MilestoneCard from "@/app/components/MilestoneCard";
 import LoadingSkeleton from "@/app/components/LoadingSkeleton";
 import EmptyStateCard from "@/app/components/EmptyStateCard";
 import DisputeRaiseModal from "@/app/components/DisputeRaiseModal";
+import { ArbiterPanelPlaceholder } from "@/app/components/ArbiterActionPanel";
+import { getArbiterJobEmptyState } from "@/app/lib/arbiter_action_panel";
 import { useActionStates } from "@/app/hooks/useActionStates";
 import { useToast } from "@/app/context/ToastContext";
 import {
@@ -301,6 +303,10 @@ export default function Dashboard() {
   const isClient = !!(expandedJob && address === expandedJob.client);
   const isFreelancer = !!(expandedJob && address === expandedJob.freelancer);
   const isArbiter = !!(expandedJob && address === expandedJob.arbiter);
+  // A job with no milestones already shows MilestoneCard's own empty state,
+  // so the arbiter placeholder only covers "milestones, but none disputed".
+  const showArbiterNoDisputes =
+    isArbiter && getArbiterJobEmptyState(milestoneList) === "no-disputes";
 
   const [autoReleaseDeadlines, setAutoReleaseDeadlines] = useState<
     Record<number, number | null>
@@ -616,6 +622,9 @@ export default function Dashboard() {
                                 </div>
 
                                 <div className="space-y-3 sm:space-y-4" role="region" aria-label="Milestones">
+                                  {showArbiterNoDisputes && (
+                                    <ArbiterPanelPlaceholder variant="no-disputes" />
+                                  )}
                                   {milestoneList.length > 0 ? (
                                     milestoneList.map((m) => (
                                       <MilestoneCard
