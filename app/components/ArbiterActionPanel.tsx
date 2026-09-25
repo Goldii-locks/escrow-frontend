@@ -261,7 +261,7 @@ function ArbiterActionPanelBody({
           disabled={controlsDisabled}
           className={ARBITER_PANEL_CLASSES.fieldset}
         >
-          <legend className="mb-2 text-xs font-medium text-text-secondary">
+          <legend className={ARBITER_PANEL_CLASSES.legend}>
             Outcome
           </legend>
           <div
@@ -287,9 +287,9 @@ function ArbiterActionPanelBody({
                   aria-label={`${option.label} for Milestone ${milestoneNumber}`}
                   className={ARBITER_PANEL_CLASSES.radio}
                 />
-                <span className="min-w-0">
-                  <span className="block font-medium">{option.label}</span>
-                  <span className="block text-xs text-text-muted">{option.hint}</span>
+                <span className={ARBITER_PANEL_CLASSES.optionText}>
+                  <span className={ARBITER_PANEL_CLASSES.optionLabel}>{option.label}</span>
+                  <span className={ARBITER_PANEL_CLASSES.optionHint}>{option.hint}</span>
                 </span>
               </label>
             ))}

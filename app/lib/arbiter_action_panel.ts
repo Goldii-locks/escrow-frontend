@@ -12,6 +12,8 @@
  * Mirrors the conventions established by `app/lib/dispute_raise_modal.ts`.
  */
 
+import { WCAG_AA_NON_TEXT, WCAG_AA_NORMAL_TEXT } from "@/app/lib/theme_tokens";
+
 const LOG_PREFIX = "[arbiter_action_panel]";
 
 // =============================================================
@@ -277,16 +279,28 @@ export const ARBITER_PANEL_CLASSES = {
 
   /** Placeholder body copy. */
   placeholderDescription: "max-w-sm text-xs text-text-muted",
+
+  /** Outcome fieldset legend. */
+  legend: "mb-2 text-xs font-medium text-text-secondary",
+
+  /** Wrapper for an outcome option's text; `min-w-0` lets long copy wrap. */
+  optionText: "min-w-0",
+
+  /** Outcome option title. */
+  optionLabel: "block font-medium text-text-primary",
+
+  /** Outcome option supporting hint. */
+  optionHint: "block text-xs text-text-muted",
 } as const;
 
 /** Submit button tone for each outcome, including its hover and disabled state. */
 export const ARBITER_SUBMIT_TONE: Record<ArbiterOutcome | "none", string> = {
   release:
-    "bg-success text-surface-page hover:bg-success/80 disabled:hover:bg-success",
+    "bg-success text-surface-page hover:bg-success-soft disabled:hover:bg-success",
   refund:
     "bg-danger text-text-primary hover:bg-danger/80 disabled:hover:bg-danger",
   none:
-    "bg-accent text-text-primary hover:bg-accent-hover disabled:hover:bg-accent",
+    "bg-accent text-text-primary hover:bg-accent/80 disabled:hover:bg-accent",
 };
 
 // =============================================================
@@ -459,35 +473,52 @@ export function getArbiterPanelState(input: {
 }
 
 // =============================================================
-// Colour contrast (WCAG 2.1 AA)
+// Design variables & colour contrast (WCAG 2.1 AA)
 // =============================================================
 
-/** Minimum contrast for normal-size text under WCAG 2.1 AA. */
-export const WCAG_AA_NORMAL_TEXT = 4.5;
-
-/** Minimum contrast for UI components and focus indicators (WCAG 1.4.11). */
-export const WCAG_AA_NON_TEXT = 3;
+// Contrast maths is shared with other components; re-exported so existing
+// imports from this module keep working.
+export {
+  WCAG_AA_NON_TEXT,
+  WCAG_AA_NORMAL_TEXT,
+  contrastRatio,
+  relativeLuminance,
+} from "@/app/lib/theme_tokens";
 
 /**
- * Hex values of the theme tokens the panel paints with. These mirror the
- * `@theme` block in `app/globals.css`; the contrast test asserts they still
- * match so a palette change cannot silently break compliance.
+ * Hex values of every theme token the panel paints with. These mirror the
+ * `@theme` block in `app/globals.css` (the core design variables config);
+ * tests assert the mirror still matches, and that every colour utility in
+ * the class maps below resolves to one of these tokens, so a palette change
+ * or an off-palette class cannot slip in silently.
  */
 export const ARBITER_PANEL_TOKENS = {
   "surface-page": "#030712",
   "surface-card": "#111827",
   "surface-field": "#1f2937",
+  "border-subtle": "#374151",
   "text-primary": "#f9fafb",
   "text-secondary": "#d1d5db",
   "text-muted": "#9ca3af",
   "accent": "#4f46e5",
   "accent-soft": "#818cf8",
   "success": "#16a34a",
+  "success-soft": "#4ade80",
   "danger": "#991b1b",
   "danger-soft": "#f87171",
 } as const;
 
 export type ArbiterPanelToken = keyof typeof ARBITER_PANEL_TOKENS;
+
+/**
+ * Every class map the panel draws its styling from. The token-linkage tests
+ * walk these, so a class added to any of them is checked against the config.
+ */
+export const ARBITER_PANEL_CLASS_MAPS = {
+  classes: ARBITER_PANEL_CLASSES,
+  submitTone: ARBITER_SUBMIT_TONE,
+  motion: ARBITER_PANEL_MOTION,
+} as const;
 
 export interface ArbiterContrastPair {
   /** What the pair is used for, for readable test output. */
@@ -502,6 +533,7 @@ export interface ArbiterContrastPair {
 export const ARBITER_PANEL_CONTRAST_PAIRS: readonly ArbiterContrastPair[] = [
   { usage: "heading", foreground: "text-primary", background: "surface-card", minRatio: WCAG_AA_NORMAL_TEXT },
   { usage: "description", foreground: "text-muted", background: "surface-card", minRatio: WCAG_AA_NORMAL_TEXT },
+  { usage: "outcome legend", foreground: "text-secondary", background: "surface-card", minRatio: WCAG_AA_NORMAL_TEXT },
   { usage: "confirmation label", foreground: "text-secondary", background: "surface-card", minRatio: WCAG_AA_NORMAL_TEXT },
   { usage: "outcome option label", foreground: "text-primary", background: "surface-field", minRatio: WCAG_AA_NORMAL_TEXT },
   { usage: "outcome option hint", foreground: "text-muted", background: "surface-field", minRatio: WCAG_AA_NORMAL_TEXT },
@@ -514,34 +546,3 @@ export const ARBITER_PANEL_CONTRAST_PAIRS: readonly ArbiterContrastPair[] = [
   { usage: "focus ring", foreground: "accent-soft", background: "surface-card", minRatio: WCAG_AA_NON_TEXT },
   { usage: "invalid option border", foreground: "danger-soft", background: "surface-card", minRatio: WCAG_AA_NON_TEXT },
 ];
-
-function channelToLinear(channel: number): number {
-  const c = channel / 255;
-  return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-}
-
-/** WCAG relative luminance of a `#rrggbb` or `#rgb` colour. */
-export function relativeLuminance(hex: string): number {
-  let value = hex.trim().replace(/^#/, "");
-  if (value.length === 3) {
-    value = value
-      .split("")
-      .map((ch) => ch + ch)
-      .join("");
-  }
-  if (!/^[0-9a-fA-F]{6}$/.test(value)) {
-    throw new Error(`${LOG_PREFIX} invalid hex colour: ${hex}`);
-  }
-  const r = channelToLinear(parseInt(value.slice(0, 2), 16));
-  const g = channelToLinear(parseInt(value.slice(2, 4), 16));
-  const b = channelToLinear(parseInt(value.slice(4, 6), 16));
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-/** WCAG contrast ratio between two colours, from 1 (none) to 21 (black on white). */
-export function contrastRatio(foreground: string, background: string): number {
-  const a = relativeLuminance(foreground);
-  const b = relativeLuminance(background);
-  const [lighter, darker] = a >= b ? [a, b] : [b, a];
-  return (lighter + 0.05) / (darker + 0.05);
-}

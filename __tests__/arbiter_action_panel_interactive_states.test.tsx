@@ -41,8 +41,8 @@ describe("submit button", () => {
   });
 
   it.each([
-    [null, "Resolve Dispute", ["bg-accent", "hover:bg-accent-hover", "disabled:hover:bg-accent"]],
-    ["release", "Release to Freelancer", ["bg-success", "hover:bg-success/80", "disabled:hover:bg-success"]],
+    [null, "Resolve Dispute", ["bg-accent", "hover:bg-accent/80", "disabled:hover:bg-accent"]],
+    ["release", "Release to Freelancer", ["bg-success", "hover:bg-success-soft", "disabled:hover:bg-success"]],
     ["refund", "Refund to Client", ["bg-danger", "hover:bg-danger/80", "disabled:hover:bg-danger"]],
   ] as const)(
     "outcome %s → %s with matching hover tone",
