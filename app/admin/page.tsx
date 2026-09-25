@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useWallet } from "@/app/context/WalletContext";
 import Navbar from "@/app/components/Navbar";
+import AdminAccessGate from "@/app/components/AdminAccessGate";
+import AdminWhitelistSkeleton from "@/app/components/AdminWhitelistSkeleton";
 import ButtonSpinner from "@/app/components/ButtonSpinner";
 import TxStatusBanner from "@/app/components/TxStatusBanner";
 import { useActionStates } from "@/app/hooks/useActionStates";
@@ -20,7 +22,7 @@ export default function AdminPage() {
   const { loading: adminCheckLoading, isAdminUser } = useIsAdmin(address);
   const [tokenAddress, setTokenAddress] = useState("");
   const [whitelist, setWhitelist] = useState<string[]>([]);
-  const [listLoading, setListLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
   const { getState, isPending, setPhase, setError, setTxHash } =
     useActionStates();
@@ -120,34 +122,11 @@ export default function AdminPage() {
           wallet required.
         </p>
 
-        {!address ? (
-          <p className="text-center text-gray-500">
-            Connect your wallet to manage the whitelist.
-          </p>
-        ) : adminCheckLoading ? (
-          <div className="text-center py-12">
-            <div className="inline-flex items-center gap-2 text-gray-400">
-              <ButtonSpinner className="h-5 w-5" />
-              <span>Verifying admin access...</span>
-            </div>
-          </div>
-        ) : !isAdminUser ? (
-          <div
-            role="alert"
-            className="border border-red-800 bg-red-950/30 rounded-xl p-8 text-center space-y-3"
-          >
-            <div className="text-4xl" aria-hidden="true">
-              🔒
-            </div>
-            <h2 className="text-lg font-semibold text-red-400">
-              Access Denied
-            </h2>
-            <p className="text-sm text-gray-400">
-              This page is restricted to the contract admin. Your wallet address
-              does not have admin privileges.
-            </p>
-          </div>
-        ) : (
+        <AdminAccessGate
+          address={address}
+          loading={adminCheckLoading}
+          isAdmin={isAdminUser}
+        >
           <div className="space-y-8">
             <form
               onSubmit={handleAddToken}
@@ -190,7 +169,7 @@ export default function AdminPage() {
             <section className="border border-gray-800 rounded-xl bg-gray-900 p-6 space-y-4">
               <h2 className="font-semibold">Whitelisted Tokens</h2>
               {listLoading ? (
-                <p className="text-sm text-gray-400">Loading whitelist...</p>
+                <AdminWhitelistSkeleton variant="list" />
               ) : listError ? (
                 <p role="alert" className="text-sm text-red-400">
                   {listError}
@@ -238,7 +217,7 @@ export default function AdminPage() {
               )}
             </section>
           </div>
-        )}
+        </AdminAccessGate>
       </main>
     </div>
   );
