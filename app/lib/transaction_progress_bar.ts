@@ -57,7 +57,13 @@ export const PROGRESS_BAR_THEME_CLASSES = {
 // =============================================================
 
 export const PROGRESS_BAR_ANIMATION_CLASSES = {
-  activePulse: "animate-pulse transition-transform duration-300",
+  /**
+   * Uses the `pulse-soft` keyframe from globals.css rather than Tailwind's
+   * `animate-pulse`: it only dims to {@link PROGRESS_BAR_PULSE_MIN_OPACITY},
+   * so the active step keeps AA contrast mid-pulse. Off under reduced motion.
+   */
+  activePulse:
+    "animate-pulse-soft motion-reduce:animate-none transition-transform duration-300",
   nodeTransition: "transition-all duration-300 ease-out transform active:scale-95",
   completedCheck: "animate-fade-in transition-all duration-300",
   errorAlert: "animate-shake transition-opacity duration-200",
@@ -183,3 +189,147 @@ export function validateProgressBarConfig(
     alertMessage: errors.length > 0 ? errors[0] : null,
   };
 }
+
+// =============================================================
+// Empty Data States
+// =============================================================
+
+export interface ProgressBarEmptyCopy {
+  title: string;
+  description: string;
+}
+
+/** Copy for the placeholder shown when there are no steps to track. */
+export const PROGRESS_BAR_EMPTY_COPY: ProgressBarEmptyCopy = {
+  title: "No transaction in progress",
+  description:
+    "When you sign an action such as funding, releasing, or resolving a milestone, each step of its progress will appear here.",
+};
+
+/**
+ * Whether a steps list has nothing to show: missing, not an array, empty, or
+ * made up only of null / untitled entries. An explicit empty list is a normal
+ * "nothing in flight" state, so it gets a placeholder rather than an error.
+ */
+export function isProgressBarEmpty(steps: unknown): boolean {
+  if (!Array.isArray(steps) || steps.length === 0) return true;
+  return steps.every(
+    (step) =>
+      !step ||
+      typeof step !== "object" ||
+      typeof (step as StepItem).title !== "string" ||
+      (step as StepItem).title.trim() === ""
+  );
+}
+
+export const PROGRESS_BAR_PLACEHOLDER_CLASSES = {
+  container:
+    "flex flex-col items-center gap-2 rounded-xl border border-dashed px-4 py-8 text-center animate-fade-in motion-reduce:animate-none " +
+    "bg-[var(--color-surface-card)] border-[var(--color-border-subtle)]",
+  track: "flex items-center gap-2",
+  trackDot: "h-2.5 w-2.5 rounded-full bg-[var(--color-surface-field)] border border-[var(--color-border-subtle)]",
+  trackLine: "h-0.5 w-6 rounded-full bg-[var(--color-border-subtle)]",
+  title: "text-sm font-semibold text-[var(--color-text-secondary)]",
+  description: "max-w-sm text-xs text-[var(--color-text-muted)]",
+} as const;
+
+// =============================================================
+// Accessibility: step states, names and announcements
+// =============================================================
+
+export type ProgressStepState = "completed" | "active" | "failed" | "pending";
+
+/** Human-readable state appended to each step's accessible name. */
+export const PROGRESS_STEP_STATE_LABEL: Record<ProgressStepState, string> = {
+  completed: "completed",
+  active: "in progress",
+  failed: "failed",
+  pending: "not started",
+};
+
+/** Resolves a step's state from its position and the bar's overall status. */
+export function getProgressStepState(
+  index: number,
+  currentStepIndex: number,
+  status: "active" | "completed" | "failed"
+): ProgressStepState {
+  if (index < currentStepIndex) return "completed";
+  if (index > currentStepIndex) return "pending";
+  if (status === "completed") return "completed";
+  if (status === "failed") return "failed";
+  return "active";
+}
+
+/** Accessible name for a step node, e.g. "Step 2 of 4: Sign, in progress". */
+export function getProgressStepName(
+  title: string,
+  index: number,
+  total: number,
+  state: ProgressStepState
+): string {
+  return `Step ${index + 1} of ${total}: ${title}, ${PROGRESS_STEP_STATE_LABEL[state]}`;
+}
+
+/**
+ * Sentence announced through the bar's polite live region whenever the
+ * current step or status changes. Returns `null` when the index is out of
+ * bounds (the validation alert already covers that case).
+ */
+export function getProgressAnnouncement(
+  steps: readonly StepItem[],
+  currentStepIndex: number,
+  status: "active" | "completed" | "failed"
+): string | null {
+  const step = steps[currentStepIndex];
+  if (!step) return null;
+  const position = `Step ${currentStepIndex + 1} of ${steps.length}`;
+  if (status === "completed" && currentStepIndex === steps.length - 1) {
+    return `Transaction complete. ${position}: ${step.title}, completed.`;
+  }
+  return `${position}: ${step.title}, ${PROGRESS_STEP_STATE_LABEL[getProgressStepState(currentStepIndex, currentStepIndex, status)]}.`;
+}
+
+// =============================================================
+// Accessibility: colour contrast (WCAG 2.1 AA)
+// =============================================================
+
+/** Lowest opacity the active step reaches mid-pulse (see `pulse-soft`). */
+export const PROGRESS_BAR_PULSE_MIN_OPACITY = 0.85;
+
+/** Colours used by the bar that are not theme tokens. */
+export const PROGRESS_BAR_FIXED_COLOURS = {
+  white: "#ffffff",
+} as const;
+
+type ContrastColour = TransactionProgressToken | keyof typeof PROGRESS_BAR_FIXED_COLOURS;
+
+export interface ProgressBarContrastPair {
+  usage: string;
+  foreground: ContrastColour;
+  background: ContrastColour;
+  /** 4.5 for text; 3 for icons, focus rings and other non-text UI. */
+  minRatio: number;
+}
+
+/** Resolves a token or fixed colour name to its hex value. */
+export function resolveProgressBarColour(name: ContrastColour): string {
+  return name in PROGRESS_BAR_FIXED_COLOURS
+    ? PROGRESS_BAR_FIXED_COLOURS[name as keyof typeof PROGRESS_BAR_FIXED_COLOURS]
+    : TRANSACTION_PROGRESS_TOKENS[name as TransactionProgressToken];
+}
+
+/** Every foreground/background pairing the bar renders. */
+export const PROGRESS_BAR_CONTRAST_PAIRS: readonly ProgressBarContrastPair[] = [
+  { usage: "active step number", foreground: "white", background: "accent", minRatio: 4.5 },
+  { usage: "pending step number", foreground: "text-muted", background: "surface-field", minRatio: 4.5 },
+  { usage: "completed step icon", foreground: "white", background: "success", minRatio: 3 },
+  { usage: "failed step icon", foreground: "white", background: "danger", minRatio: 3 },
+  { usage: "active step label", foreground: "text-primary", background: "surface-card", minRatio: 4.5 },
+  { usage: "completed step label", foreground: "text-secondary", background: "surface-card", minRatio: 4.5 },
+  { usage: "pending step label / description", foreground: "text-muted", background: "surface-card", minRatio: 4.5 },
+  { usage: "validation alert", foreground: "danger-soft", background: "surface-field", minRatio: 4.5 },
+  { usage: "overlay close button", foreground: "text-muted", background: "surface-field", minRatio: 4.5 },
+  { usage: "placeholder title", foreground: "text-secondary", background: "surface-card", minRatio: 4.5 },
+  { usage: "placeholder description", foreground: "text-muted", background: "surface-card", minRatio: 4.5 },
+  { usage: "focus ring", foreground: "accent-soft", background: "surface-card", minRatio: 3 },
+];

@@ -133,6 +133,16 @@ export const ValidationAlert: Story = {
 };
 
 // ---------------------------------------------------------------------------
+// 7b. Empty Data State — no transaction in flight
+// ---------------------------------------------------------------------------
+export const EmptyState: Story = {
+  name: "7b. Empty State — No Transaction In Progress",
+  args: {
+    steps: [],
+  },
+};
+
+// ---------------------------------------------------------------------------
 // 8. Mobile Viewport Overlay Wrapper (Issue #416)
 // ---------------------------------------------------------------------------
 export const MobileOverlayState: Story = {
