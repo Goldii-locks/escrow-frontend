@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   type StepItem,
   PROGRESS_BAR_THEME_CLASSES,
@@ -10,6 +9,7 @@ import {
   getProgressBarLayout,
   validateProgressBarConfig,
 } from "@/app/lib/transaction_progress_bar";
+import { useTransactionProgressWidth } from "@/app/hooks/useTransactionProgressWidth";
 
 export interface TransactionProgressBarProps {
   /** Array of steps to display */
@@ -52,16 +52,7 @@ export default function TransactionProgressBar({
   onCloseOverlay,
   className = "",
 }: TransactionProgressBarProps) {
-  const [viewportWidth, setViewportWidth] = useState<number>(1024);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setViewportWidth(window.innerWidth);
-      const handleResize = () => setViewportWidth(window.innerWidth);
-      window.addEventListener("resize", handleResize);
-      return () => window.removeEventListener("resize", handleResize);
-    }
-  }, []);
+  const viewportWidth = useTransactionProgressWidth();
 
   // 1. Validation Check (Issue #414)
   const validation = validateProgressBarConfig(steps, currentStepIndex);
@@ -126,7 +117,7 @@ export default function TransactionProgressBar({
           const isFailed = idx === currentStepIndex && status === "failed";
           const isPending = idx > currentStepIndex;
 
-          let stepThemeClass = PROGRESS_BAR_THEME_CLASSES.stepDefault;
+          let stepThemeClass: string = PROGRESS_BAR_THEME_CLASSES.stepDefault;
           if (isActive) stepThemeClass = `${PROGRESS_BAR_THEME_CLASSES.stepActive} ${PROGRESS_BAR_ANIMATION_CLASSES.activePulse}`;
           else if (isCompleted) stepThemeClass = `${PROGRESS_BAR_THEME_CLASSES.stepCompleted} ${PROGRESS_BAR_ANIMATION_CLASSES.completedCheck}`;
           else if (isFailed) stepThemeClass = PROGRESS_BAR_THEME_CLASSES.stepFailed;
