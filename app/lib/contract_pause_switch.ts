@@ -13,6 +13,8 @@
  * `app/lib/arbiter_action_panel.ts`.
  */
 
+import type { ToastType } from "@/app/context/ToastContext";
+
 const LOG_PREFIX = "[contract_pause_switch]";
 
 // =============================================================
@@ -435,4 +437,31 @@ export async function fetchContractPauseState(options?: {
   }
 
   return { ...MOCK_CONTRACT_PAUSE_STATE };
+}
+
+// =============================================================
+// Toast notifications
+// =============================================================
+
+export interface ContractPauseToast {
+  message: string;
+  type: ToastType;
+}
+
+/** Toast shown when a freeze/unfreeze transaction succeeds. */
+export function contractPauseSuccessToast(nextPaused: boolean): ContractPauseToast {
+  return {
+    type: "success",
+    message: nextPaused
+      ? "Contract frozen. All escrow movement is now paused."
+      : "Freeze lifted. Contract is now active.",
+  };
+}
+
+/** Toast shown when a freeze/unfreeze transaction fails. */
+export function contractPauseErrorToast(reason: string): ContractPauseToast {
+  return {
+    type: "error",
+    message: `Failed to update freeze state: ${reason}`,
+  };
 }

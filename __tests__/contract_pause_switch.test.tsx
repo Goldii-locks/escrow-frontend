@@ -10,6 +10,8 @@ import {
   classifyContractPauseViewport,
   containsCodeTags,
   CONTRACT_PAUSE_BADGES,
+  contractPauseErrorToast,
+  contractPauseSuccessToast,
   fetchContractPauseState,
   getContractPauseBadge,
   getContractPauseGridLayout,
@@ -619,6 +621,41 @@ describe("contract_pause_switch module", () => {
       for (const badge of badges) {
         expect(badge).toHaveAttribute("data-status", "active");
       }
+    });
+  });
+
+  // =========================================================================
+  // Toast notifications
+  // =========================================================================
+
+  describe("Toast notifications", () => {
+    it("success toast for freeze has type success and mentions frozen", () => {
+      const toast = contractPauseSuccessToast(true);
+      expect(toast.type).toBe("success");
+      expect(toast.message.toLowerCase()).toContain("frozen");
+    });
+
+    it("success toast for unfreeze has type success and mentions active", () => {
+      const toast = contractPauseSuccessToast(false);
+      expect(toast.type).toBe("success");
+      expect(toast.message.toLowerCase()).toContain("active");
+    });
+
+    it("error toast has type error and includes the reason", () => {
+      const toast = contractPauseErrorToast("wallet rejected");
+      expect(toast.type).toBe("error");
+      expect(toast.message).toContain("wallet rejected");
+    });
+
+    it("error toast includes a human-readable prefix", () => {
+      const toast = contractPauseErrorToast("timeout");
+      expect(toast.message.toLowerCase()).toContain("failed");
+    });
+
+    it("freeze and unfreeze produce distinct messages", () => {
+      expect(contractPauseSuccessToast(true).message).not.toBe(
+        contractPauseSuccessToast(false).message,
+      );
     });
   });
 });
