@@ -561,3 +561,38 @@ describe("resolution_vote_form confirmation modal (Issue #455)", () => {
     expect(formatBpsAsPercent(0)).toBe("0%");
   });
 });
+
+// Ported from #533 (issues #450, #451), adapted to this form's props.
+describe("ResolutionVoteForm access restriction and loading (#450, #451)", () => {
+  const renderGated = (props: { isAuthorizedArbiter?: boolean; isLoading?: boolean }) => {
+    const data = makeDispute();
+    return render(
+      <ResolutionVoteForm
+        disputeId={data.disputeId}
+        initialData={data}
+        nowMs={NOW}
+        {...props}
+      />,
+    );
+  };
+
+  it("shows the access-restricted block for non-arbiters", () => {
+    renderGated({ isAuthorizedArbiter: false });
+    expect(screen.getByTestId("resolution-vote-form-unauthorized")).toBeInTheDocument();
+    expect(screen.getByText("Access Restricted")).toBeInTheDocument();
+    expect(screen.getByText(/only authorized arbiters/i)).toBeInTheDocument();
+    expect(screen.getByText(/contact support/i)).toBeInTheDocument();
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
+  });
+
+  it("renders the form when the wallet is an authorized arbiter", () => {
+    renderGated({ isAuthorizedArbiter: true });
+    expect(screen.queryByTestId("resolution-vote-form-unauthorized")).not.toBeInTheDocument();
+  });
+
+  it("shows skeletons while the caller is still loading, even during the auth check", () => {
+    renderGated({ isAuthorizedArbiter: false, isLoading: true });
+    expect(screen.getByTestId("resolution-vote-form-loading")).toHaveAttribute("aria-busy", "true");
+    expect(screen.queryByTestId("resolution-vote-form-unauthorized")).not.toBeInTheDocument();
+  });
+});

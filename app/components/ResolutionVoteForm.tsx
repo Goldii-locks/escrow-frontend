@@ -33,6 +33,14 @@ export interface ResolutionVoteFormProps {
   onSubmitVote?: (submission: ResolutionVoteSubmission) => void | Promise<void>;
   /** Clock override (ms since epoch) used to classify the status badge. */
   nowMs?: number;
+  /**
+   * Whether the connected wallet is an authorized arbiter. Passing `false`
+   * replaces the form with an access-restricted block (Issue #450); leave it
+   * undefined when the caller does not gate access.
+   */
+  isAuthorizedArbiter?: boolean;
+  /** External loading flag, e.g. while the arbiter check runs (Issue #451). */
+  isLoading?: boolean;
   className?: string;
 }
 
@@ -43,7 +51,9 @@ const CONTAINER_CLASS = "rounded-xl border border-gray-800 bg-gray-900/60 p-6 te
  *
  * Loads the dispute through `useResolutionDispute` (#453), renders a status
  * badge for the dispute / vote state (#454), sanitizes every free-text input
- * (#452), and gates signing behind a confirmation modal (#455).
+ * (#452), and gates signing behind a confirmation modal (#455). Shows
+ * loading skeletons while data or the caller's auth check loads (#451) and
+ * an access-restricted block for wallets that are not arbiters (#450).
  */
 export default function ResolutionVoteForm({
   disputeId,
@@ -51,11 +61,13 @@ export default function ResolutionVoteForm({
   initialData,
   onSubmitVote,
   nowMs,
+  isAuthorizedArbiter,
+  isLoading = false,
   className = "",
 }: ResolutionVoteFormProps) {
   const query = useResolutionDispute(disputeId, { apiUrl: apiEndpoint, initialData });
 
-  if (query.status === "loading") {
+  if (isLoading || query.status === "loading") {
     return (
       <div
         className={`space-y-4 ${CONTAINER_CLASS} ${className}`}
@@ -66,6 +78,27 @@ export default function ResolutionVoteForm({
         <div className="h-6 w-48 animate-pulse rounded bg-gray-700/60" />
         <LoadingSkeleton className="h-16 w-full" aria-label="Dispute details placeholder" />
         <LoadingSkeleton className="h-24 w-full" aria-label="Vote options placeholder" />
+      </div>
+    );
+  }
+
+  if (isAuthorizedArbiter === false) {
+    return (
+      <div
+        role="alert"
+        className={`rounded-xl border border-danger-soft/20 bg-danger-soft/10 p-6 text-center ${className}`}
+        data-testid="resolution-vote-form-unauthorized"
+      >
+        <div className="mb-4 text-4xl" aria-hidden="true">
+          🔒
+        </div>
+        <h3 className="mb-2 text-lg font-semibold text-danger-soft">Access Restricted</h3>
+        <p className="mb-4 text-sm text-gray-400">
+          Only authorized arbiters can access the resolution voting form.
+        </p>
+        <p className="text-xs text-gray-500">
+          If you believe you should have access, please contact support.
+        </p>
       </div>
     );
   }

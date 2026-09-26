@@ -109,3 +109,65 @@ describe("DisputeHistoryTimeline", () => {
     expect(screen.getByText("Arbiter assigned")).toBeInTheDocument();
   });
 });
+
+// Ported from #533 (issues #448, #449), adapted to this component's props.
+describe("DisputeHistoryTimeline grid layout and mock data (#448, #449)", () => {
+  const renderWith = (events = MOCK_DISPUTE_HISTORY) =>
+    render(
+      <DisputeHistoryTimeline
+        disputeId="disp-101"
+        currentWalletAddress={WALLET}
+        initialEvents={events}
+      />,
+    );
+
+  it("lays events out in a responsive grid", () => {
+    renderWith();
+    const grid = screen.getByTestId("dispute-timeline-grid");
+    expect(grid).toHaveClass("grid", "grid-cols-1", "lg:grid-cols-2", "xl:grid-cols-3");
+    expect(grid).toHaveClass("gap-4", "lg:gap-6");
+    expect(grid.children).toHaveLength(MOCK_DISPUTE_HISTORY.length);
+    for (const card of Array.from(grid.children)) {
+      expect(card).toHaveClass("min-w-0", "p-4");
+    }
+  });
+
+  it("renders every mock event title as a heading with its description", () => {
+    renderWith();
+    for (const event of MOCK_DISPUTE_HISTORY) {
+      expect(screen.getByText(event.title).closest("h4")).toBeTruthy();
+      expect(screen.getByText(event.description)).toBeInTheDocument();
+    }
+  });
+
+  it("summarises the event count with singular and plural wording", () => {
+    const { unmount } = renderWith();
+    expect(screen.getByTestId("dispute-timeline-summary")).toHaveTextContent(
+      `Showing ${MOCK_DISPUTE_HISTORY.length} events`,
+    );
+    unmount();
+    renderWith([MOCK_DISPUTE_HISTORY[0]]);
+    expect(screen.getByTestId("dispute-timeline-summary")).toHaveTextContent(
+      /Showing 1 event(?!s)/,
+    );
+  });
+
+  it("shows the empty state without a grid when there are no events", () => {
+    renderWith([]);
+    expect(screen.getByTestId("dispute-timeline-empty")).toBeInTheDocument();
+    expect(screen.queryByTestId("dispute-timeline-grid")).not.toBeInTheDocument();
+  });
+
+  it("shows skeletons instead of events while an external load is in progress", () => {
+    render(
+      <DisputeHistoryTimeline
+        disputeId="disp-101"
+        currentWalletAddress={WALLET}
+        initialEvents={MOCK_DISPUTE_HISTORY}
+        isLoading
+      />,
+    );
+    expect(screen.getByTestId("dispute-timeline-loading-skeletons")).toBeInTheDocument();
+    expect(screen.queryByText(MOCK_DISPUTE_HISTORY[0].title)).not.toBeInTheDocument();
+  });
+});
