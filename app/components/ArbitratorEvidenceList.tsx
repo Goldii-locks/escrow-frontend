@@ -253,11 +253,11 @@ export default function ArbitratorEvidenceList({
           filteredEvidence.map((item) => (
             <div
               key={item.id}
-              className="rounded-lg border border-gray-800 bg-gray-950/40 p-4 transition-colors hover:border-gray-700"
+              className="grid grid-cols-1 gap-x-6 gap-y-2 rounded-lg border border-gray-800 bg-gray-950/40 p-4 transition-colors hover:border-gray-700 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_minmax(0,auto)] lg:items-center"
               data-testid={`evidence-item-${item.id}`}
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-col justify-between gap-2 sm:flex-row sm:items-center lg:flex-col lg:items-start">
+                <div className="flex min-w-0 items-center gap-2">
                   <span
                     className={`rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
                       item.submitterRole === "client"
@@ -267,20 +267,24 @@ export default function ArbitratorEvidenceList({
                   >
                     {item.submitterRole}
                   </span>
-                  <h4 className="text-sm font-semibold text-white">{item.title}</h4>
+                  <h4 className="min-w-0 break-words text-sm font-semibold text-white">
+                    {item.title}
+                  </h4>
                 </div>
                 <div className="text-xs text-gray-500 font-mono">
                   {new Date(item.uploadedAt).toLocaleDateString()}
                 </div>
               </div>
 
-              <p className="mt-2 text-xs text-gray-300 leading-relaxed">{item.description}</p>
+              <p className="min-w-0 break-words text-xs leading-relaxed text-gray-300">
+                {item.description}
+              </p>
 
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-800/60 text-xs text-gray-400">
-                <div className="flex items-center gap-3">
+              <div className="mt-1 flex min-w-0 flex-wrap items-center justify-between gap-2 border-t border-gray-800/60 pt-2 text-xs text-gray-400 lg:mt-0 lg:flex-col lg:items-end lg:border-t-0 lg:pt-0">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 lg:flex-col lg:items-end lg:gap-y-0.5">
                   <span>Type: {item.fileType}</span>
                   <span>Size: {(item.fileSize / 1024).toFixed(1)} KB</span>
-                  <span className="font-mono text-[11px] text-gray-500">Hash: {item.hash}</span>
+                  <span className="max-w-full break-all font-mono text-[11px] text-gray-500">Hash: {item.hash}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   {onEvidenceVerified && (
