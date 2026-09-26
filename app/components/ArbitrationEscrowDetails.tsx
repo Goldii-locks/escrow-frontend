@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useState, useTransition } from "react";
+import { useToast } from "@/app/context/ToastContext";
 import {
   ESCROW_ROLE_LABELS,
   UNAUTHORIZED_ARBITRATION_WARNING,
@@ -35,6 +36,12 @@ export interface ArbitrationEscrowDetailsProps {
   /** Optional backend API endpoint. */
   apiEndpoint?: string;
   className?: string;
+  /** Action callback triggered when an action is executed. */
+  onAction?: (actionType: string) => Promise<void> | void;
+  /** Action pending flag. */
+  isActionPending?: boolean;
+  /** Action error message override. */
+  actionError?: string | null;
 }
 
 export default function ArbitrationEscrowDetails({
@@ -45,12 +52,18 @@ export default function ArbitrationEscrowDetails({
   isLoading: externalLoading = false,
   apiEndpoint,
   className = "",
+  onAction,
+  isActionPending = false,
+  actionError = null,
 }: ArbitrationEscrowDetailsProps) {
   const [record, setRecord] = useState<ArbitrationEscrowDetailsRecord | null>(
     initialRecord ?? null,
   );
   const [loading, setLoading] = useState<boolean>(!initialRecord);
+  const [confirmingAction, setConfirmingAction] = useState<string | null>(null);
+  const [acknowledged, setAcknowledged] = useState<boolean>(false);
   const [, startTransition] = useTransition();
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (initialRecord) {
@@ -85,6 +98,28 @@ export default function ArbitrationEscrowDetails({
       controller.abort();
     };
   }, [disputeId, initialRecord, apiEndpoint]);
+
+  const handleTriggerAction = (actionType: string) => {
+    setConfirmingAction(actionType);
+    setAcknowledged(false);
+  };
+
+  const handleConfirmSubmit = async () => {
+    if (!confirmingAction || !acknowledged) return;
+    const actionToRun = confirmingAction;
+    setConfirmingAction(null);
+    setAcknowledged(false);
+
+    try {
+      if (onAction) {
+        await onAction(actionToRun);
+      }
+      showToast(`Action '${actionToRun}' completed successfully.`, "success");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : actionError || "Action failed.";
+      showToast(`Action failed: ${msg}`, "error");
+    }
+  };
 
   // 1. Access restriction role check (Issue #480). Runs on every render, before
   //    any branch, so no branch below can be reached with an unauthorized
@@ -194,6 +229,69 @@ export default function ArbitrationEscrowDetails({
           </div>
         ))}
       </div>
+
+      {onAction && (
+        <div className="mt-6 flex flex-wrap gap-3" data-testid="arbitration-escrow-details-actions">
+          <button
+            type="button"
+            onClick={() => handleTriggerAction("request_review")}
+            disabled={isActionPending}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+            data-testid="action-request-review"
+          >
+            Request Review
+          </button>
+        </div>
+      )}
+
+      {confirmingAction && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="arbitration-confirm-modal-title"
+          data-testid="arbitration-escrow-details-confirm-modal"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+        >
+          <div className="w-full space-y-4 rounded-xl border border-gray-700 bg-gray-900 p-6 sm:max-w-lg">
+            <h2 id="arbitration-confirm-modal-title" className="text-lg font-semibold text-white">
+              Confirm Action: {confirmingAction}
+            </h2>
+            <p className="text-sm text-gray-400">
+              Please double-confirm before signing the transaction for action &quot;{confirmingAction}&quot;.
+            </p>
+            <label className="flex items-start gap-2 text-sm text-gray-300">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={acknowledged}
+                onChange={(e) => setAcknowledged(e.target.checked)}
+                data-testid="arbitration-confirm-modal-checkbox"
+              />
+              <span>I confirm that I want to proceed with this transaction.</span>
+            </label>
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setConfirmingAction(null)}
+                className="min-h-[44px] rounded-lg bg-gray-800 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                data-testid="arbitration-confirm-modal-cancel"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSubmit}
+                disabled={!acknowledged || isActionPending}
+                className="min-h-[44px] rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+                data-testid="arbitration-confirm-modal-submit"
+              >
+                Confirm & Sign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
+

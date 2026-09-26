@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ArbitrationEscrowDetails from "@/app/components/ArbitrationEscrowDetails";
+import Toast from "@/app/components/Toast";
+import { ToastProvider } from "@/app/context/ToastContext";
 import {
   ESCROW_ROLE_LABELS,
   MOCK_ARBITRATION_ESCROW_DETAILS,
@@ -462,20 +464,125 @@ describe("arbitration_escrow_details module", () => {
       expect(screen.getByText("Viewing as Freelancer")).toBeInTheDocument();
     });
 
-    it("exposes no interactive controls inside the locked details view", () => {
+    it("exposes action controls when onAction is provided", () => {
       render(
-        <ArbitrationEscrowDetails
-          disputeId={RECORD.disputeId}
-          currentWalletAddress={CLIENT}
-          initialRecord={RECORD}
-        />,
+        <ToastProvider>
+          <ArbitrationEscrowDetails
+            disputeId={RECORD.disputeId}
+            currentWalletAddress={CLIENT}
+            initialRecord={RECORD}
+            onAction={vi.fn()}
+          />
+        </ToastProvider>,
       );
 
-      expect(screen.queryByRole("button")).not.toBeInTheDocument();
-      expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
-      expect(() =>
-        fireEvent.click(screen.getByTestId("arbitration-escrow-details-container")),
-      ).not.toThrow();
+      expect(screen.getByTestId("action-request-review")).toBeInTheDocument();
+    });
+  });
+
+  // =========================================================================
+  // Validation Modals and Toasts (Issues #485 & #486) & Mock Integration (#489)
+  // =========================================================================
+
+  describe("Validation modals, toasts, and mock integration checks (#485, #486, #489)", () => {
+    it("blocks submit until confirmation dialog is double-confirmed (#485)", async () => {
+      const handleAction = vi.fn();
+      render(
+        <ToastProvider>
+          <ArbitrationEscrowDetails
+            disputeId={RECORD.disputeId}
+            currentWalletAddress={CLIENT}
+            initialRecord={RECORD}
+            onAction={handleAction}
+          />
+        </ToastProvider>,
+      );
+
+      // Trigger action button
+      fireEvent.click(screen.getByTestId("action-request-review"));
+
+      // Confirmation modal appears
+      const modal = screen.getByTestId("arbitration-escrow-details-confirm-modal");
+      expect(modal).toBeInTheDocument();
+
+      const submitBtn = screen.getByTestId("arbitration-confirm-modal-submit");
+      expect(submitBtn).toBeDisabled();
+      expect(handleAction).not.toHaveBeenCalled();
+
+      // Check acknowledgment box
+      const checkbox = screen.getByTestId("arbitration-confirm-modal-checkbox");
+      fireEvent.click(checkbox);
+      expect(submitBtn).not.toBeDisabled();
+
+      // Submit confirmation
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(handleAction).toHaveBeenCalledWith("request_review");
+      });
+    });
+
+    it("triggers toast warnings on action success and failure (#486)", async () => {
+      const handleSuccess = vi.fn().mockResolvedValue(undefined);
+      const { rerender } = render(
+        <ToastProvider>
+          <ArbitrationEscrowDetails
+            disputeId={RECORD.disputeId}
+            currentWalletAddress={CLIENT}
+            initialRecord={RECORD}
+            onAction={handleSuccess}
+          />
+          <Toast />
+        </ToastProvider>,
+      );
+
+      // Success flow
+      fireEvent.click(screen.getByTestId("action-request-review"));
+      fireEvent.click(screen.getByTestId("arbitration-confirm-modal-checkbox"));
+      fireEvent.click(screen.getByTestId("arbitration-confirm-modal-submit"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Action 'request_review' completed successfully.")).toBeInTheDocument();
+      });
+
+      // Failure flow
+      const handleFailure = vi.fn().mockRejectedValue(new Error("Transaction rejected"));
+      rerender(
+        <ToastProvider>
+          <ArbitrationEscrowDetails
+            disputeId={RECORD.disputeId}
+            currentWalletAddress={CLIENT}
+            initialRecord={RECORD}
+            onAction={handleFailure}
+          />
+          <Toast />
+        </ToastProvider>,
+      );
+
+      fireEvent.click(screen.getByTestId("action-request-review"));
+      fireEvent.click(screen.getByTestId("arbitration-confirm-modal-checkbox"));
+      fireEvent.click(screen.getByTestId("arbitration-confirm-modal-submit"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Action failed: Transaction rejected")).toBeInTheDocument();
+      });
+    });
+
+    it("confirms mock layout setup elements render correctly in test environments (#489)", () => {
+      render(
+        <ToastProvider>
+          <ArbitrationEscrowDetails
+            disputeId={RECORD.disputeId}
+            currentWalletAddress={CLIENT}
+            initialRecord={RECORD}
+          />
+        </ToastProvider>,
+      );
+
+      expect(screen.getByTestId("arbitration-escrow-details-container")).toBeInTheDocument();
+      expect(screen.getByTestId("arbitration-escrow-details-grid")).toBeInTheDocument();
+      expect(screen.getByText("Locked Escrow Details")).toBeInTheDocument();
+      expect(screen.getByText("Viewing as Client")).toBeInTheDocument();
     });
   });
 });
