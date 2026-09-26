@@ -16,6 +16,7 @@ import {
   CONTRACT_PAUSE_GRID_CLASSES,
   type ContractPauseState,
   fetchContractPauseState,
+  getContractPauseBadge,
   getContractPauseReadouts,
 } from "@/app/lib/contract_pause_switch";
 
@@ -98,6 +99,7 @@ export default function ContractPauseSwitch({
       ? getContractPauseReadouts({ ...state, contractId: contractId ?? state.contractId })
       : null;
   const isCurrentlyLoading = externalLoading || loading;
+  const badge = getContractPauseBadge(isPaused, isPending);
 
   const handleToggle = () => {
     if (disabled || isPending) return;
@@ -121,9 +123,19 @@ export default function ContractPauseSwitch({
     >
       <div className={CONTRACT_PAUSE_GRID_CLASSES.header}>
         <h2 className={CONTRACT_PAUSE_GRID_CLASSES.title}>Emergency Freeze</h2>
-        <p className={CONTRACT_PAUSE_GRID_CLASSES.description}>
-          Halts new escrow deposits and milestone releases contract-wide.
-        </p>
+        <div className="flex items-center gap-2">
+          <span
+            className={badge.className}
+            data-testid="contract-pause-status-badge"
+            data-status={badge.status}
+          >
+            <span aria-hidden="true">{badge.icon}</span>
+            {badge.label}
+          </span>
+          <p className={CONTRACT_PAUSE_GRID_CLASSES.description}>
+            Halts new escrow deposits and milestone releases contract-wide.
+          </p>
+        </div>
       </div>
 
       {/* Issue #478: the readout grid steps 1 → 2 → 3 columns with the
@@ -170,8 +182,15 @@ export default function ContractPauseSwitch({
               <span className={CONTRACT_PAUSE_GRID_CLASSES.statusLabel}>
                 Freeze State
               </span>
-              <span className={CONTRACT_PAUSE_GRID_CLASSES.statusValue}>
-                {readouts?.phase ?? "—"}
+              <span className="mt-1 block">
+                <span
+                  className={badge.className}
+                  data-testid="contract-pause-state-badge"
+                  data-status={badge.status}
+                >
+                  <span aria-hidden="true">{badge.icon}</span>
+                  {badge.label}
+                </span>
               </span>
             </div>
 
