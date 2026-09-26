@@ -151,4 +151,84 @@ describe("arbitrator_evidence_list module", () => {
       expect(screen.queryByText("Production Deployment Logs & Commit Proof")).not.toBeInTheDocument();
     });
   });
+
+  describe("Grid Layout Constraints (Issue #428)", () => {
+    it("aligns each evidence row in a three-column grid on large screens", () => {
+      render(
+        <ArbitratorEvidenceList
+          disputeId="disp-101"
+          currentWalletAddress="GARBITER1"
+          authorizedArbitrators={["GARBITER1"]}
+          initialEvidence={MOCK_EVIDENCE_DATASET}
+        />
+      );
+
+      const row = screen.getByTestId(`evidence-item-${MOCK_EVIDENCE_DATASET[0].id}`);
+      expect(row).toHaveClass("grid", "grid-cols-1");
+      expect(row.className).toMatch(/lg:grid-cols-\[minmax\(0,2fr\)_minmax\(0,3fr\)_minmax\(0,auto\)\]/);
+      // Every direct grid child may shrink so long content cannot overflow the row.
+      Array.from(row.children).forEach((child) => expect(child).toHaveClass("min-w-0"));
+    });
+
+    it("wraps long hashes and text instead of overflowing the row", () => {
+      render(
+        <ArbitratorEvidenceList
+          disputeId="disp-101"
+          currentWalletAddress="GARBITER1"
+          authorizedArbitrators={["GARBITER1"]}
+          initialEvidence={[{ ...MOCK_EVIDENCE_DATASET[0], hash: "0x" + "a".repeat(64) }]}
+        />
+      );
+
+      expect(screen.getByText(/Hash: 0xa+/)).toHaveClass("break-all", "max-w-full");
+      expect(screen.getByText(MOCK_EVIDENCE_DATASET[0].title)).toHaveClass("break-words");
+    });
+  });
+
+  describe("Mock Integration Checks (Issue #429)", () => {
+    it("renders a fetched dataset end to end through a mocked backend", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: MOCK_EVIDENCE_DATASET }) })
+      );
+
+      render(
+        <ArbitratorEvidenceList
+          disputeId="disp-101"
+          currentWalletAddress="GARBITER1"
+          authorizedArbitrators={["GARBITER1"]}
+        />
+      );
+
+      expect(screen.getByTestId("arbitrator-evidence-loading-skeletons")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId("arbitrator-evidence-list-container")).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId("arbitrator-evidence-loading-skeletons")).not.toBeInTheDocument();
+      MOCK_EVIDENCE_DATASET.forEach((item) => {
+        expect(screen.getByTestId(`evidence-item-${item.id}`)).toBeInTheDocument();
+      });
+    });
+
+    it("fires onEvidenceVerified and filters by search query", () => {
+      const onEvidenceVerified = vi.fn();
+      render(
+        <ArbitratorEvidenceList
+          disputeId="disp-101"
+          currentWalletAddress="GARBITER1"
+          authorizedArbitrators={["GARBITER1"]}
+          initialEvidence={MOCK_EVIDENCE_DATASET}
+          onEvidenceVerified={onEvidenceVerified}
+        />
+      );
+
+      fireEvent.click(screen.getAllByRole("button", { name: /Mark Verified|Verified/ })[0]);
+      expect(onEvidenceVerified).toHaveBeenCalledWith(MOCK_EVIDENCE_DATASET[0].id);
+
+      fireEvent.change(screen.getByPlaceholderText(/Search evidence/i), {
+        target: { value: "no-such-evidence" },
+      });
+      expect(screen.getByText(/No evidence records found/i)).toBeInTheDocument();
+    });
+  });
 });
