@@ -49,7 +49,7 @@ describe("DisputeHistoryTimeline", () => {
     it("renders singular event text when only one event", () => {
       const singleEvent = [mockEvents[0]];
       render(<DisputeHistoryTimeline events={singleEvent} />);
-      expect(screen.getByText(/showing 1 event/i)).toBeBeInTheDocument();
+      expect(screen.getByText(/showing 1 event/i)).toBeInTheDocument();
     });
 
     it("applies correct type styling classes to event cards", () => {
@@ -149,7 +149,7 @@ describe("DisputeHistoryTimeline", () => {
     it("renders event titles as headings for proper hierarchy", () => {
       const { container } = render(<DisputeHistoryTimeline events={mockEvents} />);
       const titleHeadings = container.querySelectorAll("h4");
-      expect(screen.getByText("Dispute Raised")).closest("h4")).toBeTruthy();
+      expect(screen.getByText("Dispute Raised").closest("h4")).toBeTruthy();
     });
   });
 });
