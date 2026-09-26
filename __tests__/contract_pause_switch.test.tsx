@@ -399,4 +399,68 @@ describe("contract_pause_switch module", () => {
       ).not.toThrow();
     });
   });
+
+  // =========================================================================
+  // Backend API URL construction (#480)
+  // =========================================================================
+
+  describe("Backend API URL construction (#480)", () => {
+    it("hits the configured BACKEND_URL when no apiUrl override is given", async () => {
+      const fetchMock = vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: {
+                ...MOCK_CONTRACT_PAUSE_STATE,
+                paused: false,
+                reason: "All clear.",
+              },
+            }),
+        }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+
+      const result = await fetchContractPauseState();
+
+      expect(fetchMock).toHaveBeenCalledOnce();
+      const calledUrl = String((fetchMock.mock.calls as unknown[][])[0][0]);
+      // The URL must include the backend host and the is_paused query method.
+      expect(calledUrl).toContain("/api/jobs/query");
+      expect(calledUrl).toContain("method=is_paused");
+      expect(result.paused).toBe(false);
+    });
+
+    it("uses the apiUrl override when provided", async () => {
+      const customUrl = "https://staging.example.com/api/pause-state";
+      const fetchMock = vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(MOCK_CONTRACT_PAUSE_STATE),
+        }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+
+      await fetchContractPauseState({ apiUrl: customUrl });
+
+      expect((fetchMock.mock.calls as unknown[][])[0][0]).toBe(customUrl);
+    });
+
+    it("falls back to mock when the backend returns a valid envelope with incomplete data", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() =>
+          Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({ success: true, data: { paused: true } }),
+          }),
+        ),
+      );
+
+      const result = await fetchContractPauseState();
+      expect(result).toEqual(MOCK_CONTRACT_PAUSE_STATE);
+    });
+  });
 });

@@ -13,6 +13,8 @@
  * `app/lib/arbiter_action_panel.ts`.
  */
 
+import { BACKEND_URL, CONTRACT_ID } from "@/app/lib/transactions";
+
 const LOG_PREFIX = "[contract_pause_switch]";
 
 // =============================================================
@@ -329,16 +331,18 @@ export function getContractPauseReadouts(state: ContractPauseState): {
  * every field the panel reads; otherwise falls back to
  * `MOCK_CONTRACT_PAUSE_STATE` so the toggle still renders in a test
  * environment with no network.
+ *
+ * Defaults to `BACKEND_URL` + the configured `CONTRACT_ID` so the panel in
+ * production hits the same backend all other queries use.
  */
 export async function fetchContractPauseState(options?: {
   apiUrl?: string;
   signal?: AbortSignal;
 }): Promise<ContractPauseState> {
+  const contractId = CONTRACT_ID || MOCK_CONTRACT_PAUSE_STATE.contractId;
   const url =
     options?.apiUrl ??
-    `/api/jobs/query?contractId=${encodeURIComponent(
-      MOCK_CONTRACT_PAUSE_STATE.contractId,
-    )}&method=is_paused`;
+    `${BACKEND_URL}/api/jobs/query?contractId=${encodeURIComponent(contractId)}&method=is_paused`;
 
   try {
     const res = await fetch(url, { signal: options?.signal });
