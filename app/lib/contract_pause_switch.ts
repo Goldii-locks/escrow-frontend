@@ -206,6 +206,28 @@ export const CONTRACT_PAUSE_GRID_CLASSES = {
 } as const;
 
 // =============================================================
+// Input sanitization
+// =============================================================
+
+/** Matches HTML/script tags and javascript: URL payloads. */
+const CODE_TAG_PATTERN = /<[^>]*>?|[<>]|javascript:/i;
+
+/** True when a value contains markup that could carry an injected payload. */
+export function containsCodeTags(value: string): boolean {
+  return CODE_TAG_PATTERN.test(value);
+}
+
+/**
+ * Strips tags and trims a free-text field from the backend.
+ * Returns an empty string when the value contains a script payload so the
+ * readout collapses to the "—" fallback rather than rendering injected markup.
+ */
+export function sanitizePauseField(value: string): string {
+  if (containsCodeTags(value)) return "";
+  return value.trim();
+}
+
+// =============================================================
 // Mock integration bindings (#479)
 // =============================================================
 
@@ -314,12 +336,12 @@ export function getContractPauseReadouts(state: ContractPauseState): {
   updatedBy: string;
   reason: string;
 } {
-  const trimmedReason = state.reason.trim();
+  const trimmedReason = sanitizePauseField(state.reason);
   return {
-    contractId: state.contractId || "—",
+    contractId: sanitizePauseField(state.contractId) || "—",
     phase: getContractPausePhaseLabel(state.paused),
-    updatedAt: state.updatedAt || "—",
-    updatedBy: state.updatedBy || "—",
+    updatedAt: sanitizePauseField(state.updatedAt) || "—",
+    updatedBy: sanitizePauseField(state.updatedBy) || "—",
     reason: trimmedReason || "—",
   };
 }
