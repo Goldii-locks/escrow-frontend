@@ -9,6 +9,17 @@ import ButtonSpinner from "@/app/components/ButtonSpinner";
 import TxStatusBanner from "@/app/components/TxStatusBanner";
 import { useActionStates } from "@/app/hooks/useActionStates";
 import { useIsAdmin } from "@/app/hooks/useIsAdmin";
+import WhitelistConfirmModal from "@/app/components/WhitelistConfirmModal";
+import {
+  containsCodeTags,
+  getAddStatusBadge,
+  getTokenStatusBadge,
+  mapWhitelistResponse,
+  sanitizeTokenAddress,
+  type StatusBadge,
+  type WhitelistAction,
+  type WhitelistEntry,
+} from "@/app/lib/admin_whitelist_panel";
 import {
   BACKEND_URL,
   CONTRACT_ID,
@@ -21,7 +32,10 @@ export default function AdminPage() {
   const { address, signTransaction } = useWallet();
   const { loading: adminCheckLoading, isAdminUser } = useIsAdmin(address);
   const [tokenAddress, setTokenAddress] = useState("");
-  const [whitelist, setWhitelist] = useState<string[]>([]);
+  const [whitelist, setWhitelist] = useState<WhitelistEntry[]>([]);
+  const [pendingAction, setPendingAction] = useState<WhitelistAction | null>(
+    null,
+  );
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
   const { getState, isPending, setPhase, setError, setTxHash } =
@@ -35,12 +49,11 @@ export default function AdminPage() {
         `${BACKEND_URL}/api/jobs/whitelisted-tokens?contractId=${CONTRACT_ID}`,
       );
       const data = await res.json();
-      if (data.success && Array.isArray(data.data)) {
-        setWhitelist(data.data);
-      } else if (res.ok && Array.isArray(data)) {
-        setWhitelist(data);
+      const entries = mapWhitelistResponse(data);
+      if (entries && (res.ok || data?.success)) {
+        setWhitelist(entries);
       } else {
-        setListError(data.error || "Could not load whitelisted tokens.");
+        setListError(data?.error || "Could not load whitelisted tokens.");
       }
     } catch {
       setListError("Could not connect to backend to load whitelist.");
@@ -90,27 +103,42 @@ export default function AdminPage() {
     }
   };
 
-  const handleAddToken = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!address || !tokenAddress.trim()) return;
-
-    await executeTx("add-token", "add_whitelisted_token", [
-      { type: "address", value: address },
-      { type: "address", value: tokenAddress.trim() },
-    ]);
+  // Input containing code tags is ignored; the field keeps its previous value.
+  const handleTokenAddressChange = (raw: string) => {
+    if (containsCodeTags(raw)) return;
+    setTokenAddress(sanitizeTokenAddress(raw));
   };
 
-  const handleRemoveToken = async (token: string) => {
+  // Submitting only opens the confirmation dialog; nothing is signed yet.
+  const handleAddToken = (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = sanitizeTokenAddress(tokenAddress);
+    if (!address || !token) return;
+    setPendingAction({ kind: "add", token });
+  };
+
+  const handleRemoveToken = (token: string) => {
+    if (!address) return;
+    setPendingAction({ kind: "remove", token });
+  };
+
+  const handleConfirm = async (action: WhitelistAction) => {
+    setPendingAction(null);
     if (!address) return;
 
-    await executeTx(`remove-${token}`, "remove_whitelisted_token", [
-      { type: "address", value: address },
-      { type: "address", value: token },
-    ]);
+    await executeTx(
+      action.kind === "add" ? "add-token" : `remove-${action.token}`,
+      action.kind === "add" ? "add_whitelisted_token" : "remove_whitelisted_token",
+      [
+        { type: "address", value: address },
+        { type: "address", value: action.token },
+      ],
+    );
   };
 
   const addState = getState("add-token");
   const addPending = isPending("add-token");
+  const addBadge = getAddStatusBadge(addState.phase);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -132,7 +160,10 @@ export default function AdminPage() {
               onSubmit={handleAddToken}
               className="space-y-4 border border-gray-800 rounded-xl bg-gray-900 p-6"
             >
-              <h2 className="font-semibold">Add Token</h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-semibold">Add Token</h2>
+                {addBadge && <Badge badge={addBadge} testId="add-status-badge" />}
+              </div>
               <div>
                 <label
                   htmlFor="token-address"
@@ -144,7 +175,7 @@ export default function AdminPage() {
                   id="token-address"
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-indigo-500 disabled:opacity-50"
                   value={tokenAddress}
-                  onChange={(e) => setTokenAddress(e.target.value)}
+                  onChange={(e) => handleTokenAddressChange(e.target.value)}
                   placeholder="C..."
                   required
                   disabled={addPending}
@@ -180,7 +211,7 @@ export default function AdminPage() {
                 </p>
               ) : (
                 <ul className="space-y-2">
-                  {whitelist.map((token) => {
+                  {whitelist.map(({ address: token, symbol, name }) => {
                     const removeKey = `remove-${token}`;
                     const removeState = getState(removeKey);
                     const removePending = isPending(removeKey);
@@ -191,9 +222,20 @@ export default function AdminPage() {
                         className="flex flex-col gap-2 bg-gray-800 rounded-lg px-4 py-3"
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <span className="font-mono text-sm truncate min-w-0">
-                            {token}
+                          <span className="flex flex-col min-w-0">
+                            {(symbol || name) && (
+                              <span className="text-sm font-medium truncate">
+                                {symbol || name}
+                              </span>
+                            )}
+                            <span className="font-mono text-sm truncate">
+                              {token}
+                            </span>
                           </span>
+                          <Badge
+                            badge={getTokenStatusBadge(removeState)}
+                            testId={`status-badge-${token}`}
+                          />
                           <button
                             onClick={() => handleRemoveToken(token)}
                             disabled={removePending}
@@ -219,6 +261,24 @@ export default function AdminPage() {
           </div>
         </AdminAccessGate>
       </main>
+      <WhitelistConfirmModal
+        action={pendingAction}
+        onCancel={() => setPendingAction(null)}
+        onConfirm={handleConfirm}
+      />
     </div>
+  );
+}
+
+function Badge({ badge, testId }: { badge: StatusBadge; testId: string }) {
+  return (
+    <span
+      data-testid={testId}
+      data-status={badge.status}
+      className={badge.className}
+    >
+      <span aria-hidden="true">{badge.icon}</span>
+      {badge.label}
+    </span>
   );
 }
