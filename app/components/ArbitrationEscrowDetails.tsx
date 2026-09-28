@@ -21,6 +21,8 @@ import {
   isEscrowDetailsAuthorized,
   resolveEscrowPartyRole,
 } from "@/app/lib/arbitration_escrow_details";
+import { getArbitrationBadge } from "@/app/lib/arbitration_escrow_details_badges";
+import { handleArbitrationExport } from "@/app/lib/arbitration_escrow_details_export";
 
 export interface ArbitrationEscrowDetailsProps {
   /** Dispute whose locked escrow should be shown. */
@@ -195,6 +197,7 @@ export default function ArbitrationEscrowDetails({
   // 3. Authorized details view.
   const role = resolveEscrowPartyRole(currentWalletAddress, record);
   const readouts = getArbitrationEscrowReadouts(record);
+  const badge = getArbitrationBadge(record.status);
 
   return (
     <section
@@ -202,13 +205,34 @@ export default function ArbitrationEscrowDetails({
       aria-label="Locked escrow details"
       data-testid="arbitration-escrow-details-container"
     >
-      <header className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-        <h2 className="text-base font-semibold text-text-primary">
-          Locked Escrow Details
-        </h2>
-        <p className="text-xs text-text-secondary">
-          {role ? `Viewing as ${ESCROW_ROLE_LABELS[role]}` : "Viewing as authorized wallet"}
-        </p>
+      <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-semibold text-text-primary">
+            Locked Escrow Details
+          </h2>
+          {badge && (
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.className}`}
+              data-testid="arbitration-status-badge"
+              aria-label={badge.ariaLabel}
+            >
+              {badge.label}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-text-secondary">
+            {role ? `Viewing as ${ESCROW_ROLE_LABELS[role]}` : "Viewing as authorized wallet"}
+          </p>
+          <button
+            type="button"
+            onClick={() => handleArbitrationExport([record])}
+            className="rounded border border-border-subtle bg-surface-field px-2.5 py-1 text-xs font-medium text-text-primary hover:bg-surface-hover transition"
+            data-testid="arbitration-export-button"
+          >
+            Export CSV
+          </button>
+        </div>
       </header>
 
       <div
