@@ -12,6 +12,9 @@
 
 # testing
 /coverage
+# vitest / jest snapshots
+**/__snapshots__/
+*.snap
 
 # next.js
 /.next/
@@ -43,7 +46,16 @@ yarn-error.log*
 next-env.d.ts
 .env.local
 
+# editor / tool directories
 .agents/
+.kiro/
+.vscode/
+
+# storybook stories (generated/design artefacts, not shipped code)
+**/*.stories.tsx
+**/*.stories.ts
+
+# misc project docs that don't belong in the repo root
 issue.md
 skills-lock.json
 
@@ -69,3 +81,4 @@ Thumbs.db
 
 # Logs
 *.log
+issues.md
