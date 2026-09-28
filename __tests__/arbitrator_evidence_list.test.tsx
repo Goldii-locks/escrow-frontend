@@ -222,7 +222,13 @@ describe("arbitrator_evidence_list module", () => {
         />
       );
 
+      // Since Issue #425 the row action opens a double-confirm dialog rather
+      // than signing directly, so the decision takes two deliberate steps.
       fireEvent.click(screen.getAllByRole("button", { name: /Mark Verified|Verified/ })[0]);
+      expect(onEvidenceVerified).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByTestId("evidence-confirm-acknowledge"));
+      fireEvent.click(screen.getByTestId("evidence-confirm-submit"));
       expect(onEvidenceVerified).toHaveBeenCalledWith(MOCK_EVIDENCE_DATASET[0].id);
 
       fireEvent.change(screen.getByPlaceholderText(/Search evidence/i), {

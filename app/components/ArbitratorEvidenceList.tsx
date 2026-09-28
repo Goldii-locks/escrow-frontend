@@ -2,12 +2,18 @@
 
 import { useEffect, useState, useTransition } from "react";
 import LoadingSkeleton from "./LoadingSkeleton";
+import ArbitratorEvidenceConfirmModal from "./ArbitratorEvidenceConfirmModal";
+import { useToast } from "@/app/context/ToastContext";
 import {
+  type EvidenceAction,
   type EvidenceItem,
   UNAUTHORIZED_ARBITRATOR_WARNING,
+  evidenceExportFilename,
+  fetchArbitratorEvidence,
+  getEvidenceBadge,
+  handleEvidenceExport,
   isArbitratorAuthorized,
   sanitizeEvidenceInput,
-  fetchArbitratorEvidence,
 } from "@/app/lib/arbitrator_evidence_list";
 
 export interface ArbitratorEvidenceListProps {
@@ -45,7 +51,10 @@ export default function ArbitratorEvidenceList({
   const [newDescription, setNewDescription] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  // Action awaiting double-confirmation; `null` keeps the modal closed (Issue #425)
+  const [pendingAction, setPendingAction] = useState<EvidenceAction | null>(null);
   const [, startTransition] = useTransition();
+  const { showToast } = useToast();
 
   // 1. Access Restriction Check (Issue #420)
   const isAuthorized = isArbitratorAuthorized(currentWalletAddress, authorizedArbitrators);
@@ -157,7 +166,11 @@ export default function ArbitratorEvidenceList({
     const cleanDescription = sanitizeEvidenceInput(newDescription);
 
     if (!cleanTitle) {
-      setFormError("Evidence title is required and cannot contain code tags.");
+      const message = "Evidence title is required and cannot contain code tags.";
+      setFormError(message);
+      // Issue #426 — surface the validation failure as a toast as well as
+      // inline, so it is noticed when the form is scrolled out of view.
+      showToast(message, "warning");
       return;
     }
 
@@ -179,6 +192,56 @@ export default function ArbitratorEvidenceList({
     setEvidenceList((prev) => [newItem, ...prev]);
     setNewTitle("");
     setNewDescription("");
+    showToast("Arbiter note attached to the dispute record.", "success");
+  };
+
+  // 5. Spreadsheet export handler (Issue #427)
+  const handleExportClick = () => {
+    const exported = handleEvidenceExport(
+      filteredEvidence,
+      evidenceExportFilename(disputeId)
+    );
+
+    // `handleEvidenceExport` returns false for an empty set rather than
+    // downloading a header-only file (Issue #426 covers the messaging).
+    if (!exported) {
+      showToast("No evidence rows to export for the current filter.", "warning");
+      return;
+    }
+
+    showToast(
+      `Exported ${filteredEvidence.length} evidence ${
+        filteredEvidence.length === 1 ? "row" : "rows"
+      } to CSV.`,
+      "success"
+    );
+  };
+
+  // 6. Double-confirm before signing an evidence decision (Issue #425)
+  const handleConfirmedAction = (action: EvidenceAction) => {
+    setPendingAction(null);
+
+    try {
+      onEvidenceVerified?.(action.evidenceId);
+      setEvidenceList((prev) =>
+        prev.map((item) =>
+          item.id === action.evidenceId
+            ? { ...item, verified: action.kind === "verify" }
+            : item
+        )
+      );
+      showToast(
+        action.kind === "verify"
+          ? "Evidence marked verified on the dispute record."
+          : "Evidence rejected on the dispute record.",
+        "success"
+      );
+    } catch (e) {
+      // The signing callback is supplied by the caller and may throw or
+      // reject; keep the row untouched and tell the arbiter (Issue #426).
+      const reason = e instanceof Error ? e.message : String(e);
+      showToast(`Evidence decision failed: ${reason}`, "error");
+    }
   };
 
   // Filter and search
@@ -212,6 +275,15 @@ export default function ArbitratorEvidenceList({
           <span className="rounded-full bg-indigo-900/40 px-3 py-1 text-xs font-medium text-indigo-300 border border-indigo-700/50">
             {filteredEvidence.length} items
           </span>
+          {/* Spreadsheet export (Issue #427) */}
+          <button
+            type="button"
+            onClick={handleExportClick}
+            data-testid="evidence-export-button"
+            className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-1 text-xs font-medium text-gray-200 transition-colors hover:bg-gray-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            Export CSV
+          </button>
         </div>
       </div>
 
@@ -270,6 +342,20 @@ export default function ArbitratorEvidenceList({
                   <h4 className="min-w-0 break-words text-sm font-semibold text-white">
                     {item.title}
                   </h4>
+                  {/* Active-state badge (Issue #424) */}
+                  {(() => {
+                    const badge = getEvidenceBadge(item);
+                    return (
+                      <span
+                        role="status"
+                        aria-label={badge.srLabel}
+                        data-testid={`evidence-state-badge-${item.id}`}
+                        className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${badge.className}`}
+                      >
+                        {badge.label}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="text-xs text-gray-500 font-mono">
                   {new Date(item.uploadedAt).toLocaleDateString()}
@@ -290,7 +376,16 @@ export default function ArbitratorEvidenceList({
                   {onEvidenceVerified && (
                     <button
                       type="button"
-                      onClick={() => onEvidenceVerified(item.id)}
+                      // Opens the confirm dialog rather than signing directly,
+                      // so the decision needs two deliberate steps (Issue #425)
+                      onClick={() =>
+                        setPendingAction({
+                          kind: item.verified ? "reject" : "verify",
+                          evidenceId: item.id,
+                          evidenceTitle: item.title,
+                        })
+                      }
+                      data-testid={`evidence-action-${item.id}`}
                       className="rounded bg-gray-800 px-2.5 py-1 text-xs text-gray-300 hover:bg-gray-700 hover:text-white"
                     >
                       {item.verified ? "Verified ✓" : "Mark Verified"}
@@ -350,6 +445,13 @@ export default function ArbitratorEvidenceList({
           Attach Note
         </button>
       </form>
+
+      {/* Double-confirm gate before any evidence decision is signed (Issue #425) */}
+      <ArbitratorEvidenceConfirmModal
+        action={pendingAction}
+        onCancel={() => setPendingAction(null)}
+        onConfirm={handleConfirmedAction}
+      />
     </div>
   );
 }
