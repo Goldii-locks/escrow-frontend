@@ -37,6 +37,10 @@ import {
   submitContractTransaction,
 } from "@/app/lib/transactions";
 import ContractPauseSwitch from "@/app/components/ContractPauseSwitch";
+import {
+  contractPauseErrorToast,
+  contractPauseSuccessToast,
+} from "@/app/lib/contract_pause_switch";
 
 export default function AdminPage() {
   const { address, signTransaction } = useWallet();
@@ -57,22 +61,37 @@ export default function AdminPage() {
   const handlePauseToggle = useCallback(
     async (nextPaused: boolean) => {
       if (!address) return;
-      await runContractAction(
+      let failure: string | null = null;
+      const txHash = await runContractAction(
         PAUSE_KEY,
-        (onPhase) =>
-          submitContractTransaction({
-            // The contract exposes pause and resume as separate admin
-            // endpoints, each taking only the admin address.
-            method: nextPaused ? "admin_pause_escrow" : "admin_resume_escrow",
-            args: [{ type: "address", value: address }],
-            sourceAddress: address,
-            signTransaction,
-            onPhase,
-          }),
+        async (onPhase) => {
+          try {
+            return await submitContractTransaction({
+              // The contract exposes pause and resume as separate admin
+              // endpoints, each taking only the admin address.
+              method: nextPaused ? "admin_pause_escrow" : "admin_resume_escrow",
+              args: [{ type: "address", value: address }],
+              sourceAddress: address,
+              signTransaction,
+              onPhase,
+            });
+          } catch (err) {
+            failure = formatTxError(err);
+            throw err;
+          }
+        },
         { isPending, setPhase, setError, setTxHash },
       );
+
+      if (txHash !== null) {
+        const toast = contractPauseSuccessToast(nextPaused);
+        showToast(toast.message, toast.type);
+      } else if (failure !== null) {
+        const toast = contractPauseErrorToast(failure);
+        showToast(toast.message, toast.type);
+      }
     },
-    [address, signTransaction, isPending, setPhase, setError, setTxHash],
+    [address, signTransaction, showToast, isPending, setPhase, setError, setTxHash],
   );
 
   const fetchWhitelist = useCallback(async () => {

@@ -14,6 +14,7 @@
  */
 
 import { BACKEND_URL, CONTRACT_ID } from "@/app/lib/transactions";
+import type { ToastType } from "@/app/context/ToastContext";
 
 const LOG_PREFIX = "[contract_pause_switch]";
 
@@ -228,6 +229,53 @@ export function sanitizePauseField(value: string): string {
 }
 
 // =============================================================
+// Status badges
+// =============================================================
+
+export type ContractPauseStatus = "frozen" | "active" | "pending";
+
+export interface ContractPauseBadge {
+  status: ContractPauseStatus;
+  label: string;
+  /** Leading marker so state is not conveyed by colour alone. */
+  icon: string;
+  className: string;
+}
+
+const PAUSE_BADGE_BASE =
+  "inline-flex items-center gap-1 shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium";
+
+export const CONTRACT_PAUSE_BADGES: Record<ContractPauseStatus, ContractPauseBadge> = {
+  frozen: {
+    status: "frozen",
+    label: "Frozen",
+    icon: "■",
+    className: `${PAUSE_BADGE_BASE} border-red-700 bg-red-950/40 text-red-400`,
+  },
+  active: {
+    status: "active",
+    label: "Active",
+    icon: "●",
+    className: `${PAUSE_BADGE_BASE} border-green-700 bg-green-950/40 text-green-400`,
+  },
+  pending: {
+    status: "pending",
+    label: "Pending",
+    icon: "…",
+    className: `${PAUSE_BADGE_BASE} border-amber-700 bg-amber-950/40 text-amber-400`,
+  },
+};
+
+/** Returns the badge that matches the current freeze state. */
+export function getContractPauseBadge(
+  paused: boolean,
+  isPending: boolean,
+): ContractPauseBadge {
+  if (isPending) return CONTRACT_PAUSE_BADGES.pending;
+  return paused ? CONTRACT_PAUSE_BADGES.frozen : CONTRACT_PAUSE_BADGES.active;
+}
+
+// =============================================================
 // Mock integration bindings (#479)
 // =============================================================
 
@@ -392,4 +440,31 @@ export async function fetchContractPauseState(options?: {
   }
 
   return { ...MOCK_CONTRACT_PAUSE_STATE };
+}
+
+// =============================================================
+// Toast notifications
+// =============================================================
+
+export interface ContractPauseToast {
+  message: string;
+  type: ToastType;
+}
+
+/** Toast shown when a freeze/unfreeze transaction succeeds. */
+export function contractPauseSuccessToast(nextPaused: boolean): ContractPauseToast {
+  return {
+    type: "success",
+    message: nextPaused
+      ? "Contract frozen. All escrow movement is now paused."
+      : "Freeze lifted. Contract is now active.",
+  };
+}
+
+/** Toast shown when a freeze/unfreeze transaction fails. */
+export function contractPauseErrorToast(reason: string): ContractPauseToast {
+  return {
+    type: "error",
+    message: `Failed to update freeze state: ${reason}`,
+  };
 }

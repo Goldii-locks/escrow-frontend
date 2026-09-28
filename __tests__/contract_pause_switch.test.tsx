@@ -9,7 +9,11 @@ import {
   MOCK_CONTRACT_PAUSE_TRANSITIONS,
   classifyContractPauseViewport,
   containsCodeTags,
+  CONTRACT_PAUSE_BADGES,
+  contractPauseErrorToast,
+  contractPauseSuccessToast,
   fetchContractPauseState,
+  getContractPauseBadge,
   getContractPauseGridLayout,
   getContractPauseGridLayoutForWidth,
   getContractPausePhaseLabel,
@@ -289,7 +293,7 @@ describe("contract_pause_switch module", () => {
       expect(
         screen.getByText(MOCK_CONTRACT_PAUSE_STATE.contractId),
       ).toBeInTheDocument();
-      expect(screen.getByText("Frozen")).toBeInTheDocument();
+      expect(screen.getAllByText("Frozen").length).toBeGreaterThan(0);
       expect(screen.getByTestId("contract-pause-cell-reason")).toBeInTheDocument();
       expect(
         screen.getByTestId("contract-pause-cell-contract"),
@@ -528,6 +532,130 @@ describe("contract_pause_switch module", () => {
       // Both poisoned fields collapse to the dash fallback.
       const dashes = screen.getAllByText("—");
       expect(dashes.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  // =========================================================================
+  // Status badges
+  // =========================================================================
+
+  describe("Status badges", () => {
+    it("each badge has a label, icon and className", () => {
+      for (const badge of Object.values(CONTRACT_PAUSE_BADGES)) {
+        expect(badge.label.length).toBeGreaterThan(0);
+        expect(badge.icon.length).toBeGreaterThan(0);
+        expect(badge.className).toContain("rounded-full");
+      }
+    });
+
+    it("getContractPauseBadge returns frozen when paused and not pending", () => {
+      expect(getContractPauseBadge(true, false).status).toBe("frozen");
+    });
+
+    it("getContractPauseBadge returns active when not paused and not pending", () => {
+      expect(getContractPauseBadge(false, false).status).toBe("active");
+    });
+
+    it("getContractPauseBadge returns pending while a tx is in flight", () => {
+      expect(getContractPauseBadge(true, true).status).toBe("pending");
+      expect(getContractPauseBadge(false, true).status).toBe("pending");
+    });
+
+    it("frozen badge uses red colour tokens", () => {
+      expect(CONTRACT_PAUSE_BADGES.frozen.className).toContain("red");
+    });
+
+    it("active badge uses green colour tokens", () => {
+      expect(CONTRACT_PAUSE_BADGES.active.className).toContain("green");
+    });
+
+    it("pending badge uses amber colour tokens", () => {
+      expect(CONTRACT_PAUSE_BADGES.pending.className).toContain("amber");
+    });
+
+    it("renders the frozen badge in the header and state cell when paused", () => {
+      render(<ContractPauseSwitch initialState={MOCK_CONTRACT_PAUSE_STATE} />);
+
+      const badges = screen.getAllByTestId(/contract-pause-(status|state)-badge/);
+      for (const badge of badges) {
+        expect(badge).toHaveAttribute("data-status", "frozen");
+        expect(badge.textContent).toContain("Frozen");
+      }
+    });
+
+    it("renders the active badge when the contract is live", () => {
+      render(
+        <ContractPauseSwitch
+          initialState={{ ...MOCK_CONTRACT_PAUSE_STATE, paused: false }}
+        />,
+      );
+
+      const badges = screen.getAllByTestId(/contract-pause-(status|state)-badge/);
+      for (const badge of badges) {
+        expect(badge).toHaveAttribute("data-status", "active");
+        expect(badge.textContent).toContain("Active");
+      }
+    });
+
+    it("renders the pending badge while a transaction is in flight", () => {
+      render(
+        <ContractPauseSwitch initialState={MOCK_CONTRACT_PAUSE_STATE} isPending />,
+      );
+
+      const badges = screen.getAllByTestId(/contract-pause-(status|state)-badge/);
+      for (const badge of badges) {
+        expect(badge).toHaveAttribute("data-status", "pending");
+        expect(badge.textContent).toContain("Pending");
+      }
+    });
+
+    it("controlled paused=false shows active badge regardless of initialState", () => {
+      render(
+        <ContractPauseSwitch
+          initialState={MOCK_CONTRACT_PAUSE_STATE}
+          paused={false}
+        />,
+      );
+
+      const badges = screen.getAllByTestId(/contract-pause-(status|state)-badge/);
+      for (const badge of badges) {
+        expect(badge).toHaveAttribute("data-status", "active");
+      }
+    });
+  });
+
+  // =========================================================================
+  // Toast notifications
+  // =========================================================================
+
+  describe("Toast notifications", () => {
+    it("success toast for freeze has type success and mentions frozen", () => {
+      const toast = contractPauseSuccessToast(true);
+      expect(toast.type).toBe("success");
+      expect(toast.message.toLowerCase()).toContain("frozen");
+    });
+
+    it("success toast for unfreeze has type success and mentions active", () => {
+      const toast = contractPauseSuccessToast(false);
+      expect(toast.type).toBe("success");
+      expect(toast.message.toLowerCase()).toContain("active");
+    });
+
+    it("error toast has type error and includes the reason", () => {
+      const toast = contractPauseErrorToast("wallet rejected");
+      expect(toast.type).toBe("error");
+      expect(toast.message).toContain("wallet rejected");
+    });
+
+    it("error toast includes a human-readable prefix", () => {
+      const toast = contractPauseErrorToast("timeout");
+      expect(toast.message.toLowerCase()).toContain("failed");
+    });
+
+    it("freeze and unfreeze produce distinct messages", () => {
+      expect(contractPauseSuccessToast(true).message).not.toBe(
+        contractPauseSuccessToast(false).message,
+      );
     });
   });
 });
