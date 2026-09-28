@@ -23,6 +23,14 @@ import {
 } from "@/app/lib/arbitration_escrow_details";
 import { getArbitrationBadge } from "@/app/lib/arbitration_escrow_details_badges";
 import { handleArbitrationExport } from "@/app/lib/arbitration_escrow_details_export";
+import {
+  ARBITRATION_SKELETON_ARIA,
+  getArbitrationSkeleton,
+} from "@/app/lib/arbitration_escrow_details_skeleton";
+import {
+  arbitrationContainsCodeTags,
+  sanitizeArbitrationComment,
+} from "@/app/lib/arbitration_escrow_details_sanitize";
 
 export interface ArbitrationEscrowDetailsProps {
   /** Dispute whose locked escrow should be shown. */
@@ -131,22 +139,25 @@ export default function ArbitrationEscrowDetails({
     isEscrowDetailsAuthorized(currentWalletAddress, record, { additionalViewers });
 
   if (externalLoading || (loading && !isAuthorized)) {
+    const skeletonFrames = getArbitrationSkeleton(true);
     return (
       <div
         className={`rounded-xl border border-border-subtle bg-surface-card p-6 ${className}`}
-        aria-busy="true"
-        aria-label="Loading locked escrow details"
+        {...ARBITRATION_SKELETON_ARIA}
         data-testid="arbitration-escrow-details-loading"
       >
         <div className="h-6 w-52 animate-pulse rounded bg-surface-field" />
         <div className="mt-4 grid grid-cols-1 items-start gap-3 sm:grid-cols-2 sm:items-stretch sm:gap-4 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <div
-              key={index}
-              className="h-12 animate-pulse rounded bg-surface-field"
-              aria-hidden="true"
-            />
-          ))}
+          {skeletonFrames
+            .filter((f) => f.kind === "grid-cell")
+            .map((frame) => (
+              <div
+                key={frame.id}
+                className="h-12 animate-pulse rounded bg-surface-field"
+                aria-hidden="true"
+                data-testid={`skeleton-${frame.id}`}
+              />
+            ))}
         </div>
       </div>
     );
