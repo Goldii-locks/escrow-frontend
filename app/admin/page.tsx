@@ -36,6 +36,7 @@ import {
   runContractAction,
   submitContractTransaction,
 } from "@/app/lib/transactions";
+import ContractPauseSwitch from "@/app/components/ContractPauseSwitch";
 
 export default function AdminPage() {
   const { address, signTransaction } = useWallet();
@@ -50,6 +51,29 @@ export default function AdminPage() {
   const { showToast } = useToast();
   const { getState, isPending, setPhase, setError, setTxHash } =
     useActionStates();
+
+  const PAUSE_KEY = "toggle-pause";
+
+  const handlePauseToggle = useCallback(
+    async (nextPaused: boolean) => {
+      if (!address) return;
+      await runContractAction(
+        PAUSE_KEY,
+        (onPhase) =>
+          submitContractTransaction({
+            // The contract exposes pause and resume as separate admin
+            // endpoints, each taking only the admin address.
+            method: nextPaused ? "admin_pause_escrow" : "admin_resume_escrow",
+            args: [{ type: "address", value: address }],
+            sourceAddress: address,
+            signTransaction,
+            onPhase,
+          }),
+        { isPending, setPhase, setError, setTxHash },
+      );
+    },
+    [address, signTransaction, isPending, setPhase, setError, setTxHash],
+  );
 
   const fetchWhitelist = useCallback(async () => {
     setListLoading(true);
@@ -204,6 +228,18 @@ export default function AdminPage() {
           loading={adminCheckLoading}
           isAdmin={isAdminUser}
         >
+          <div className="space-y-8">
+            <ContractPauseSwitch
+              disabled={!address}
+              isPending={isPending(PAUSE_KEY)}
+              onToggle={handlePauseToggle}
+            />
+            {getState(PAUSE_KEY).phase !== "idle" && (
+              <TxStatusBanner
+                state={getState(PAUSE_KEY)}
+                successMessage="Contract freeze state updated."
+              />
+            )}
           <div
             data-testid="whitelist-grid"
             className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start"
@@ -320,6 +356,7 @@ export default function AdminPage() {
                 </ul>
               )}
             </section>
+          </div>
           </div>
         </AdminAccessGate>
       </main>

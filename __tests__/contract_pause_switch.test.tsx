@@ -8,12 +8,14 @@ import {
   MOCK_CONTRACT_PAUSE_STATE,
   MOCK_CONTRACT_PAUSE_TRANSITIONS,
   classifyContractPauseViewport,
+  containsCodeTags,
   fetchContractPauseState,
   getContractPauseGridLayout,
   getContractPauseGridLayoutForWidth,
   getContractPausePhaseLabel,
   getContractPauseReadouts,
   isContractPauseState,
+  sanitizePauseField,
 } from "@/app/lib/contract_pause_switch";
 
 /** Common device widths used across the layout assertions. */
@@ -397,6 +399,135 @@ describe("contract_pause_switch module", () => {
       expect(() =>
         fireEvent.click(screen.getByRole("switch", { name: /Emergency freeze/i })),
       ).not.toThrow();
+    });
+  });
+
+  // =========================================================================
+  // Backend API URL construction (#480)
+  // =========================================================================
+
+  describe("Backend API URL construction (#480)", () => {
+    it("hits the configured BACKEND_URL when no apiUrl override is given", async () => {
+      const fetchMock = vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              success: true,
+              data: {
+                ...MOCK_CONTRACT_PAUSE_STATE,
+                paused: false,
+                reason: "All clear.",
+              },
+            }),
+        }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+
+      const result = await fetchContractPauseState();
+
+      expect(fetchMock).toHaveBeenCalledOnce();
+      const calledUrl = String((fetchMock.mock.calls as unknown[][])[0][0]);
+      // The URL must include the backend host and the is_paused query method.
+      expect(calledUrl).toContain("/api/jobs/query");
+      expect(calledUrl).toContain("method=is_paused");
+      expect(result.paused).toBe(false);
+    });
+
+    it("uses the apiUrl override when provided", async () => {
+      const customUrl = "https://staging.example.com/api/pause-state";
+      const fetchMock = vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(MOCK_CONTRACT_PAUSE_STATE),
+        }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+
+      await fetchContractPauseState({ apiUrl: customUrl });
+
+      expect((fetchMock.mock.calls as unknown[][])[0][0]).toBe(customUrl);
+    });
+
+    it("falls back to mock when the backend returns a valid envelope with incomplete data", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() =>
+          Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({ success: true, data: { paused: true } }),
+          }),
+        ),
+      );
+
+      const result = await fetchContractPauseState();
+      expect(result).toEqual(MOCK_CONTRACT_PAUSE_STATE);
+    });
+  });
+
+  // =========================================================================
+  // Input sanitization
+  // =========================================================================
+
+  describe("Input sanitization", () => {
+    it("detects script tags and javascript: payloads", () => {
+      expect(containsCodeTags("<script>alert(1)</script>")).toBe(true);
+      expect(containsCodeTags("<img src=x onerror=alert(1)>")).toBe(true);
+      expect(containsCodeTags("javascript:alert(1)")).toBe(true);
+      expect(containsCodeTags("JAVASCRIPT:void(0)")).toBe(true);
+    });
+
+    it("passes clean text through", () => {
+      expect(containsCodeTags("Normal freeze reason")).toBe(false);
+      expect(containsCodeTags("CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH")).toBe(false);
+      expect(containsCodeTags("2026-09-24T18:42:00Z")).toBe(false);
+    });
+
+    it("sanitizePauseField strips injected payloads to empty string", () => {
+      expect(sanitizePauseField("<script>alert(1)</script>")).toBe("");
+      expect(sanitizePauseField("javascript:void(0)")).toBe("");
+      expect(sanitizePauseField("<b>bold</b>")).toBe("");
+    });
+
+    it("sanitizePauseField trims whitespace from clean values", () => {
+      expect(sanitizePauseField("  reason  ")).toBe("reason");
+      expect(sanitizePauseField("")).toBe("");
+    });
+
+    it("getContractPauseReadouts collapses injected fields to a dash", () => {
+      const readouts = getContractPauseReadouts({
+        ...MOCK_CONTRACT_PAUSE_STATE,
+        reason: "<script>alert(1)</script>",
+        updatedBy: "javascript:void(0)",
+        contractId: "<img src=x>",
+      });
+
+      expect(readouts.reason).toBe("—");
+      expect(readouts.updatedBy).toBe("—");
+      expect(readouts.contractId).toBe("—");
+      // Phase is derived from the boolean, not from user text — must be unaffected.
+      expect(readouts.phase).toBe("Frozen");
+    });
+
+    it("renders a dash instead of injected content in the readout cells", () => {
+      render(
+        <ContractPauseSwitch
+          initialState={{
+            ...MOCK_CONTRACT_PAUSE_STATE,
+            reason: "<script>alert(1)</script>",
+            contractId: "<b>EVIL</b>",
+          }}
+        />,
+      );
+
+      // The raw injected string must never appear in the DOM.
+      expect(screen.queryByText(/<script>/)).toBeNull();
+      expect(screen.queryByText(/<b>EVIL<\/b>/)).toBeNull();
+
+      // Both poisoned fields collapse to the dash fallback.
+      const dashes = screen.getAllByText("—");
+      expect(dashes.length).toBeGreaterThanOrEqual(2);
     });
   });
 });
