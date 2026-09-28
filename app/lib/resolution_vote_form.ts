@@ -379,3 +379,32 @@ export function buildVoteSubmission(
     },
   };
 }
+
+// ── Issue #459: mock integration checks ────────────────────────────────────
+
+export function verifyMockIntegration(): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  for (const [disputeId, dispute] of Object.entries(MOCK_RESOLUTION_DISPUTES)) {
+    if (!dispute.disputeId) errors.push(`Mock dispute ${disputeId} missing disputeId`);
+    if (!dispute.jobId) errors.push(`Mock dispute ${disputeId} missing jobId`);
+    if (!dispute.amount) errors.push(`Mock dispute ${disputeId} missing amount`);
+    if (!dispute.deadline) errors.push(`Mock dispute ${disputeId} missing deadline`);
+    if (!isValidSplit(dispute.currentSplit.clientBps, dispute.currentSplit.freelancerBps)) {
+      errors.push(`Mock dispute ${disputeId} has invalid current split`);
+    }
+    if (dispute.voteOptions.length === 0) {
+      errors.push(`Mock dispute ${disputeId} has no vote options`);
+    }
+    for (const option of dispute.voteOptions) {
+      if (!isValidSplit(option.clientBps, option.freelancerBps)) {
+        errors.push(`Mock dispute ${disputeId} option ${option.id} has invalid split`);
+      }
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}

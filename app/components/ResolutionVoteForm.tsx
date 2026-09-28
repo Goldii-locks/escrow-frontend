@@ -19,6 +19,26 @@ import {
   type ResolutionVoteSubmission,
 } from "@/app/lib/resolution_vote_form";
 
+interface Toast {
+  id: string;
+  type: "info" | "success" | "warning" | "error";
+  message: string;
+}
+
+function useToast() {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const addToast = (message: string, type: Toast["type"] = "info") => {
+    const id = Date.now().toString();
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3000);
+  };
+
+  return { toasts, addToast };
+}
+
 export interface ResolutionVoteFormProps {
   /** Identifier of the dispute being voted on. */
   disputeId: string;
@@ -192,6 +212,7 @@ function VoteFormBody({ data, onSubmitVote, nowMs, className }: VoteFormBodyProp
   const [signError, setSignError] = useState<string | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const { toasts, addToast } = useToast();
 
   const status = getResolutionVoteStatus(data, nowMs ?? mountedAtMs, hasVoted);
   const ineligible = data.arbitratorStatus === "ineligible";
@@ -210,17 +231,20 @@ function VoteFormBody({ data, onSubmitVote, nowMs, className }: VoteFormBodyProp
     const result = buildVoteSubmission(data, { optionId, customClientBps, rationale });
     if (!result.ok) {
       setFormError(result.error);
+      addToast(result.error, "warning");
       return;
     }
     // Intercept: nothing is signed until the modal is confirmed.
     setSignError(null);
     setPending(result.submission);
+    addToast("Please review and confirm your vote", "info");
   };
 
   const handleCancel = () => {
     if (signing) return;
     setPending(null);
     setSignError(null);
+    addToast("Vote confirmation cancelled", "info");
   };
 
   const handleConfirm = async () => {
@@ -231,11 +255,40 @@ function VoteFormBody({ data, onSubmitVote, nowMs, className }: VoteFormBodyProp
       await onSubmitVote?.(pending);
       setHasVoted(true);
       setPending(null);
+      addToast("Vote successfully signed and submitted", "success");
     } catch (err) {
-      setSignError(err instanceof Error ? err.message : "Failed to sign the vote transaction.");
+      const errorMsg = err instanceof Error ? err.message : "Failed to sign the vote transaction.";
+      setSignError(errorMsg);
+      addToast(errorMsg, "error");
     } finally {
       setSigning(false);
     }
+  };
+
+  const handleExportData = () => {
+    const exportData = {
+      dispute: {
+        id: data.disputeId,
+        jobId: data.jobId,
+        amount: data.amount,
+        deadline: data.deadline,
+        resolved: data.resolved,
+        currentSplit: data.currentSplit,
+      },
+      voteOptions: data.voteOptions,
+      status: { arbitratorStatus: data.arbitratorStatus },
+      exportedAt: new Date().toISOString(),
+    };
+
+    const jsonStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `dispute-${data.disputeId}-export.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    addToast("Dispute data exported successfully", "success");
   };
 
   const customFreelancerBps =
@@ -243,6 +296,34 @@ function VoteFormBody({ data, onSubmitVote, nowMs, className }: VoteFormBodyProp
 
   return (
     <div className={`${CONTAINER_CLASS} ${className}`} data-testid="resolution-vote-form">
+      {/* Toast display (#456) */}
+      {toasts.length > 0 && (
+        <div
+          className="mb-4 space-y-2"
+          role="region"
+          aria-live="polite"
+          aria-label="Action notifications"
+        >
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              data-testid={`toast-${toast.type}`}
+              className={`rounded px-3 py-2 text-xs font-medium animate-in fade-in ${
+                toast.type === "success"
+                  ? "bg-emerald-900/40 text-emerald-200 border border-emerald-700/30"
+                  : toast.type === "error"
+                    ? "bg-red-900/30 text-red-300 border border-red-800/40"
+                    : toast.type === "warning"
+                      ? "bg-amber-900/40 text-amber-200 border border-amber-700/30"
+                      : "bg-blue-900/40 text-blue-200 border border-blue-700/30"
+              }`}
+            >
+              {toast.message}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Header + status badges (#454) */}
       <div className="flex flex-col gap-2 border-b border-gray-800 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -262,27 +343,35 @@ function VoteFormBody({ data, onSubmitVote, nowMs, className }: VoteFormBodyProp
               Not Eligible
             </span>
           )}
+          <button
+            type="button"
+            onClick={handleExportData}
+            className="min-h-[32px] rounded px-2.5 py-0.5 text-xs font-medium text-gray-300 hover:bg-gray-800 border border-gray-700"
+            title="Export dispute data as JSON"
+          >
+            Export
+          </button>
         </div>
       </div>
 
       {/* Dispute details bound from the query (#453) */}
-      <dl className="mt-4 grid grid-cols-1 gap-3 text-xs sm:grid-cols-3">
-        <div>
+      <dl className="mt-4 grid grid-cols-1 gap-3 text-xs sm:grid-cols-3 lg:grid-cols-3 min-w-0 auto-cols-fr">
+        <div className="min-w-0">
           <dt className="text-gray-500">Disputed amount</dt>
-          <dd className="font-medium text-white" data-testid="resolution-vote-amount">
+          <dd className="font-medium text-white truncate" data-testid="resolution-vote-amount">
             {data.amount || "—"}
           </dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="text-gray-500">Current split</dt>
-          <dd className="font-medium text-white" data-testid="resolution-vote-current-split">
+          <dd className="font-medium text-white truncate" data-testid="resolution-vote-current-split">
             Client {formatBpsAsPercent(data.currentSplit.clientBps)} / Freelancer{" "}
             {formatBpsAsPercent(data.currentSplit.freelancerBps)}
           </dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="text-gray-500">Voting deadline</dt>
-          <dd className="font-medium text-white" data-testid="resolution-vote-deadline">
+          <dd className="font-medium text-white truncate" data-testid="resolution-vote-deadline">
             {formatDeadline(data.deadline)}
           </dd>
         </div>
