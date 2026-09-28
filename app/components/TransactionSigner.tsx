@@ -6,7 +6,12 @@ import {
   warnOnTransactionSignerNetworkMismatch,
   type TransactionSignerNetwork,
 } from "@/app/lib/transaction_signer";
+import {
+  checkFreighterAvailability,
+  type FreighterAvailabilityState,
+} from "@/app/lib/freighter_connector";
 import TransactionSignerNetworkWarningBar from "@/app/components/TransactionSignerNetworkWarningBar";
+import FreighterWalletWarningBanner from "@/app/components/FreighterWalletWarningBanner";
 
 export type TransactionSignerStatus =
   | "idle"
@@ -26,6 +31,8 @@ export interface TransactionSignerProps {
   onSigned?: (signedXdr: string) => void;
   /** Optional transaction identifier for logging. */
   txId?: string;
+  /** Precomputed wallet availability, useful when the parent already checked. */
+  walletAvailability?: FreighterAvailabilityState;
   children?: React.ReactNode;
 }
 
@@ -40,9 +47,12 @@ export default function TransactionSigner({
   signTransaction,
   onSigned,
   txId = "tx-signer",
+  walletAvailability: suppliedWalletAvailability,
   children,
 }: TransactionSignerProps) {
   const [status, setStatus] = useState<TransactionSignerStatus>("idle");
+  const walletAvailability =
+    suppliedWalletAvailability ?? checkFreighterAvailability();
 
   const networkState = checkTransactionSignerNetworkMatch(
     walletNetwork,
@@ -54,6 +64,7 @@ export default function TransactionSigner({
       warnOnTransactionSignerNetworkMismatch(walletNetwork, appNetwork);
       return;
     }
+    if (!walletAvailability.available) return;
 
     setStatus("signing");
 
@@ -83,6 +94,7 @@ export default function TransactionSigner({
     }
   }, [
     networkState.mismatched,
+    walletAvailability.available,
     walletNetwork,
     appNetwork,
     signTransaction,
@@ -91,6 +103,7 @@ export default function TransactionSigner({
 
   return (
     <div data-testid="transaction-signer">
+      <FreighterWalletWarningBanner availability={walletAvailability} />
       <TransactionSignerNetworkWarningBar
         walletNetwork={walletNetwork}
         appNetwork={appNetwork}
@@ -99,7 +112,7 @@ export default function TransactionSigner({
       <button
         type="button"
         onClick={handleSign}
-        disabled={networkState.mismatched}
+        disabled={networkState.mismatched || !walletAvailability.available}
         data-testid="transaction-signer-sign-button"
       >
         Sign Transaction

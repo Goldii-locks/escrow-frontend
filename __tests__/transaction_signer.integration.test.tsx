@@ -37,6 +37,12 @@ vi.mock("@creit.tech/stellar-wallets-kit/modules/utils", () => ({
 }));
 
 vi.mock("@/app/lib/freighter_connector", () => ({
+  checkFreighterAvailability: vi.fn(() => ({
+    available: true,
+    status: "available",
+    setupInstruction: null,
+    warningMessage: null,
+  })),
   freighterActiveAddress: {
     setActiveAddress: vi.fn(),
     clear: vi.fn(),
@@ -121,6 +127,7 @@ describe("TransactionSigner + WalletContext integration (#216)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    (window as unknown as Record<string, unknown>)["freighterApi"] = {};
     kitState.getNetwork.mockResolvedValue({
       networkPassphrase: TESTNET_PASSPHRASE,
     });
@@ -128,6 +135,7 @@ describe("TransactionSigner + WalletContext integration (#216)", () => {
 
   afterEach(() => {
     localStorage.clear();
+    delete (window as unknown as Record<string, unknown>)["freighterApi"];
   });
 
   // -------------------------------------------------------------------------
