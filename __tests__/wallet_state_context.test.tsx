@@ -34,6 +34,7 @@ vi.mock("@creit.tech/stellar-wallets-kit/modules/utils", () => ({
 
 vi.mock("@/app/lib/freighter_connector", () => ({
   freighterActiveAddress: {
+    getActiveAddress: vi.fn(() => null),
     setActiveAddress: vi.fn(),
     clear: vi.fn(),
   },
@@ -152,7 +153,11 @@ describe("wallet_state_context / WalletContext (#122)", () => {
     expect(logged).toContain("[wallet_state_context]");
     expect(logged).toContain("TX ERROR");
     expect(logged).toContain("Wallet connection failed");
-    expect(logged).toContain(error.stack);
+    const stackFrames = error.stack?.split("\n") ?? [];
+    expect(stackFrames.length).toBeGreaterThan(0);
+    for (const frame of stackFrames) {
+      expect(logged).toContain(`[wallet_state_context] ${frame}`);
+    }
     expect(logged).toContain("--- stack trace ---");
     expect(logged).toContain("--- end stack ---");
     warnSpy.mockRestore();
