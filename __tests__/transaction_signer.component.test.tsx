@@ -1,16 +1,22 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TransactionSigner from "@/app/components/TransactionSigner";
+import {
+  FREIGHTER_INSTALL_URL,
+  FREIGHTER_SETUP_INSTRUCTION,
+} from "@/app/lib/freighter_connector";
 
 describe("TransactionSigner component (#216)", () => {
   let warnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    (window as unknown as Record<string, unknown>)["freighterApi"] = {};
   });
 
   afterEach(() => {
     warnSpy.mockRestore();
+    delete (window as unknown as Record<string, unknown>)["freighterApi"];
     vi.clearAllMocks();
   });
 
@@ -34,6 +40,57 @@ describe("TransactionSigner component (#216)", () => {
     expect(
       screen.getByTestId("transaction-signer-status")
     ).toHaveTextContent("idle");
+  });
+
+  it("shows wallet setup instructions and blocks signing when Freighter is missing", () => {
+    delete (window as unknown as Record<string, unknown>)["freighterApi"];
+    const signTransaction = vi.fn();
+
+    render(
+      <TransactionSigner
+        walletNetwork="testnet"
+        appNetwork="testnet"
+        signTransaction={signTransaction}
+      />
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      FREIGHTER_SETUP_INSTRUCTION
+    );
+    expect(screen.getByTestId("freighter-wallet-install-link")).toHaveAttribute(
+      "href",
+      FREIGHTER_INSTALL_URL
+    );
+
+    const signButton = screen.getByRole("button", {
+      name: "Sign Transaction",
+    });
+    expect(signButton).toBeDisabled();
+    fireEvent.click(signButton);
+    expect(signTransaction).not.toHaveBeenCalled();
+  });
+
+  it("shows the availability-check error and blocks signing", () => {
+    render(
+      <TransactionSigner
+        walletNetwork="testnet"
+        appNetwork="testnet"
+        signTransaction={vi.fn()}
+        walletAvailability={{
+          available: false,
+          status: "error",
+          setupInstruction: FREIGHTER_SETUP_INSTRUCTION,
+          warningMessage: `Unable to verify wallet availability. ${FREIGHTER_SETUP_INSTRUCTION}`,
+        }}
+      />
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /Unable to verify wallet availability/i
+    );
+    expect(
+      screen.getByRole("button", { name: "Sign Transaction" })
+    ).toBeDisabled();
   });
 
   // ---------------------------------------------------------------------------
