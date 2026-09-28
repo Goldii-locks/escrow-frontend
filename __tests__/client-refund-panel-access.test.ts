@@ -21,15 +21,16 @@ describe("client_refund_panel access restrictions (#500)", () => {
     const access = resolveClientRefundAccess(OTHER, "freelancer", CLIENT);
     expect(access.allowed).toBe(false);
     expect(access.reason).toBe("unauthorized");
+    if (access.allowed) throw new Error("expected access to be denied");
     expect(access.warning).toBe(CLIENT_REFUND_UNAUTHORIZED_WARNING);
   });
 
   it("denies access when wallet is disconnected", () => {
     expect(resolveClientRefundAccess(null).reason).toBe("no_wallet");
     expect(resolveClientRefundAccess("").reason).toBe("no_wallet");
-    expect(resolveClientRefundAccess(null).warning).toBe(
-      CLIENT_REFUND_NO_WALLET_MESSAGE,
-    );
+    const noWallet = resolveClientRefundAccess(null);
+    if (noWallet.allowed) throw new Error("expected access to be denied");
+    expect(noWallet.warning).toBe(CLIENT_REFUND_NO_WALLET_MESSAGE);
   });
 
   it("returns fallback warning messages correctly", () => {
