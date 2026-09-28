@@ -162,4 +162,45 @@ describe("AdminPage", () => {
       expect(removeButtons).toHaveLength(2);
     });
   });
+
+  describe("access gate (Issue #430)", () => {
+    it("never renders the whitelist form or fetches for unauthorized wallets", () => {
+      mockUseWallet.mockReturnValue({ address: "GCLIENT123", signTransaction: vi.fn() });
+      mockIsAdmin.mockReturnValue({ loading: false, isAdminUser: false });
+      stubFetch({ success: true, data: ["CTOKEN1"] });
+
+      render(<AdminPage />);
+
+      expect(screen.getByTestId("admin-access-denied")).toBeInTheDocument();
+      expect(screen.queryByLabelText(/token contract address/i)).not.toBeInTheDocument();
+      expect(screen.queryByText("CTOKEN1")).not.toBeInTheDocument();
+      expect(fetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("loading skeletons (Issue #431)", () => {
+    it("shows the panel skeleton while admin access is verified", () => {
+      mockUseWallet.mockReturnValue({ address: "GADMIN123", signTransaction: vi.fn() });
+      mockIsAdmin.mockReturnValue({ loading: true, isAdminUser: false });
+
+      render(<AdminPage />);
+
+      const skeleton = screen.getByTestId("admin-whitelist-skeleton");
+      expect(skeleton).toHaveAttribute("aria-busy", "true");
+      expect(screen.getByTestId("admin-whitelist-skeleton-form")).toBeInTheDocument();
+      expect(screen.queryByTestId("admin-access-denied")).not.toBeInTheDocument();
+    });
+
+    it("shows row placeholders while the whitelist loads, then swaps in tokens", async () => {
+      mockUseWallet.mockReturnValue({ address: "GADMIN123", signTransaction: vi.fn() });
+      mockIsAdmin.mockReturnValue({ loading: false, isAdminUser: true });
+      stubFetch({ success: true, data: ["CTOKEN1"] });
+
+      render(<AdminPage />);
+
+      expect(screen.getAllByTestId("admin-whitelist-skeleton-row").length).toBeGreaterThan(0);
+      await waitFor(() => expect(screen.getByText("CTOKEN1")).toBeInTheDocument());
+      expect(screen.queryByTestId("admin-whitelist-skeleton")).not.toBeInTheDocument();
+    });
+  });
 });

@@ -3,10 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import { useWallet, WalletProvider } from "@/app/context/WalletContext";
 import { HIGH_FEE_THRESHOLD_STROOPS } from "@/app/lib/ledger_usb_bridge";
 
-// ---------------------------------------------------------------------------
-// Integration: verify WalletContext derives gasWarning correctly from
-// setSimulationResult so the banner reflects real context state changes.
-// ---------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------
+
+// Integration note: verify WalletContext derives gasWarning correctly from 
+// setSimulationResult so the banner reflects real context state changes. 
+// -------------------------------------------------------------------------------------
 
 // Minimal stubs needed by WalletProvider internals.
 vi.mock("@creit.tech/stellar-wallets-kit", () => ({

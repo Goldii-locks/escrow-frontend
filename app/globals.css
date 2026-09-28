@@ -71,12 +71,37 @@ body {
   80%       { transform: translateX(4px);  }
 }
 
-@theme inline {
-  --animate-fade-in:  fade-in  0.25s ease both;
-  --animate-slide-in: slide-in 0.2s  ease both;
-  --animate-shake:    shake    0.35s ease both;
+/*
+ * Pulse soft – marks the active transaction step. Dims only to 85% opacity
+ * (Tailwind's stock `animate-pulse` dims to 50%), so the step number keeps
+ * WCAG AA contrast against its background throughout the cycle.
+ */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1;    }
+  50%       { opacity: 0.85; }
 }
 
-.animate-fade-in  { animation: var(--animate-fade-in);  }
-.animate-slide-in { animation: var(--animate-slide-in); }
-.animate-shake    { animation: var(--animate-shake);    }
+@theme inline {
+  --animate-fade-in:    fade-in    0.25s ease both;
+  --animate-slide-in:   slide-in   0.2s  ease both;
+  --animate-shake:      shake      0.35s ease both;
+  --animate-pulse-soft: pulse-soft 2s    cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-fade-in    { animation: var(--animate-fade-in);    }
+.animate-slide-in   { animation: var(--animate-slide-in);   }
+.animate-shake      { animation: var(--animate-shake);      }
+.animate-pulse-soft { animation: var(--animate-pulse-soft); }
+
+/*
+ * The rules above are unlayered, so they outrank Tailwind's layered
+ * `motion-reduce:animate-none` utilities. Honour reduced motion here too.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-slide-in,
+  .animate-shake,
+  .animate-pulse-soft {
+    animation: none;
+  }
+}

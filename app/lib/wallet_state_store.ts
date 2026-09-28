@@ -70,6 +70,8 @@ const LOG_PREFIX = "[wallet_state_store]";
 export class WalletStateStore {
   private activeState: WalletActiveState | null = null;
   private storage: Storage | null;
+  private transactionSigning = false;
+  private listeners = new Set<() => void>();
 
   constructor(storageOverride?: Storage | null) {
     this.storage =
@@ -94,7 +96,7 @@ export class WalletStateStore {
       }
     } catch (err) {
       console.warn(
-        `${LOG_PREFIX} PERSIST FAILED`,
+        `$LOG_PREFIX} PERSIST FAILED `,
         err instanceof Error ? err.message : String(err)
       );
     }
@@ -109,7 +111,7 @@ export class WalletStateStore {
       const parsed = JSON.parse(raw) as unknown;
       if (!isValidSerializedPayload(parsed)) {
         console.warn(
-          `${LOG_PREFIX} REHYDRATE SCHEMA MISMATCH`,
+          `$LOG_PREFI} REHYDRATE SCHEMA MISMATCH `,
           "Persisted active state data failed validation, falling back to clean state."
         );
         this.storage.removeItem(STORAGE_KEY);
@@ -118,7 +120,7 @@ export class WalletStateStore {
       this.activeState = sanitizeWalletActiveState(parsed);
     } catch (err) {
       console.warn(
-        `${LOG_PREFIX} REHYDRATE FAILED`,
+        `$LOG_PREFIX} REHYDRATE FAILED `,
         err instanceof Error ? err.message : String(err)
       );
       try {
@@ -156,10 +158,33 @@ export class WalletStateStore {
         this.storage.removeItem(STORAGE_KEY);
       } catch (err) {
         console.warn(
-          `${LOG_PREFIX} CLEAR STORAGE FAILED`,
+          `$LOG_PREFIX} CLEAR STORAGE FAILED `,
           err instanceof Error ? err.message : String(err)
         );
       }
+    }
+  }
+
+  isTransactionSigning(): boolean {
+    return this.transactionSigning;
+  }
+
+  setTransactionSigning(isSigning: boolean): void {
+    if (this.transactionSigning === isSigning) return;
+    this.transactionSigning = isSigning;
+    this.emitChange();
+  }
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private emitChange(): void {
+    for (const listener of this.listeners) {
+      listener();
     }
   }
 }

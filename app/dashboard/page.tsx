@@ -5,6 +5,10 @@ import { useWallet } from "@/app/context/WalletContext";
 import Navbar from "@/app/components/Navbar";
 import MilestoneCard from "@/app/components/MilestoneCard";
 import LoadingSkeleton from "@/app/components/LoadingSkeleton";
+import EmptyStateCard from "@/app/components/EmptyStateCard";
+import DisputeRaiseModal from "@/app/components/DisputeRaiseModal";
+import { ArbiterPanelPlaceholder } from "@/app/components/ArbiterActionPanel";
+import { getArbiterJobEmptyState } from "@/app/lib/arbiter_action_panel";
 import { useActionStates } from "@/app/hooks/useActionStates";
 import { useToast } from "@/app/context/ToastContext";
 import {
@@ -149,6 +153,8 @@ export default function Dashboard() {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [disputeModalOpen, setDisputeModalOpen] = useState(false);
+  const [disputeMilestoneIndex, setDisputeMilestoneIndex] = useState<number | null>(null);
 
   const { getState, isPending, setPhase, setError: setActionError, setTxHash } =
     useActionStates();
@@ -297,6 +303,10 @@ export default function Dashboard() {
   const isClient = !!(expandedJob && address === expandedJob.client);
   const isFreelancer = !!(expandedJob && address === expandedJob.freelancer);
   const isArbiter = !!(expandedJob && address === expandedJob.arbiter);
+  // A job with no milestones already shows MilestoneCard's own empty state,
+  // so the arbiter placeholder only covers "milestones, but none disputed".
+  const showArbiterNoDisputes =
+    isArbiter && getArbiterJobEmptyState(milestoneList) === "no-disputes";
 
   const [autoReleaseDeadlines, setAutoReleaseDeadlines] = useState<
     Record<number, number | null>
@@ -401,8 +411,22 @@ export default function Dashboard() {
     showToast(`Approve milestone ${i + 1} (wired to contract soon)`, "info");
   };
 
-  const handleDispute = async (i: number) => {
-    showToast(`Dispute milestone ${i + 1} (wired to contract soon)`, "info");
+  const handleDispute = (i: number) => {
+    setDisputeMilestoneIndex(i);
+    setDisputeModalOpen(true);
+  };
+
+  const handleDisputeSubmit = async (reason: string) => {
+    if (!address || disputeMilestoneIndex === null) return;
+
+    await executeTx(`dispute-${disputeMilestoneIndex}`, "raise_dispute", [
+      { type: "address", value: address },
+      { type: "u32", value: disputeMilestoneIndex.toString() },
+      { type: "string", value: reason },
+    ]);
+
+    setDisputeModalOpen(false);
+    setDisputeMilestoneIndex(null);
   };
 
   const handleResolveDispute = async (index: number, releaseToFreelancer: boolean) => {
@@ -436,31 +460,42 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <Navbar />
-      <main className="max-w-5xl mx-auto px-6 py-12">
-        <h1 className="text-2xl font-bold mb-6">Job Dashboard</h1>
+      <main className="w-full max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-12">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6">Job Dashboard</h1>
 
         {!address ? (
-          <p className="text-center text-gray-400">Connect your wallet to view your jobs</p>
+          <p className="text-center text-gray-400 text-sm sm:text-base" role="status" aria-live="polite">
+            Connect your wallet to view your jobs
+          </p>
         ) : (
-          <div className="space-y-6">
-            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
+          <div className="space-y-4 sm:space-y-6">
+            <form onSubmit={handleSearch} className="flex flex-col gap-2 sm:gap-3">
+              <label htmlFor="search-input" className="sr-only">
+                Search by contract or job ID
+              </label>
               <input
+                id="search-input"
                 type="text"
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Search by contract/job ID"
-                className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-sm"
+                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 hover:border-gray-600"
                 aria-label="Search by contract ID"
+                aria-describedby="search-help"
               />
+              <span id="search-help" className="sr-only">
+                Enter a contract or job ID to search for jobs
+              </span>
               <button
                 type="submit"
-                className="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-lg text-sm font-medium"
+                className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Submit search query"
               >
                 Search
               </button>
             </form>
 
-            <div className="flex flex-wrap gap-2" role="tablist" aria-label="Role filters">
+            <div className="flex flex-wrap gap-2 sm:gap-3" role="tablist" aria-label="Filter jobs by role">
               {roleFilterLabels.map((role) => {
                 const active = roleFilter === role.id;
                 return (
@@ -471,11 +506,13 @@ export default function Dashboard() {
                       setRoleFilter(role.id);
                       setPage(1);
                     }}
-                    aria-pressed={active}
-                    className={`px-3 py-1.5 rounded-full text-sm border transition ${
+                    role="tab"
+                    aria-selected={active}
+                    aria-label={`Filter jobs: ${role.label}`}
+                    className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 ${
                       active
-                        ? "bg-indigo-600 border-indigo-500 text-white"
-                        : "bg-gray-900 border-gray-700 text-gray-300 hover:text-white"
+                        ? "bg-indigo-600 border-indigo-500 text-white focus-visible:ring-indigo-400"
+                        : "bg-gray-900 border-gray-700 text-gray-300 hover:text-white hover:border-gray-600 hover:bg-gray-800 active:bg-gray-700 focus-visible:ring-indigo-500"
                     }`}
                   >
                     {role.label}
@@ -487,15 +524,28 @@ export default function Dashboard() {
             {fetchLoading ? (
               <LoadingSkeleton />
             ) : error ? (
-              <div className="text-center text-red-400" role="alert">
-                Error: {error}
+              <div
+                className="text-center text-red-400 bg-red-950/20 border border-red-800 rounded-lg p-4 animate-shake"
+                role="alert"
+                aria-live="assertive"
+                data-testid="dashboard-error-alert"
+              >
+                <p className="font-semibold mb-1">Error loading jobs</p>
+                <p className="text-sm">{error}</p>
               </div>
             ) : jobs.length === 0 ? (
-              <p className="text-center text-gray-400">No jobs found for this wallet</p>
+              <EmptyStateCard
+                testId="dashboard-empty-state"
+                ariaLabel="No jobs"
+                title="No jobs found"
+                description="You don't have any jobs yet. Connect your wallet to see jobs you're involved in as a client, freelancer, or arbiter. Create one to get started."
+                icon="briefcase"
+                badges={["Client", "Freelancer", "Arbiter"]}
+              />
             ) : (
-              <div className="space-y-5">
-                <div className="border border-gray-800 rounded-xl bg-gray-900 overflow-hidden">
-                  {jobs.map((job) => {
+              <div className="space-y-3 sm:space-y-5">
+                <div className="border border-gray-800 rounded-lg sm:rounded-xl bg-gray-900 overflow-hidden overflow-x-auto" role="region" aria-label="Jobs list">
+                  {jobs.map((job, index) => {
                     const isExpanded = expandedJobId === job.id;
                     const roleBadges = [
                       address === job.client ? "Client" : null,
@@ -504,30 +554,38 @@ export default function Dashboard() {
                     ].filter(Boolean) as string[];
 
                     return (
-                      <div key={job.id} className="border-b border-gray-800 last:border-b-0">
+                      <div
+                        key={job.id}
+                        data-testid="dashboard-list-item"
+                        className="border-b border-gray-800 last:border-b-0 animate-slide-in"
+                      >
                         <button
                           type="button"
                           onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
-                          className="w-full text-left px-5 py-4 hover:bg-gray-800/50 transition"
+                          className="w-full text-left px-3 sm:px-5 py-3 sm:py-4 hover:bg-gray-800/50 transition-all duration-200 active:scale-[0.99] active:bg-gray-800/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
                           aria-expanded={isExpanded}
+                          aria-label={`Job #${job.id.slice(0, 8)}, ${job.funded ? "Funded" : "Not funded"}, ${isExpanded ? "collapse details" : "expand details"}`}
+                          aria-controls={`job-details-${job.id}`}
                         >
-                          <div className="flex items-center justify-between gap-4">
-                            <div>
-                              <p className="font-semibold">Job #{job.id.slice(0, 8)}</p>
-                              <p className="text-xs text-gray-400 mt-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-sm sm:text-base truncate">Job #{job.id.slice(0, 8)}</p>
+                              <p className="text-xs text-gray-400 mt-0.5 sm:mt-1">
                                 {job.funded ? "Funded" : "Not funded"}
                               </p>
                             </div>
-                            <div className="flex flex-wrap justify-end gap-2">
+                            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2">
                               {roleBadges.map((badge) => (
                                 <span
                                   key={`${job.id}-${badge}`}
-                                  className="text-xs px-2 py-1 rounded-full border border-gray-700 bg-gray-800 text-gray-200"
+                                  className="text-xs px-2 py-0.5 sm:py-1 rounded-full border border-gray-700 bg-gray-800 text-gray-200 whitespace-nowrap"
+                                  role="status"
+                                  aria-label={`Your role: ${badge}`}
                                 >
                                   {badge}
                                 </span>
                               ))}
-                              <span className="text-xs text-indigo-300">
+                              <span className="text-xs text-indigo-300 whitespace-nowrap" aria-hidden="true">
                                 {isExpanded ? "Collapse" : "Expand"}
                               </span>
                             </div>
@@ -535,29 +593,38 @@ export default function Dashboard() {
                         </button>
 
                         {isExpanded && (
-                          <div className="px-5 pb-5 space-y-4">
+                          <div
+                            data-testid="dashboard-expanded-panel"
+                            id={`job-details-${job.id}`}
+                            className="px-3 sm:px-5 pb-3 sm:pb-5 space-y-3 sm:space-y-4 border-t border-gray-800/50 animate-fade-in"
+                            role="region"
+                            aria-label={`Details for job #${job.id.slice(0, 8)}`}
+                          >
                             {detailsLoading[job.id] ? (
                               <LoadingSkeleton />
                             ) : !expandedJob ? (
-                              <p className="text-sm text-gray-400">Unable to load job details.</p>
+                              <p className="text-xs sm:text-sm text-gray-400" role="status">Unable to load job details.</p>
                             ) : (
                               <>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                  <div className="bg-gray-800 rounded-lg p-3 min-w-0">
-                                    <p className="text-gray-400">Client</p>
-                                    <p className="font-mono text-xs break-all">{expandedJob.client}</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
+                                  <div className="bg-gray-800 rounded-lg p-2 sm:p-3 min-w-0">
+                                    <p className="text-gray-400 text-xs mb-1 font-semibold">Client</p>
+                                    <p className="font-mono text-xs break-all" aria-label={`Client address: ${expandedJob.client}`}>{expandedJob.client}</p>
                                   </div>
-                                  <div className="bg-gray-800 rounded-lg p-3 min-w-0">
-                                    <p className="text-gray-400">Freelancer</p>
-                                    <p className="font-mono text-xs break-all">{expandedJob.freelancer}</p>
+                                  <div className="bg-gray-800 rounded-lg p-2 sm:p-3 min-w-0">
+                                    <p className="text-gray-400 text-xs mb-1 font-semibold">Freelancer</p>
+                                    <p className="font-mono text-xs break-all" aria-label={`Freelancer address: ${expandedJob.freelancer}`}>{expandedJob.freelancer}</p>
                                   </div>
-                                  <div className="bg-gray-800 rounded-lg p-3 min-w-0">
-                                    <p className="text-gray-400">Arbiter</p>
-                                    <p className="font-mono text-xs break-all">{expandedJob.arbiter}</p>
+                                  <div className="bg-gray-800 rounded-lg p-2 sm:p-3 min-w-0">
+                                    <p className="text-gray-400 text-xs mb-1 font-semibold">Arbiter</p>
+                                    <p className="font-mono text-xs break-all" aria-label={`Arbiter address: ${expandedJob.arbiter}`}>{expandedJob.arbiter}</p>
                                   </div>
                                 </div>
 
-                                <div className="space-y-4">
+                                <div className="space-y-3 sm:space-y-4" role="region" aria-label="Milestones">
+                                  {showArbiterNoDisputes && (
+                                    <ArbiterPanelPlaceholder variant="no-disputes" />
+                                  )}
                                   {milestoneList.length > 0 ? (
                                     milestoneList.map((m) => (
                                       <MilestoneCard
@@ -604,17 +671,18 @@ export default function Dashboard() {
                   })}
                 </div>
 
-                <div className="flex items-center justify-between gap-3">
+                <nav className="flex flex-col xs:flex-row items-center justify-between gap-3 overflow-x-auto" aria-label="Pagination navigation">
                   <button
                     type="button"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1}
-                    className="px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-sm disabled:opacity-50"
+                    className="w-full xs:w-auto px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-xs sm:text-sm transition-all duration-200 hover:bg-gray-800 hover:border-gray-600 active:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-900 disabled:hover:border-gray-700"
+                    aria-label={`Previous page, current page is ${page} of ${totalPages}`}
                   >
                     Previous
                   </button>
 
-                  <div className="flex items-center gap-2" aria-label="Pagination">
+                  <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto" aria-label="Pagination buttons" role="group">
                     {paginationButtons.map((value) => {
                       const active = value === page;
                       return (
@@ -623,10 +691,11 @@ export default function Dashboard() {
                           type="button"
                           onClick={() => setPage(value)}
                           aria-current={active ? "page" : undefined}
-                          className={`h-8 min-w-8 px-2 rounded-md text-sm border ${
+                          aria-label={active ? `Current page, page ${value}` : `Go to page ${value}`}
+                          className={`h-8 min-w-8 px-1.5 sm:px-2 rounded-md text-xs sm:text-sm border whitespace-nowrap transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 ${
                             active
-                              ? "bg-indigo-600 border-indigo-500"
-                              : "bg-gray-900 border-gray-700"
+                              ? "bg-indigo-600 border-indigo-500 text-white focus-visible:ring-indigo-400"
+                              : "bg-gray-900 border-gray-700 text-gray-200 hover:bg-gray-800 hover:border-gray-600 active:bg-gray-700 focus-visible:ring-indigo-500"
                           }`}
                         >
                           {value}
@@ -639,16 +708,32 @@ export default function Dashboard() {
                     type="button"
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page >= totalPages}
-                    className="px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-sm disabled:opacity-50"
+                    className="w-full xs:w-auto px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-xs sm:text-sm transition-all duration-200 hover:bg-gray-800 hover:border-gray-600 active:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-900 disabled:hover:border-gray-700"
+                    aria-label={`Next page, current page is ${page} of ${totalPages}`}
                   >
                     Next
                   </button>
-                </div>
+                </nav>
               </div>
             )}
           </div>
         )}
       </main>
+
+      {/* Dispute Raise Modal */}
+      {disputeMilestoneIndex !== null && (
+        <DisputeRaiseModal
+          isOpen={disputeModalOpen}
+          onClose={() => {
+            setDisputeModalOpen(false);
+            setDisputeMilestoneIndex(null);
+          }}
+          onSubmit={handleDisputeSubmit}
+          milestoneIndex={disputeMilestoneIndex}
+          isLoading={isPending(`dispute-${disputeMilestoneIndex}`)}
+          submissionError={getState(`dispute-${disputeMilestoneIndex}`)?.error}
+        />
+      )}
     </div>
   );
 }

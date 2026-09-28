@@ -1,7 +1,8 @@
 /**
  * network_sync_checker — active network status validator:
  * alignment checks, wallet availability detection, signature time limits,
- * and graceful handling of wallet signature rejections during sync probes.
+ * gas estimation error warnings, and graceful handling of wallet signature
+ * rejections during sync probes.
  */
 
 import type { ToastType } from "@/app/context/ToastContext";
@@ -27,6 +28,136 @@ export interface WalletAvailabilityState {
 }
 
 const LOG_PREFIX = "[network_sync_checker]";
+
+export type NetworkSyncTxPhase =
+  | "idle"
+  | "checking"
+  | "signing"
+  | "success"
+  | "error";
+
+export interface NetworkSyncTxTrackEntry {
+  txId: string;
+  phase: NetworkSyncTxPhase;
+  message: string;
+  timestamp: number;
+  stack?: string;
+}
+
+export interface NetworkSyncConsoleWarningBlock {
+  title: string;
+  body: string;
+  stack: string;
+  txId?: string;
+  phase?: NetworkSyncTxPhase;
+}
+
+/** Captures a normalized stack string from an error or the current call site. */
+export function formatStackTrace(err?: unknown): string {
+  if (err instanceof Error && err.stack) {
+    return err.stack;
+  }
+
+  if (typeof err === "string" && err.includes("\n")) {
+    return err;
+  }
+
+  const synthetic = new Error(
+    typeof err === "string" ? err : "network_sync_checker trace"
+  );
+  return synthetic.stack ?? "Error: network_sync_checker trace";
+}
+
+/** Builds a multi-line console warning block for transaction debug tracking. */
+export function formatConsoleWarningBlock(
+  block: NetworkSyncConsoleWarningBlock
+): string {
+  const lines = [
+    `${LOG_PREFIX} ╔══════════════════════════════════════╗`,
+    `${LOG_PREFIX} ║ ${block.title.padEnd(36).slice(0, 36)} ║`,
+    `${LOG_PREFIX} ╚══════════════════════════════════════╝`,
+    `${LOG_PREFIX} ${block.body}`,
+  ];
+
+  if (block.txId) {
+    lines.push(`${LOG_PREFIX} txId: ${block.txId}`);
+  }
+  if (block.phase) {
+    lines.push(`${LOG_PREFIX} phase: ${block.phase}`);
+  }
+
+  lines.push(`${LOG_PREFIX} --- stack trace ---`);
+  for (const frame of block.stack.split("\n")) {
+    lines.push(`${LOG_PREFIX} ${frame}`);
+  }
+  lines.push(`${LOG_PREFIX} --- end stack ---`);
+
+  return lines.join("\n");
+}
+
+/** Logs a formatted warning block (including stack) to the console. */
+export function logNetworkSyncWarning(
+  title: string,
+  body: string,
+  options?: { err?: unknown; txId?: string; phase?: NetworkSyncTxPhase }
+): string {
+  const stack = formatStackTrace(options?.err);
+  const formatted = formatConsoleWarningBlock({
+    title,
+    body,
+    stack,
+    txId: options?.txId,
+    phase: options?.phase,
+  });
+  console.warn(formatted);
+  return formatted;
+}
+
+export class NetworkSyncTransactionTracker {
+  private entries: NetworkSyncTxTrackEntry[] = [];
+
+  /**
+   * Records a transaction lifecycle event. Emits the formatted console block
+   * only when `err` is present or the phase is "error", so healthy probe runs
+   * stay quiet while failures remain greppable in the console.
+   */
+  track(
+    txId: string,
+    phase: NetworkSyncTxPhase,
+    message: string,
+    err?: unknown
+  ): NetworkSyncTxTrackEntry {
+    const entry: NetworkSyncTxTrackEntry = {
+      txId,
+      phase,
+      message,
+      timestamp: Date.now(),
+      stack: formatStackTrace(err),
+    };
+    this.entries.push(entry);
+
+    if (err !== undefined || phase === "error") {
+      logNetworkSyncWarning(`TX ${phase.toUpperCase()}`, message, {
+        err,
+        txId,
+        phase,
+      });
+    }
+
+    return entry;
+  }
+
+  getHistory(txId?: string): NetworkSyncTxTrackEntry[] {
+    if (!txId) return [...this.entries];
+    return this.entries.filter((e) => e.txId === txId);
+  }
+
+  clear(): void {
+    this.entries = [];
+  }
+}
+
+export const networkSyncTracker = new NetworkSyncTransactionTracker();
 
 /** Default bound for wallet signature probes during network sync. */
 export const DEFAULT_SIGNATURE_TIMEOUT_MS = 60_000;
@@ -146,21 +277,34 @@ export function checkNetworkSync(
   };
 }
 
+export interface NetworkSyncSignOptions {
+  /** Optional identifier tracked through the probe lifecycle for debugging. */
+  txId?: string;
+}
+
 /**
  * Runs a wallet signature step during network sync validation. Catches
- * "user rejected transaction" exceptions, logs them, and shows a warning toast.
+ * "user rejected transaction" exceptions, logs them as a formatted warning
+ * block, and shows a warning toast. Healthy approvals are recorded on the
+ * transaction tracker without console noise.
  */
 export async function runNetworkSyncSign<T>(
   signFn: () => Promise<T>,
-  showToast: SyncToastHandler
+  showToast: SyncToastHandler,
+  options: NetworkSyncSignOptions = {}
 ): Promise<T | null> {
+  const txId = options.txId ?? "network-sync-probe";
   try {
-    return await signFn();
+    const result = await signFn();
+    networkSyncTracker.track(txId, "success", "network sync probe signed");
+    return result;
   } catch (err) {
     if (isNetworkSyncUserRejected(err)) {
-      console.warn(
-        `${LOG_PREFIX} signature rejected during network sync:`,
-        err instanceof Error ? err.message : err
+      networkSyncTracker.track(
+        txId,
+        "error",
+        "signature rejected during network sync",
+        err
       );
       showToast(
         "Network sync cancelled — you rejected the signature in your wallet.",
@@ -180,14 +324,21 @@ export async function validateNetworkSyncWithSignature<T>(
   walletNetwork: SyncNetwork,
   appNetwork: SyncNetwork,
   signFn: () => Promise<T>,
-  showToast: SyncToastHandler
+  showToast: SyncToastHandler,
+  options: NetworkSyncSignOptions = {}
 ): Promise<T | null> {
   const state = checkNetworkSync(walletNetwork, appNetwork);
   if (!state.synced && state.warningMessage) {
+    networkSyncTracker.track(
+      options.txId ?? "network-sync-probe",
+      "error",
+      "network out of sync",
+      new Error(state.warningMessage)
+    );
     showToast(state.warningMessage, "warning");
     return null;
   }
-  return runNetworkSyncSign(signFn, showToast);
+  return runNetworkSyncSign(signFn, showToast, options);
 }
 
 /**
@@ -228,16 +379,17 @@ export function checkWalletAvailability(
         warningMessage: null,
       };
     }
-    return {
+return {
       available: false,
       status: "unavailable",
       setupInstruction: WALLET_SETUP_INSTRUCTION,
       warningMessage: WALLET_SETUP_INSTRUCTION,
     };
   } catch (err) {
-    console.warn(
-      `${LOG_PREFIX} wallet availability check failed:`,
-      err instanceof Error ? err.message : err
+    logNetworkSyncWarning(
+      "WALLET AVAILABILITY FAILED",
+      "wallet availability check failed",
+      { err, phase: "checking" }
     );
     return {
       available: false,
@@ -263,6 +415,115 @@ export function warnOnMissingWallet(
   return state;
 }
 
+// =============================================================
+// Gas estimation warning support (#160)
+// -------------------------------------------------------------
+// Simulation / fee estimation result inspection and warning
+// state derivation for network sync operations. Mirrors the
+// pattern from freighter_connector / ledger_usb_bridge but
+// adapted to network_sync_checker conventions.
+// =============================================================
+
+/** Simulation / fee estimation result as returned by Soroban RPC. */
+export interface NetworkSyncSimulationResult {
+  /** Estimated fee in stroops (1 XLM = 10_000_000 stroops). */
+  fee: number;
+  /** Optional error string from the simulation response. */
+  error?: string;
+  /** Raw simulation error object when the RPC reports a failure. */
+  simulationError?: unknown;
+}
+
+export interface NetworkSyncGasWarningState {
+  hasWarning: boolean;
+  highFee: boolean;
+  simulationError: boolean;
+  warningMessage: string | null;
+}
+
+/**
+ * Fee ceiling above which a high-fee warning is emitted.
+ * 1_000_000 stroops = 0.1 XLM.
+ */
+export const HIGH_FEE_THRESHOLD_STROOPS = 1_000_000;
+
+/**
+ * Inspects a simulation result and produces a user-facing warning state
+ * when fee limits exceed standard bounds or the simulation reported an error.
+ */
+export function checkSimulationFeeWarning(
+  result: NetworkSyncSimulationResult
+): NetworkSyncGasWarningState {
+  if (result.error || result.simulationError) {
+    const message =
+      typeof result.error === "string" && result.error
+        ? `Transaction simulation failed: ${result.error}`
+        : "Transaction simulation failed. The contract may have rejected this operation.";
+
+    return {
+      hasWarning: true,
+      highFee: false,
+      simulationError: true,
+      warningMessage: message,
+    };
+  }
+
+  if (result.fee > HIGH_FEE_THRESHOLD_STROOPS) {
+    const xlm = (result.fee / 10_000_000).toFixed(7);
+    return {
+      hasWarning: true,
+      highFee: true,
+      simulationError: false,
+      warningMessage: `Estimated fee is unusually high (${result.fee} stroops / ${xlm} XLM). Review before signing.`,
+    };
+  }
+
+  return {
+    hasWarning: false,
+    highFee: false,
+    simulationError: false,
+    warningMessage: null,
+  };
+}
+
+/**
+ * Inspects a simulation result and, when a warning applies, logs a
+ * formatted console warning. Returns the warning state for caller consumption.
+ */
+export function warnOnSimulationFee(
+  result: NetworkSyncSimulationResult,
+  options?: { txId?: string }
+): NetworkSyncGasWarningState {
+  const state = checkSimulationFeeWarning(result);
+
+  if (state.hasWarning && state.warningMessage) {
+    const title = state.simulationError ? "SIMULATION ERROR" : "HIGH FEE WARNING";
+    console.warn(
+      `${LOG_PREFIX} ${title}: ${state.warningMessage}`,
+      options?.txId ? `txId: ${options.txId}` : ""
+    );
+  }
+
+  return state;
+}
+
+/**
+ * Inspects a simulation result during network sync operations and displays
+ * a toast warning when a gas estimation error or high fee is detected.
+ */
+export function warnOnNetworkSyncSimulation(
+  result: NetworkSyncSimulationResult,
+  showToast: SyncToastHandler
+): NetworkSyncGasWarningState {
+  const state = checkSimulationFeeWarning(result);
+
+  if (state.hasWarning && state.warningMessage) {
+    showToast(state.warningMessage, "warning");
+  }
+
+  return state;
+}
+
 const NETWORK_SYNC_ACTIVE_ADDRESS_KEY = "network_sync_active_address_state";
 
 export interface NetworkSyncSessionState {
@@ -278,10 +539,10 @@ export function saveNetworkSyncSession(state: NetworkSyncSessionState): void {
   try {
     sessionStorage.setItem(NETWORK_SYNC_ACTIVE_ADDRESS_KEY, JSON.stringify(state));
   } catch (err) {
-    console.warn(
-      `${LOG_PREFIX} failed to save session state:`,
-      err instanceof Error ? err.message : err
-    );
+    logNetworkSyncWarning("SESSION SAVE FAILED", "failed to save session state", {
+      err,
+      phase: "idle",
+    });
   }
 }
 
@@ -301,9 +562,10 @@ export function loadNetworkSyncSession(): NetworkSyncSessionState | null {
       };
     }
   } catch (err) {
-    console.warn(
-      `${LOG_PREFIX} failed to parse session state:`,
-      err instanceof Error ? err.message : err
+    logNetworkSyncWarning(
+      "SESSION PARSE FAILED",
+      "failed to parse session state",
+      { err, phase: "idle" }
     );
   }
   return null;
@@ -317,10 +579,10 @@ export function clearNetworkSyncSession(): void {
   try {
     sessionStorage.removeItem(NETWORK_SYNC_ACTIVE_ADDRESS_KEY);
   } catch (err) {
-    console.warn(
-      `${LOG_PREFIX} failed to clear session state:`,
-      err instanceof Error ? err.message : err
-    );
+    logNetworkSyncWarning("SESSION CLEAR FAILED", "failed to clear session state", {
+      err,
+      phase: "idle",
+    });
   }
 }
 
@@ -822,9 +1084,10 @@ function stringifyStellarAccount(value: unknown): string | null {
       const result = (accountId as () => unknown).call(value);
       if (typeof result === "string" && result.length > 0) return result;
     } catch (err) {
-      console.warn(
-        `${LOG_PREFIX} stellar accountId() extraction failed:`,
-        err instanceof Error ? err.message : err
+      logNetworkSyncWarning(
+        "STELLAR ACCOUNT EXTRACTION FAILED",
+        "stellar accountId() extraction failed",
+        { err, phase: "signing" }
       );
     }
   }

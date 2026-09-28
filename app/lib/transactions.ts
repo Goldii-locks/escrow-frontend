@@ -4,6 +4,79 @@ export type ContractArg = { type: string; value: unknown };
 
 export type TxPhase = "idle" | "building" | "signing" | "submitting" | "success" | "error";
 
+// =============================================================================
+// Transaction signature time limit bounds (#214)
+// =============================================================================
+
+/** Default bound for contract transaction signature requests. */
+export const DEFAULT_SIGNING_TIMEOUT_MS = 60_000;
+
+/**
+ * Holds the XDR string sent to the wallet and an optional sensitive buffer
+ * that is zeroed and dropped on timeout or completion.
+ */
+export interface TxSignRequest {
+  xdr: string;
+  /** Sensitive buffer cleared on timeout / completion. */
+  payload?: Uint8Array | null;
+}
+
+/**
+ * Thrown by {@link signTxWithTimeout} when no signature is received within
+ * the configured time limit.
+ */
+export class TxSignatureTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`Transaction signature timed out after ${timeoutMs}ms`);
+    this.name = "TxSignatureTimeoutError";
+  }
+}
+
+/** Zeroes and drops a sensitive buffer so it cannot be retained after abort. */
+export function clearTxSensitiveMemory(request: TxSignRequest): TxSignRequest {
+  if (request.payload) {
+    request.payload.fill(0);
+  }
+  request.payload = null;
+  return request;
+}
+
+/**
+ * Races a contract transaction signature operation against a timeout clock.
+ * On timeout the operation is aborted and any sensitive payload memory is
+ * cleared. Matches the setTimeout + Promise.race pattern used by all other
+ * connector helpers in this codebase.
+ */
+export async function signTxWithTimeout<T>(
+  request: TxSignRequest,
+  signFn: (xdr: string) => Promise<T>,
+  timeoutMs: number = DEFAULT_SIGNING_TIMEOUT_MS
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let timedOut = false;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      timedOut = true;
+      clearTxSensitiveMemory(request);
+      reject(new TxSignatureTimeoutError(timeoutMs));
+    }, timeoutMs);
+  });
+
+  try {
+    const result = await Promise.race([signFn(request.xdr), timeoutPromise]);
+    clearTxSensitiveMemory(request);
+    return result;
+  } catch (err) {
+    if (timedOut || err instanceof TxSignatureTimeoutError) {
+      clearTxSensitiveMemory(request);
+    }
+    throw err;
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 export const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
 
@@ -41,12 +114,15 @@ export async function submitContractTransaction({
   sourceAddress,
   signTransaction,
   onPhase,
+  signingTimeoutMs = DEFAULT_SIGNING_TIMEOUT_MS,
 }: {
   method: string;
   args: ContractArg[];
   sourceAddress: string;
   signTransaction: (xdr: string) => Promise<string>;
   onPhase?: (phase: TxPhase) => void;
+  /** Maximum milliseconds to wait for a wallet signature before aborting. */
+  signingTimeoutMs?: number;
 }): Promise<string> {
   onPhase?.("building");
 
@@ -73,7 +149,12 @@ export async function submitContractTransaction({
 
   onPhase?.("signing");
 
-  const signedXdr = await signTransaction(xdr);
+  const signRequest: TxSignRequest = { xdr };
+  const signedXdr = await signTxWithTimeout(
+    signRequest,
+    signTransaction,
+    signingTimeoutMs
+  );
 
   if (!signedXdr) {
     throw new WalletRejectedError();
