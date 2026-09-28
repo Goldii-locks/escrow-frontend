@@ -46,3 +46,26 @@ next-env.d.ts
 .agents/
 issue.md
 skills-lock.json
+
+# Test snapshots
+__snapshots__/
+**/__snapshots__/
+*.snap
+
+# Coverage
+.nyc_output/
+
+# Vitest
+test-results/
+vitest-results/
+
+# Editor
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+
+# Logs
+*.log
