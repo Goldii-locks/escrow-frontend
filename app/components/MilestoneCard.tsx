@@ -5,6 +5,8 @@ import { ActionState } from "@/app/hooks/useActionStates";
 import CountdownTimer from "@/app/components/CountdownTimer";
 import TxStatusBanner from "@/app/components/TxStatusBanner";
 import ButtonSpinner from "@/app/components/ButtonSpinner";
+import DisputeRaiseModal from "@/app/components/DisputeRaiseModal";
+import ArbiterActionPanel from "@/app/components/ArbiterActionPanel";
 import { formatBaseUnits } from "@/app/lib/amounts";
 
 interface Milestone {
@@ -52,12 +54,12 @@ interface Props {
   autoReleaseDeadline?: number | null;
   /**
    * Total auto-release window length in ms. Used with
-   * {@link deadlineWarningThresholdMs} defaults (20% of window, 24h floor).
+   * {@link deadlineWarningThresholdMs} defaults (10% of window, 24h floor).
    */
   autoReleaseWindowMs?: number | null;
   /**
    * Override for when the deadline-approaching warning badge appears.
-   * Defaults to max(24h, 20% of autoReleaseWindowMs) when window is known,
+   * Defaults to max(24h, 10% of autoReleaseWindowMs) when window is known,
    * otherwise a flat 24h floor.
    */
   deadlineWarningThresholdMs?: number;
@@ -84,11 +86,11 @@ const baseBtn =
 export const DEADLINE_WARNING_FLOOR_MS = 24 * 60 * 60 * 1000;
 
 /** Default fraction of the auto-release window used for the warning threshold. */
-export const DEADLINE_WARNING_RATIO = 0.2;
+export const DEADLINE_WARNING_RATIO = 0.1;
 
 /**
  * Resolve the deadline-warning threshold: explicit override wins; otherwise
- * max(24h floor, 20% of the total window), falling back to the 24h floor.
+ * max(24h floor, last 10% of the total window), falling back to the 24h floor.
  */
 export function resolveDeadlineWarningThresholdMs(
   windowMs?: number | null,
@@ -163,6 +165,10 @@ export default function MilestoneCard({
   void unusedProps;
 
   // Local state for the partial-release amount input and its validation error
+  // Raising a dispute now goes through a confirmation modal rather than
+  // firing onDispute straight from the button, so the reason can be captured
+  // and the irreversibility spelled out before anything is submitted.
+  const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
   const [partialAmount, setPartialAmount] = useState("");
   const [partialAmtError, setPartialAmtError] = useState<string | null>(null);
 
@@ -283,7 +289,7 @@ export default function MilestoneCard({
         max-h-[85vh] overflow-y-auto sm:max-h-none sm:overflow-visible
         border border-border-strong rounded-lg p-4 bg-surface-card
         flex flex-col gap-3
-        sm:flex-row sm:items-center sm:justify-between sm:gap-4
+        sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4
         transition-all duration-200
         hover:border-accent-soft/40 hover:bg-surface-card/80
         focus-within:outline-none focus-within:ring-2 focus-within:ring-accent-soft focus-within:ring-offset-2 focus-within:ring-offset-surface-page
@@ -454,7 +460,7 @@ export default function MilestoneCard({
           {(isClient || isFreelancer) &&
             ["Pending", "Delivered"].includes(milestone.status) && (
               <button
-                onClick={() => onDispute?.(milestone.index)}
+                onClick={() => setIsDisputeModalOpen(true)}
                 disabled={!onDispute}
                 aria-disabled={!onDispute}
                 aria-label={`Dispute ${milestoneLabel}`}
@@ -463,38 +469,20 @@ export default function MilestoneCard({
                 Dispute
               </button>
             )}
-            
-          {isArbiter && milestone.status === "Disputed" && (
-            <>
-              <button
-                onClick={() => onResolveDispute?.(milestone.index, true)}
-                disabled={!onResolveDispute || isResolveDisputePending}
-                className={`${baseBtn} bg-success text-surface-page font-medium hover:bg-success/80 disabled:opacity-50`}
-              >
-                {isResolveDisputePending ? "Releasing..." : "Release to Freelancer"}
-              </button>
-
-              <button
-                onClick={() => onResolveDispute?.(milestone.index, false)}
-                disabled={!onResolveDispute || isResolveDisputePending}
-                className={`${baseBtn} bg-danger text-text-primary hover:bg-danger/80 disabled:opacity-50`}
-              >
-                {isResolveDisputePending ? "Refunding..." : "Refund to Client"}
-              </button>
-            </>
-          )}
         </div>
-
-        {/* TxStatusBanner rendered cleanly inside the layout alignment */}
-        {resolveDisputeState && resolveDisputeState.phase !== "idle" && (
-          <div className="w-full min-w-[240px]">
-            <TxStatusBanner 
-              state={resolveDisputeState} 
-              successMessage="Dispute resolved successfully. Funds have been distributed." 
-            />
-          </div>
-        )}
       </div>
+
+      {/* Arbiter resolution panel — full-width row beneath the card summary */}
+      {isArbiter && milestone.status === "Disputed" && (
+        <ArbiterActionPanel
+          milestoneIndex={milestone.index}
+          displayAmount={`${displayAmount} ${amountSymbol}`}
+          escrowAmount={unreleasedBalance(milestone)?.toString() ?? null}
+          onResolve={onResolveDispute}
+          isPending={isResolveDisputePending}
+          resolveState={resolveDisputeState}
+        />
+      )}
 
       {/* Partial release form — visible to client when milestone is Delivered or PartiallyReleased */}
       {isClient && ["Delivered", "PartiallyReleased"].includes(milestone.status) && (
@@ -583,6 +571,17 @@ export default function MilestoneCard({
           />
         </div>
       )}
+
+      <DisputeRaiseModal
+        isOpen={isDisputeModalOpen}
+        onClose={() => setIsDisputeModalOpen(false)}
+        milestoneIndex={milestone.index}
+        amount={`${displayAmount} ${amountSymbol}`}
+        onSubmit={() => {
+          setIsDisputeModalOpen(false);
+          onDispute?.(milestone.index);
+        }}
+      />
     </div>
   );
 }

@@ -24,9 +24,11 @@ import {
   validateMultiSigAssembly,
   withWalletLoader,
   WalletTransactionTracker,
+  signWalletWithTimeout,
   type WalletMultiSigAssemblyOptions,
   type WalletMultiSigAssemblyResult,
   type WalletMultiSigSplit,
+  WalletSignatureTimeoutError,
 } from "@/app/lib/wallet_state_context";
 import { walletStateStore } from "@/app/lib/wallet_state_store";
 import { WalletRejectedError, isWalletRejectedError } from "@/app/lib/errors";
@@ -72,6 +74,9 @@ interface WalletContextType {
   selectedWalletId: SupportedWalletId;
   setSelectedWalletId: (walletId: SupportedWalletId) => void;
   signTransaction: (xdr: string) => Promise<string>;
+  signatureTimeoutError: WalletSignatureTimeoutError | null;
+  signatureTimeoutXdr: string | null;
+  clearSignatureTimeout: () => void;
   /** Current simulation result used to derive gas/fee warning state. */
   simulationResult: LedgerSimulationResult | null;
   /** Set after a Soroban simulation completes; triggers fee warning evaluation. */
@@ -90,6 +95,9 @@ const WalletContext = createContext<WalletContextType>({
   selectedWalletId: SUPPORTED_WALLETS[0].id,
   setSelectedWalletId: () => {},
   signTransaction: async () => "",
+  signatureTimeoutError: null,
+  signatureTimeoutXdr: null,
+  clearSignatureTimeout: () => {},
   simulationResult: null,
   setSimulationResult: () => {},
   gasWarning: null,
@@ -108,6 +116,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [networkMismatchMessage, setNetworkMismatchMessage] = useState<
     string | null
   >(null);
+  const [signatureTimeoutError, setSignatureTimeoutError] =
+    useState<WalletSignatureTimeoutError | null>(null);
+  const [signatureTimeoutXdr, setSignatureTimeoutXdr] = useState<string | null>(
+    null
+  );
   const [simulationResult, setSimulationResult] =
     useState<LedgerSimulationResult | null>(null);
   const initializedRef = useRef(false);
@@ -304,30 +317,45 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const signTransaction = useCallback(async (xdr: string): Promise<string> => {
     if (!address) throw new Error("Wallet not connected");
+    setSignatureTimeoutError(null);
+    setSignatureTimeoutXdr(null);
 
     return withWalletLoader(async () => {
       try {
         ensureKitInitialized();
         StellarWalletsKit.setWallet(selectedWalletId);
 
-        const result = (await StellarWalletsKit.signTransaction(xdr, {
-          address,
-          networkPassphrase: NETWORK_PASSPHRASE,
-        })) as KitSignResult;
+        const result = await signWalletWithTimeout(
+          { xdr },
+          async (transactionXdr) =>
+            (await StellarWalletsKit.signTransaction(transactionXdr, {
+              address,
+              networkPassphrase: NETWORK_PASSPHRASE,
+            })) as KitSignResult
+        );
 
         return result.signedTxXdr ?? "";
       } catch (e) {
-        walletTracker.track("sign", "error", "Wallet signTransaction failed", e);
+        const rejected = isWalletRejectedError(e);
+        walletTracker.track(
+          "sign",
+          "error",
+          rejected
+            ? "Wallet signTransaction rejected by user"
+            : "Wallet signTransaction failed",
+          e
+        );
+
+        if (e instanceof WalletSignatureTimeoutError) {
+          setSignatureTimeoutError(e);
+          setSignatureTimeoutXdr(xdr);
+        }
 
         // A user declining in their wallet is an expected outcome, not a
         // fault: surface it as a warning and normalise it to
         // WalletRejectedError so callers can branch on it. Every other
         // failure is rethrown untouched.
-        if (isWalletRejectedError(e)) {
-          console.warn(
-            "[wallet_state_context] signature rejected by user:",
-            e instanceof Error ? e.message : String(e)
-          );
+        if (rejected) {
           showToast(
             "Signature cancelled - you rejected the request in your wallet.",
             "warning"
@@ -339,6 +367,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }
     });
   }, [address, ensureKitInitialized, selectedWalletId, showToast]);
+
+  const clearSignatureTimeout = useCallback(() => {
+    setSignatureTimeoutError(null);
+    setSignatureTimeoutXdr(null);
+  }, []);
 
   const assembleMultiSigTransaction = useCallback(
     async (
@@ -374,6 +407,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         selectedWalletId,
         setSelectedWalletId,
         signTransaction,
+        signatureTimeoutError,
+        signatureTimeoutXdr,
+        clearSignatureTimeout,
         simulationResult,
         setSimulationResult,
         gasWarning,

@@ -38,3 +38,6 @@ NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH
 
 - `https://github.com/Goldii-locks/escrow-contract`  — Soroban smart contract
 - Update README with latest progress
+
+
+Design tokens integration for dark mode switcher.

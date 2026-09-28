@@ -87,9 +87,8 @@ describe("wallet_state_context signature rejection handling (#115)", () => {
 
   it("logs and warns when the user rejects a signature request", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    walletKitMocks.signTransaction.mockRejectedValue(
-      new Error("User rejected transaction")
-    );
+    const rejection = new Error("User rejected transaction");
+    walletKitMocks.signTransaction.mockRejectedValue(rejection);
     const wallet = await renderConnectedWallet();
 
     await expect(
@@ -100,13 +99,21 @@ describe("wallet_state_context signature rejection handling (#115)", () => {
       "Signature cancelled - you rejected the request in your wallet.",
       "warning"
     );
-    expect(warnSpy).toHaveBeenCalledWith(
-      "[wallet_state_context] signature rejected by user:",
-      "User rejected transaction"
-    );
+    const warning = warnSpy.mock.calls
+      .map((call) => String(call[0]))
+      .find((call) => call.includes("Wallet signTransaction rejected by user"));
+    expect(warning).toBeDefined();
+    expect(warning).toContain("Wallet signTransaction rejected by user");
+    expect(warning).toContain("txId: sign");
+    expect(warning).toContain("phase: error");
+    expect(warning).toContain("--- stack trace ---");
+    expect(warning).toContain("Error: User rejected transaction");
+    expect(warning).toMatch(/\[wallet_state_context\].*at .*wallet-state-signature-rejection/);
+    expect(warning).toContain("--- end stack ---");
   });
 
   it("preserves unexpected signing failures without showing a rejection warning", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const signingError = new Error("Wallet RPC unavailable");
     walletKitMocks.signTransaction.mockRejectedValue(signingError);
     const wallet = await renderConnectedWallet();
@@ -115,6 +122,13 @@ describe("wallet_state_context signature rejection handling (#115)", () => {
       signingError
     );
     expect(showToast).not.toHaveBeenCalled();
+    const warning = warnSpy.mock.calls
+      .map((call) => String(call[0]))
+      .find((call) => call.includes("Wallet signTransaction failed"));
+    expect(warning).toBeDefined();
+    expect(warning).toContain("--- stack trace ---");
+    expect(warning).toContain("Error: Wallet RPC unavailable");
+    expect(warning).toMatch(/\[wallet_state_context\].*at .*wallet-state-signature-rejection/);
   });
 
   it("does not classify unexpected signing failures as transaction rejection", async () => {

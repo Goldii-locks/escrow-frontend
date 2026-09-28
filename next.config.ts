@@ -1,8 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: "export",
 };
 
-// Trigger GitHub Actions
 export default nextConfig;

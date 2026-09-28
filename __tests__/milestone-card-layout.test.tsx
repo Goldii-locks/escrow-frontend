@@ -551,11 +551,40 @@ describe("MilestoneCard — button click handler invocation", () => {
     expect(handler).toHaveBeenCalledWith(1);
   });
 
-  it("calls onDispute with the milestone index when 'Dispute' is clicked", () => {
+  it("opens the confirmation modal instead of disputing straight from the button", () => {
+    const handler = vi.fn();
+    renderCard({ isClient: true, onDispute: handler });
+
+    expect(screen.queryByTestId("dispute-raise-modal")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /dispute milestone \d+/i }));
+
+    // Raising a dispute is irreversible, so the click must confirm first.
+    expect(screen.getByTestId("dispute-raise-modal")).toBeInTheDocument();
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("calls onDispute with the milestone index once the modal is confirmed", () => {
     const handler = vi.fn();
     renderCard({ isClient: true, onDispute: handler });
     fireEvent.click(screen.getByRole("button", { name: /dispute milestone \d+/i }));
+
+    fireEvent.change(screen.getByTestId("dispute-raise-modal-reason"), {
+      target: { value: "Work was never delivered." },
+    });
+    fireEvent.click(screen.getByTestId("dispute-raise-modal-confirm"));
+
     expect(handler).toHaveBeenCalledWith(0);
+    expect(screen.queryByTestId("dispute-raise-modal")).toBeNull();
+  });
+
+  it("does not dispute when the confirmation modal is dismissed", () => {
+    const handler = vi.fn();
+    renderCard({ isClient: true, onDispute: handler });
+    fireEvent.click(screen.getByRole("button", { name: /dispute milestone \d+/i }));
+    fireEvent.click(screen.getByTestId("dispute-raise-modal-cancel"));
+
+    expect(handler).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("dispute-raise-modal")).toBeNull();
   });
 
   it("does NOT call onMarkDelivered when the button is disabled (no handler)", () => {

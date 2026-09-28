@@ -275,9 +275,9 @@ describe("MilestoneCard", () => {
     expect(screen.queryByTestId("milestone-deadline-warning")).not.toBeInTheDocument();
   });
 
-  it("uses 20% of autoReleaseWindowMs when that exceeds the 24h floor", () => {
+  it("uses 10% of autoReleaseWindowMs when that exceeds the 24h floor", () => {
     const tenDays = 10 * 24 * 60 * 60 * 1000;
-    // 20% of 10 days = 2 days; remaining 36h is within that window
+    // 10% of 10 days = 1 day; remaining 36h is outside the 10% window
     render(
       <MilestoneCard
         milestone={{ index: 0, amount: "100", status: "Delivered" }}
@@ -288,6 +288,26 @@ describe("MilestoneCard", () => {
         isPartialReleasePending={false}
         isClaimAutoReleasePending={false}
         autoReleaseDeadline={Date.now() + 36 * 60 * 60 * 1000}
+        autoReleaseWindowMs={tenDays}
+      />
+    );
+
+    expect(screen.queryByTestId("milestone-deadline-warning")).not.toBeInTheDocument();
+  });
+
+  it("renders the deadline warning badge when remaining time is inside the final 10% of the window", () => {
+    const tenDays = 10 * 24 * 60 * 60 * 1000;
+    // 10% of 10 days = 1 day; remaining 12h is inside the final 10%
+    render(
+      <MilestoneCard
+        milestone={{ index: 0, amount: "100", status: "Delivered" }}
+        isClient={false}
+        isFreelancer
+        partialReleaseState={idleActionState}
+        claimAutoReleaseState={idleActionState}
+        isPartialReleasePending={false}
+        isClaimAutoReleasePending={false}
+        autoReleaseDeadline={Date.now() + 12 * 60 * 60 * 1000}
         autoReleaseWindowMs={tenDays}
       />
     );

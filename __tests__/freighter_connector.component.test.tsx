@@ -2,7 +2,17 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import FreighterConnector from "@/app/components/FreighterConnector";
 import FreighterGasWarningBanner from "@/app/components/FreighterGasWarningBanner";
-import { freighterTracker, HIGH_FEE_THRESHOLD_STROOPS } from "@/app/lib/freighter_connector";
+import {
+  freighterTracker,
+  FreighterSignatureTimeoutError,
+  HIGH_FEE_THRESHOLD_STROOPS,
+} from "@/app/lib/freighter_connector";
+
+const showToast = vi.hoisted(() => vi.fn());
+
+vi.mock("@/app/context/ToastContext", () => ({
+  useToast: () => ({ showToast }),
+}));
 
 // ---------------------------------------------------------------------------
 // #112 — React Testing Library assertions for freighter_connector
@@ -247,6 +257,10 @@ describe("FreighterConnector component (#112)", () => {
     const logged = String(warnSpy.mock.calls[0][0]);
     expect(logged).toContain("SIGNATURE REJECTED");
     expect(logged).toContain("--- stack trace ---");
+    expect(showToast).toHaveBeenCalledWith(
+      "Signature cancelled — you rejected the request in your wallet.",
+      "warning"
+    );
   });
 
   it("also handles 'user declined' rejection phrasing", async () => {
@@ -316,6 +330,37 @@ describe("FreighterConnector component (#112)", () => {
     expect(warnSpy).toHaveBeenCalled();
     const logged = String(warnSpy.mock.calls[0][0]);
     expect(logged).toContain("SIGN ERROR");
+    expect(logged).toContain("--- stack trace ---");
+  });
+
+  // -------------------------------------------------------------------------
+  // Signing — signature timeout alert
+  // -------------------------------------------------------------------------
+
+  it("surfaces the signature timeout alert when Freighter signing times out", async () => {
+    const signTransaction = vi
+      .fn()
+      .mockRejectedValue(new FreighterSignatureTimeoutError(60_000));
+
+    render(
+      <FreighterConnector
+        simulate={vi.fn()}
+        signTransaction={signTransaction}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign via Freighter" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("freighter-connector-status")
+      ).toHaveTextContent("error");
+    });
+
+    expect(warnSpy).toHaveBeenCalled();
+    const logged = String(warnSpy.mock.calls[0][0]);
+    expect(logged).toContain("SIGN ERROR");
+    expect(logged).toContain("Freighter signature timed out after 60000ms");
     expect(logged).toContain("--- stack trace ---");
   });
 

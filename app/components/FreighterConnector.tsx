@@ -7,7 +7,9 @@ import {
   freighterTracker,
   type FreighterSimulationResult,
 } from "@/app/lib/freighter_connector";
+import { useToast } from "@/app/context/ToastContext";
 import FreighterGasWarningBanner from "@/app/components/FreighterGasWarningBanner";
+import GasEstimationWarningBanner from "@/app/components/GasEstimationWarningBanner";
 
 export type FreighterConnectorStatus =
   | "idle"
@@ -43,6 +45,7 @@ export default function FreighterConnector({
   const [status, setStatus] = useState<FreighterConnectorStatus>("idle");
   const [simulation, setSimulation] =
     useState<FreighterSimulationResult | null>(null);
+  const { showToast } = useToast();
 
   const handleSimulate = useCallback(async () => {
     setStatus("simulating");
@@ -101,9 +104,16 @@ export default function FreighterConnector({
         { err, txId, phase: "signing" }
       );
 
+      if (isRejection) {
+        showToast(
+          "Signature cancelled — you rejected the request in your wallet.",
+          "warning"
+        );
+      }
+
       setStatus(isRejection ? "rejected" : "error");
     }
-  }, [signTransaction, onSigned, txId]);
+  }, [signTransaction, onSigned, showToast, txId]);
 
   return (
     <div data-testid="freighter-connector">
@@ -115,6 +125,7 @@ export default function FreighterConnector({
       </button>
       <span data-testid="freighter-connector-status">{status}</span>
       <FreighterGasWarningBanner simulation={simulation} />
+      <GasEstimationWarningBanner />
     </div>
   );
 }

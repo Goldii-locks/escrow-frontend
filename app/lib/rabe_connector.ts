@@ -401,3 +401,160 @@ export async function runRabeSign<T>(
     throw err;
   }
 }
+
+
+// ---------------------------------------------------------------------------
+// Secure persistent caching for active Rabe wallet addresses
+// ---------------------------------------------------------------------------
+
+/** localStorage key under which the serialized address cache is stored. */
+export const RABE_CACHE_KEY = "rabe_active_address_cache";
+
+/**
+ * Shape of the cache entry persisted to localStorage.
+ * Using a versioned envelope makes future migrations explicit.
+ */
+export interface RabeActiveAddressCache {
+  /** Schema version — increment when the shape changes. */
+  version: 1;
+  /** The Stellar public key of the connected wallet (G… address). */
+  address: string;
+  /** Unix-ms timestamp of when the entry was last written. */
+  savedAt: number;
+  /** Network the wallet was connected to when the address was cached. */
+  network: RabeNetwork;
+}
+
+// ---- Validation helpers ---------------------------------------------------
+
+/**
+ * Returns true when `value` looks like a valid Stellar public key.
+ * Public keys are 56 characters, start with "G", and are Base32 (A-Z 2-7).
+ */
+function isValidStellarAddress(value: string): boolean {
+  return /^G[A-Z2-7]{55}$/.test(value);
+}
+
+/**
+ * Returns true when `value` is one of the known {@link RabeNetwork} literals.
+ */
+function isValidNetwork(value: unknown): value is RabeNetwork {
+  return value === "mainnet" || value === "testnet";
+}
+
+// ---- Public cache API -----------------------------------------------------
+
+/**
+ * Validates that `raw` conforms to the {@link RabeActiveAddressCache} shape.
+ * Returns `true` when every required field passes its type and value check.
+ */
+export function validateRabeAddressCache(
+  raw: unknown
+): raw is RabeActiveAddressCache {
+  if (!raw || typeof raw !== "object") return false;
+
+  const candidate = raw as Record<string, unknown>;
+
+  if (candidate.version !== 1) return false;
+  if (typeof candidate.address !== "string") return false;
+  if (!isValidStellarAddress(candidate.address)) return false;
+  if (typeof candidate.savedAt !== "number") return false;
+  if (!Number.isFinite(candidate.savedAt) || candidate.savedAt <= 0)
+    return false;
+  if (!isValidNetwork(candidate.network)) return false;
+
+  return true;
+}
+
+/**
+ * Serializes an {@link RabeActiveAddressCache} entry to a JSON string.
+ * Exposed for testing; normal callers should use {@link saveRabeAddressCache}.
+ */
+export function serializeRabeAddressCache(
+  cache: RabeActiveAddressCache
+): string {
+  return JSON.stringify(cache);
+}
+
+/**
+ * Parses a JSON string and validates it as an {@link RabeActiveAddressCache}.
+ * Returns `null` when parsing fails or the data does not pass validation.
+ */
+export function deserializeRabeAddressCache(
+  raw: string
+): RabeActiveAddressCache | null {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return validateRabeAddressCache(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Writes the active-address cache to localStorage.
+ *
+ * Safe to call in SSR contexts — the write is skipped when `window` is
+ * unavailable so Next.js server renders do not throw.
+ */
+export function saveRabeAddressCache(
+  address: string,
+  network: RabeNetwork
+): void {
+  if (typeof window === "undefined") return;
+
+  const cache: RabeActiveAddressCache = {
+    version: 1,
+    address,
+    savedAt: Date.now(),
+    network,
+  };
+
+  try {
+    localStorage.setItem(RABE_CACHE_KEY, serializeRabeAddressCache(cache));
+  } catch (err) {
+    // localStorage may be unavailable (private mode quota exceeded, etc.)
+    logRabeWarning(
+      "CACHE WRITE FAILED",
+      "Could not persist active address cache to localStorage.",
+      { err }
+    );
+  }
+}
+
+/**
+ * Reads and validates the active-address cache from localStorage.
+ *
+ * Returns `null` when:
+ * - the code is running server-side,
+ * - the key is absent,
+ * - the stored value is corrupt or fails validation.
+ */
+export function loadRabeAddressCache(): RabeActiveAddressCache | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = localStorage.getItem(RABE_CACHE_KEY);
+    if (raw === null) return null;
+    return deserializeRabeAddressCache(raw);
+  } catch {
+    // Gracefully handle any unexpected storage errors.
+    return null;
+  }
+}
+
+/**
+ * Removes the active-address cache entry from localStorage.
+ *
+ * Call this on wallet disconnect or when the cached address can no longer
+ * be verified as active.
+ */
+export function clearRabeAddressCache(): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    localStorage.removeItem(RABE_CACHE_KEY);
+  } catch {
+    // Ignore — if we can't remove it, there is nothing more to do.
+  }
+}

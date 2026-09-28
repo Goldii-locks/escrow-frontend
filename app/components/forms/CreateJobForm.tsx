@@ -173,7 +173,17 @@ export default function CreateJobForm({
   };
 
   return (
-    <div className="w-full max-w-2xl">
+    <div className="wd-full max-w-2mx">
+      {loading && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          data-testid="loading-spinner-overlay"
+          role="status"
+          aria-label="Loading"
+        >
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
+        </div>
+      )}
       {state.mode === "form" ? (
         <div className="rounded-lg border border-gray-800 bg-gray-950 p-4 text-white">
           <div className="mb-4 flex items-center justify-between">
@@ -311,4 +321,3 @@ export default function CreateJobForm({
     </div>
   );
 }
-

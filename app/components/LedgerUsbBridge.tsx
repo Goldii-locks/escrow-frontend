@@ -10,7 +10,7 @@ import {
   type LedgerNetwork,
   type LedgerSignResult,
   type LedgerToastHandler,
-} from "@/app/lib/ledger_usb_bridge";
+} from "../lib/ledger_usb_bridge";
 import LedgerWalletWarningBanner from "./LedgerWalletWarningBanner";
 
 export type LedgerBridgeStatus =
@@ -37,7 +37,7 @@ export interface LedgerUsbBridgeProps {
 }
 
 /**
- * UI bridge for Ledger USB wallet actions — transport availability detection,
+ * UI bridge for Ledger USB wallet actions -- transport availability detection,
  * network checks, and signing flows backed by `ledger_usb_bridge` helpers.
  */
 export default function LedgerUsbBridge({
@@ -107,12 +107,12 @@ export default function LedgerUsbBridge({
   }, [signTransaction, showToast, onSigned, transportState, detector]);
 
   return (
-    <div data-testid="ledger-usb-bridge">
+    <div data-testid="ledger-usb-bridge" aria-busy={status === "signing"}>
       <LedgerWalletWarningBanner availability={transportState} />
       <button
         type="button"
         onClick={handleCheckNetwork}
-        disabled={!transportState.available}
+        disabled={!transportState.available || status === "signing"}
         className="disabled:opacity-40 disabled:cursor-not-allowed"
       >
         Check Ledger network
@@ -120,11 +120,14 @@ export default function LedgerUsbBridge({
       <button
         type="button"
         onClick={handleSign}
-        disabled={!transportState.available}
+        disabled={!transportState.available || status === "signing"}
         className="disabled:opacity-40 disabled:cursor-not-allowed"
       >
         Sign via Ledger
       </button>
+      {status === "signing" && (
+        <span data-testid="ledger-usb-bridge-spinner" className="ledger-spinner" />
+      )}
       <span data-testid="ledger-usb-bridge-status">{displayStatus}</span>
     </div>
   );
