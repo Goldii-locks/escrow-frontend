@@ -36,33 +36,34 @@ export default function ClientRefundPanel({
   apiEndpoint,
   className = "",
 }: ClientRefundPanelProps) {
-  const [refunds, setRefunds] = useState<ClientRefundEntry[]>(
-    initialRefunds ?? mapRefundPayload(MOCK_REFUND_PAYLOAD),
+  const [fetchedRefunds, setFetchedRefunds] = useState<ClientRefundEntry[]>(
+    () => mapRefundPayload(MOCK_REFUND_PAYLOAD),
   );
+  // Caller-supplied entries always win; fetched (or mock) data fills in otherwise.
+  const refunds = initialRefunds ?? fetchedRefunds;
   const [loading, setLoading] = useState<boolean>(
-    !initialRefunds && externalLoading,
+    !initialRefunds && (externalLoading || Boolean(apiEndpoint)),
   );
   const [reason, setReason] = useState("");
   const [amount, setAmount] = useState("");
   const [inputError, setInputError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (initialRefunds) {
-      setRefunds(initialRefunds);
-      return;
-    }
+    if (initialRefunds || !apiEndpoint) return;
 
-    if (apiEndpoint) {
-      setLoading(true);
-      fetchRefundEntries(apiEndpoint)
-        .then((data) => {
-          setRefunds(data);
-          setLoading(false);
-        })
-        .catch(() => {
-          setLoading(false);
-        });
-    }
+    let cancelled = false;
+    fetchRefundEntries(apiEndpoint)
+      .then((data) => {
+        if (cancelled) return;
+        setFetchedRefunds(data);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [initialRefunds, apiEndpoint]);
 
   const handleReasonChange = (val: string) => {
