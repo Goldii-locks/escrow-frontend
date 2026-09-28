@@ -61,11 +61,10 @@ export default function AdminPage() {
         PAUSE_KEY,
         (onPhase) =>
           submitContractTransaction({
-            method: "toggle_pause",
-            args: [
-              { type: "address", value: address },
-              { type: "bool", value: nextPaused },
-            ],
+            // The contract exposes pause and resume as separate admin
+            // endpoints, each taking only the admin address.
+            method: nextPaused ? "admin_pause_escrow" : "admin_resume_escrow",
+            args: [{ type: "address", value: address }],
             sourceAddress: address,
             signTransaction,
             onPhase,
