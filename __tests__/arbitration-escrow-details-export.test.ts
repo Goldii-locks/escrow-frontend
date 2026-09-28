@@ -10,7 +10,9 @@ import {
 
 describe("arbitration_escrow_details export helpers (#487)", () => {
   it("escapes cells and neutralises spreadsheet formulas", () => {
-    expect(escapeArbitrationCsvCell("=SUM(1,2)")).toBe("'=SUM(1,2)");
+    // The comma forces RFC 4180 quoting around the neutralised formula.
+    expect(escapeArbitrationCsvCell("=SUM(1,2)")).toBe(`"'=SUM(1,2)"`);
+    expect(escapeArbitrationCsvCell("=SUM(A1)")).toBe("'=SUM(A1)");
     expect(escapeArbitrationCsvCell("+CMD")).toBe("'+CMD");
     expect(escapeArbitrationCsvCell("-100")).toBe("'-100");
     expect(escapeArbitrationCsvCell("@ADMIN")).toBe("'@ADMIN");

@@ -21,6 +21,7 @@ describe("freelancer_claim_panel access restrictions (#490)", () => {
     const access = resolveFreelancerClaimAccess(OTHER, "client", FREELANCER);
     expect(access.allowed).toBe(false);
     expect(access.reason).toBe("unauthorized");
+    if (access.allowed) throw new Error("expected access to be denied");
     expect(access.warning).toBe(FREELANCER_CLAIM_UNAUTHORIZED_WARNING);
   });
 
@@ -28,9 +29,9 @@ describe("freelancer_claim_panel access restrictions (#490)", () => {
     expect(resolveFreelancerClaimAccess(null).reason).toBe("no_wallet");
     expect(resolveFreelancerClaimAccess("").reason).toBe("no_wallet");
     expect(resolveFreelancerClaimAccess("   ").reason).toBe("no_wallet");
-    expect(resolveFreelancerClaimAccess(null).warning).toBe(
-      FREELANCER_CLAIM_NO_WALLET_MESSAGE,
-    );
+    const noWallet = resolveFreelancerClaimAccess(null);
+    if (noWallet.allowed) throw new Error("expected access to be denied");
+    expect(noWallet.warning).toBe(FREELANCER_CLAIM_NO_WALLET_MESSAGE);
   });
 
   it("returns fallback warning messages correctly", () => {
