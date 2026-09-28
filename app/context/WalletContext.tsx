@@ -272,6 +272,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const connect = useCallback(async () => {
     setIsConnecting(true);
+    walletTracker.track("connect", "connecting", "Opening wallet selector");
     try {
       await withWalletLoader(async () => {
         ensureKitInitialized();
@@ -280,6 +281,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         const result = (await StellarWalletsKit.authModal()) as { address?: string };
         if (result.address) {
           setAddress(result.address);
+          walletTracker.track("connect", "success", "Wallet connected");
           await checkNetwork();
           localStorage.setItem(STORAGE_KEY, "true");
           if (selectedWalletId === "freighter") {
