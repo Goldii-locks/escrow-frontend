@@ -34,6 +34,7 @@ vi.mock("@creit.tech/stellar-wallets-kit/modules/utils", () => ({
 
 vi.mock("@/app/lib/freighter_connector", () => ({
   freighterActiveAddress: {
+    getActiveAddress: vi.fn(() => null),
     setActiveAddress: vi.fn(),
     clear: vi.fn(),
   },
@@ -138,7 +139,8 @@ describe("wallet_state_context / WalletContext (#122)", () => {
 
   it("connect() leaves the address unset and logs a warning block on failure", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    kitState.authModal.mockRejectedValue(new Error("user rejected"));
+    const error = new Error("user rejected");
+    kitState.authModal.mockRejectedValue(error);
     renderWallet();
 
     screen.getByText("connect").click();
@@ -149,7 +151,35 @@ describe("wallet_state_context / WalletContext (#122)", () => {
     expect(warnSpy).toHaveBeenCalled();
     const logged = warnSpy.mock.calls.map((call) => String(call[0])).join("\n");
     expect(logged).toContain("[wallet_state_context]");
+    expect(logged).toContain("TX ERROR");
+    expect(logged).toContain("Wallet connection failed");
+    const stackFrames = error.stack?.split("\n") ?? [];
+    expect(stackFrames.length).toBeGreaterThan(0);
+    for (const frame of stackFrames) {
+      expect(logged).toContain(`[wallet_state_context] ${frame}`);
+    }
     expect(logged).toContain("--- stack trace ---");
+    expect(logged).toContain("--- end stack ---");
+    warnSpy.mockRestore();
+  });
+
+  it("tracks the wallet selector lifecycle with formatted warning blocks", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    kitState.authModal.mockResolvedValue({ address: "GCONNECTED" });
+    renderWallet();
+
+    screen.getByText("connect").click();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("address")).toHaveTextContent("GCONNECTED");
+    });
+
+    const logged = warnSpy.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(logged).toContain("phase: connecting");
+    expect(logged).toContain("Opening wallet selector");
+    expect(logged).toContain("phase: success");
+    expect(logged).toContain("Wallet connected");
+    expect(logged.match(/--- stack trace ---/g)).toHaveLength(2);
     warnSpy.mockRestore();
   });
 

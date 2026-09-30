@@ -923,3 +923,154 @@ export function warnOnDisconnectSimulationFee(
 
   return state;
 }
+
+// =============================================================
+// Multi-signature transaction assembly splits (#239)
+// =============================================================
+
+import {
+  parseMultiSigEnvelope,
+  createMultiSigSplit,
+  validateMultiSigAssembly,
+  type WalletMultiSigSplit,
+  type WalletMultiSigParseOptions,
+  type WalletMultiSigAssemblyOptions,
+  type WalletMultiSigEnvelopeShape,
+  WalletMultiSigStructureError,
+} from "@/app/lib/wallet_state_context";
+
+export type { WalletMultiSigSplit };
+
+export interface DisconnectMultiSigSnapshot {
+  baseXdr: string;
+  signerPublicKeys: string[];
+}
+
+export interface DisconnectMultiSigSplitResult {
+  valid: boolean;
+  splits: WalletMultiSigSplit[];
+  error: string | null;
+  signatureCount: number;
+  sourceAccount: string | null;
+}
+
+export interface DisconnectMultiSigValidationResult {
+  valid: boolean;
+  error: string | null;
+  uniqueSigners: number;
+}
+
+/**
+ * Parses a pending multi-sig transaction XDR and creates per-signer splits
+ * so remaining co-signers can continue signing after the wallet disconnects.
+ *
+ * Returns a structured result rather than throwing, mirroring the
+ * `WalletDisconnectResult` pattern used by `disconnectWalletWithCheck`.
+ */
+export function splitDisconnectMultiSigTransaction(
+  snapshot: DisconnectMultiSigSnapshot,
+  options?: WalletMultiSigParseOptions,
+): DisconnectMultiSigSplitResult {
+  try {
+    const envelope: WalletMultiSigEnvelopeShape = parseMultiSigEnvelope(
+      snapshot.baseXdr,
+      options ?? {},
+    );
+
+    const splits: WalletMultiSigSplit[] = snapshot.signerPublicKeys.map(
+      (publicKey) =>
+        createMultiSigSplit(envelope.baseXdr, {
+          publicKey,
+          hint: publicKey.slice(-4),
+        }),
+    );
+
+    return {
+      valid: true,
+      splits,
+      error: null,
+      signatureCount: envelope.signatures,
+      sourceAccount: envelope.sourceAccount,
+    };
+  } catch (err) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Failed to split multi-sig transaction for disconnect.";
+
+    console.warn(`${LOG_PREFIX} MULTI-SIG SPLIT FAILED:`, message);
+
+    return {
+      valid: false,
+      splits: [],
+      error: message,
+      signatureCount: 0,
+      sourceAccount: null,
+    };
+  }
+}
+
+/**
+ * Validates a collection of multi-sig splits as a coherent assembly before
+ * proceeding with a wallet disconnect. Ensures each split's base XDR parses
+ * correctly and the unique signer count meets the minimum threshold.
+ */
+export function validateDisconnectMultiSigSplits(
+  splits: WalletMultiSigSplit[],
+  options?: WalletMultiSigAssemblyOptions,
+): DisconnectMultiSigValidationResult {
+  try {
+    const result = validateMultiSigAssembly(splits, options);
+    return {
+      valid: true,
+      error: null,
+      uniqueSigners: result.uniqueSigners,
+    };
+  } catch (err) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Multi-sig assembly validation failed.";
+
+    console.warn(`${LOG_PREFIX} MULTI-SIG VALIDATION FAILED:`, message);
+
+    return {
+      valid: false,
+      error: message,
+      uniqueSigners: 0,
+    };
+  }
+}
+
+/**
+ * Convenience wrapper: parses, splits, and validates a pending multi-sig
+ * transaction in one call. Returns the split result when the assembly is
+ * valid, or an error result when any step fails.
+ */
+export function prepareDisconnectMultiSigSplits(
+  snapshot: DisconnectMultiSigSnapshot,
+  parseOptions?: WalletMultiSigParseOptions,
+  assemblyOptions?: WalletMultiSigAssemblyOptions,
+): DisconnectMultiSigSplitResult {
+  const splitResult = splitDisconnectMultiSigTransaction(
+    snapshot,
+    parseOptions,
+  );
+
+  if (!splitResult.valid) return splitResult;
+
+  const validation = validateDisconnectMultiSigSplits(
+    splitResult.splits,
+    assemblyOptions,
+  );
+
+  if (!validation.valid) {
+    return {
+      ...splitResult,
+      valid: false,
+      error: validation.error,
+    };
+  }
+
+  return splitResult;
+}
