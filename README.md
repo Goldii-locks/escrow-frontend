@@ -41,3 +41,8 @@ NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH
 
 
 Design tokens integration for dark mode switcher.
+
+## Handsoff notes
+
+<!-- handsoff-issue-509 -->
+- #509: Add mock integration checks for client_refund_panel
