@@ -160,10 +160,12 @@ describe("contract_pause_switch export (#477)", () => {
 
       expect(handled).toBe(true);
       expect(created).toHaveLength(1);
-      // A BOM is prepended so Excel opens the UTF-8 text correctly.
-      const text = await created[0].text();
-      expect(text.charCodeAt(0)).toBe(0xfeff);
-      expect(text.slice(1)).toBe(buildContractPauseCsv(ROWS));
+      // A BOM is prepended so Excel opens the UTF-8 text correctly. Read the
+      // raw bytes for that: `Blob.text()` UTF-8-decodes, which strips the BOM
+      // per spec, so the decoded string is the CSV on its own.
+      const bytes = new Uint8Array(await created[0].arrayBuffer());
+      expect([bytes[0], bytes[1], bytes[2]]).toEqual([0xef, 0xbb, 0xbf]);
+      expect(await created[0].text()).toBe(buildContractPauseCsv(ROWS));
       expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:mock");
     });
 
@@ -212,8 +214,8 @@ describe("contract_pause_switch export (#477)", () => {
       const handled = exportContractPauseHistory(MOCK_CONTRACT_PAUSE_TRANSITIONS);
 
       expect(handled).toBe(true);
-      const text = await created[0].text();
-      expect(text.slice(1)).toBe(
+      // `text()` strips the BOM, so compare against the CSV directly.
+      expect(await created[0].text()).toBe(
         buildContractPauseCsv(toContractPauseExportRows(MOCK_CONTRACT_PAUSE_TRANSITIONS)),
       );
     });
