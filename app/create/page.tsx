@@ -145,17 +145,29 @@ export default function CreateJob() {
   const normalizedRequirements = requirements.filter(
     (requirement) => requirement.trim().length > 0,
   );
+  const validateMilestoneAmount = (value: string): string | null => {
+    const trimmed = value.trim();
+    if (trimmed.length === 0) return null;
+    if (!/^[0-9]+$/.test(trimmed)) {
+      return "Milestone amount must contain only digits.";
+    }
+    if (BigInt(trimmed) <= BigInt(0)) {
+      return "Milestone amount must be greater than 0.";
+    }
+    return null;
+  };
+
+  const milestoneErrors = normalizedMilestones.map((m) =>
+    validateMilestoneAmount(m.amount)
+  );
   const hasNoMilestones = normalizedMilestones.length === 0;
   const hasPartialMilestones = normalizedMilestones.some(
     (m) => m.amount.trim().length === 0
   );
-  const hasInvalidMilestones = normalizedMilestones.some(m => {
-    const trimmed = m.amount.trim();
-    if (trimmed.length === 0) return false;
-    return !/^[0-9]+$/.test(trimmed);
-  });
+  const hasInvalidMilestones = milestoneErrors.some((err) => err !== null);
 
-  const hasValidationErrors = !!freelancerError || !!arbiterError || !!tokenError;
+  const hasValidationErrors =
+    !!freelancerError || !!arbiterError || !!tokenError || hasInvalidMilestones;
   const isSubmitDisabled = loading || !address || hasNoMilestones || hasPartialMilestones || hasValidationErrors;
 
   const validateFreelancer = (val: string) => {
@@ -280,8 +292,11 @@ export default function CreateJob() {
       setError("Complete each milestone amount before creating a job.");
       return;
     }
-    if (hasInvalidMilestones) {
-      setError("Milestone amounts must contain only numeric characters.");
+    const firstMilestoneError = milestoneErrors.find(
+      (err): err is string => err !== null
+    );
+    if (firstMilestoneError) {
+      setError(firstMilestoneError);
       return;
     }
     if (!token || !whitelist.some((option) => option.address === token)) {
@@ -303,9 +318,10 @@ export default function CreateJob() {
 
     try {
       const milestoneAmounts = normalizedMilestones.map((m) => {
+        const milestoneError = validateMilestoneAmount(m.amount);
         const trimmed = m.amount.trim();
-        if (!/^[0-9]+$/.test(trimmed)) {
-          throw new Error("Invalid milestone amount");
+        if (milestoneError || trimmed.length === 0) {
+          throw new Error(milestoneError ?? "Invalid milestone amount");
         }
         return BigInt(trimmed);
       });
@@ -917,26 +933,31 @@ export default function CreateJob() {
                       role="list"
                       aria-label="Milestone amounts"
                     >
-                      {normalizedMilestones.map((m, i) => (
-                        <li key={i} className="flex gap-2 items-center animate-slide-in">
-                          <input
-                            id={`milestone-input-${i}`}
-                            className={`${inputClassName} flex-1 min-w-0`}
-                            value={m.amount}
-                            onChange={(e) => updateMilestone(i, e.target.value)}
-                            onFocus={() => setActiveSection("milestones")}
-                            placeholder={`Milestone ${i + 1} amount (stroops)`}
-                            aria-label={`Milestone ${i + 1} amount in stroops`}
-                            aria-required="true"
-                            type="number"
-                            min="0"
-                            step="any"
-                            inputMode="numeric"
-                            required
-                            pattern="^[0-9]+$"
-                            disabled={loading}
-                          />
-                          <button
+                      {normalizedMilestones.map((m, i) => {
+                        const milestoneError = milestoneErrors[i];
+                        return (
+                          <li key={i} className="space-y-1 animate-slide-in">
+                            <div className="flex gap-2 items-center">
+                              <input
+                                id={`milestone-input-${i}`}
+                                className={`${inputClassName} flex-1 min-w-0 ${milestoneError ? "!border-danger" : ""}`}
+                                value={m.amount}
+                                onChange={(e) => updateMilestone(i, e.target.value)}
+                                onFocus={() => setActiveSection("milestones")}
+                                placeholder={`Milestone ${i + 1} amount (stroops)`}
+                                aria-label={`Milestone ${i + 1} amount in stroops`}
+                                aria-required="true"
+                                aria-invalid={!!milestoneError}
+                                aria-describedby={
+                                  milestoneError ? `milestone-error-${i}` : undefined
+                                }
+                                type="text"
+                                inputMode="decimal"
+                                required
+                                pattern="^[1-9][0-9]*$"
+                                disabled={loading}
+                              />
+                              <button
                             type="button"
                             onClick={() => removeMilestone(i)}
                             aria-label={`Remove milestone ${i + 1}`}
@@ -945,8 +966,21 @@ export default function CreateJob() {
                           >
                             ✕
                           </button>
-                        </li>
-                      ))}
+                            </div>
+                            {milestoneError && (
+                              <p
+                                id={`milestone-error-${i}`}
+                                data-testid={`milestone-error-${i}`}
+                                role="alert"
+                                aria-live="polite"
+                                className="text-xs text-danger-soft"
+                              >
+                                {milestoneError}
+                              </p>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                   {/*

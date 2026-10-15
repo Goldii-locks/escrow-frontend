@@ -13,9 +13,20 @@ vi.mock("@/app/components/Navbar", () => ({
   default: () => <div data-testid="navbar" />,
 }));
 
+const mockSubmitContractTransaction = vi.fn();
+
 vi.mock("@/app/context/WalletContext", () => ({
   useWallet: () => mockUseWallet(),
 }));
+
+vi.mock("@/app/lib/transactions", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/app/lib/transactions")>();
+  return {
+    ...actual,
+    submitContractTransaction: (...args: unknown[]) =>
+      mockSubmitContractTransaction(...args),
+  };
+});
 
 describe("Create page", () => {
   beforeEach(() => {
@@ -128,5 +139,60 @@ describe("Create page", () => {
     });
 
     expect(screen.getByRole("button", { name: "Create Job" })).not.toBeDisabled();
+  });
+
+  it("renders milestone amount input as type=text with inputMode=decimal and shows inline errors immediately for 0, -1, 1e7, or abc, then submits valid values", async () => {
+    mockSubmitContractTransaction.mockResolvedValue("tx_valid_123");
+    vi.spyOn(window, "alert").mockImplementation(() => {});
+
+    render(<CreateJob />);
+
+    fireEvent.change(screen.getByLabelText("Freelancer Address"), {
+      target: { value: "G" + "F".repeat(55) },
+    });
+    fireEvent.change(screen.getByLabelText("Arbiter Address"), {
+      target: { value: "G" + "B".repeat(55) },
+    });
+
+    await screen.findByRole("option", { name: "USDC" });
+    const tokenSelect = screen.getByLabelText("Token Contract Address", {
+      selector: "select",
+    }) as HTMLSelectElement;
+    fireEvent.change(tokenSelect, { target: { value: "CTOKEN" } });
+
+    const milestoneInput = screen.getByLabelText("Milestone 1 amount in stroops");
+    expect(milestoneInput).toHaveAttribute("type", "text");
+    expect(milestoneInput).toHaveAttribute("inputMode", "decimal");
+    expect(milestoneInput).not.toHaveAttribute("step");
+    expect(milestoneInput).not.toHaveAttribute("min");
+
+    for (const invalidValue of ["0", "-1", "1e7", "abc"]) {
+      fireEvent.change(milestoneInput, { target: { value: invalidValue } });
+      expect(screen.getByTestId("milestone-error-0")).toBeInTheDocument();
+      expect(milestoneInput).toHaveAttribute("aria-invalid", "true");
+      expect(screen.getByRole("button", { name: "Create Job" })).toBeDisabled();
+    }
+
+    fireEvent.change(milestoneInput, { target: { value: "100" } });
+    expect(screen.queryByTestId("milestone-error-0")).not.toBeInTheDocument();
+    expect(milestoneInput).toHaveAttribute("aria-invalid", "false");
+
+    const submitButton = screen.getByRole("button", { name: "Create Job" });
+    expect(submitButton).not.toBeDisabled();
+    fireEvent.click(submitButton);
+
+    await screen.findByText(/Job Created!/i);
+    expect(mockSubmitContractTransaction).toHaveBeenCalledTimes(1);
+    expect(mockSubmitContractTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "initialize",
+        args: expect.arrayContaining([
+          {
+            type: "vec",
+            value: [{ type: "i128", value: "100" }],
+          },
+        ]),
+      })
+    );
   });
 });
