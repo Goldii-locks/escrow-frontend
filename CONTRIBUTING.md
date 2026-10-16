@@ -96,6 +96,10 @@ the disconnected create/dashboard states, and the admin access gate.
 A rendered admin page does not grant access. HTTP checks alone do not establish
 browser hydration or a successful transaction.
 Stop each server with Ctrl+C when finished.
+`next dev` can regenerate the tracked Next.js block in `AGENTS.md`. Review
+`git diff -- AGENTS.md` before committing. If that diff is solely generated and
+you made no intentional edits to that file, restore it with `git restore -- AGENTS.md`;
+otherwise preserve and review your intentional changes.
 
 The frontend uses `output: "export"` in [next.config.ts](next.config.ts).
 `npm run build` writes the static site to `out/`; `next start` is not the
