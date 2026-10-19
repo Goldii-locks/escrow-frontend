@@ -82,3 +82,10 @@ Thumbs.db
 # Logs
 *.log
 issues.md
+
+# additional ignores
+*.snap
+**/*.snap
+__snapshots__/
+**/__snapshots__/
+
