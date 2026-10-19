@@ -48,7 +48,7 @@ jobs:
     outputs:
       image_tag: ${{ steps.meta.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Pin to the exact commit that CI passed, not whatever HEAD is now.
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
