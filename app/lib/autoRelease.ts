@@ -1,4 +1,4 @@
-import { BACKEND_URL } from "@/app/lib/transactions";
+﻿import { getTimeRemaining } from "@/app/lib/api";
 
 /**
  * Auto-release timing for a single milestone, normalized to an absolute
@@ -49,7 +49,7 @@ export async function fetchAutoReleaseInfo(
 ): Promise<AutoReleaseInfo> {
   const now = options?.now ?? Date.now;
   try {
-    const res = await fetch(
+
       `${BACKEND_URL}/api/jobs/${encodeURIComponent(jobId)}/milestones/${milestoneIndex}/auto-release`,
       { signal: options?.signal },
     );
@@ -79,3 +79,6 @@ export async function fetchAutoReleaseInfo(
     return { deadlineMs: null, eligible: false };
   }
 }
+
+
+

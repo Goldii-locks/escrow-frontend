@@ -1,4 +1,4 @@
-import { formatTxError, WalletRejectedError } from "@/app/lib/errors";
+﻿import { formatTxError, WalletRejectedError } from "@/app/lib/errors";\nimport { BACKEND_URL, buildTx, submitTx } from "@/app/lib/api";
 
 export type ContractArg = { type: string; value: unknown };
 
@@ -77,7 +77,7 @@ export async function signTxWithTimeout<T>(
   }
 }
 
-export const BACKEND_URL =
+// BACKEND_URL exported from api
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
 
 export const CONTRACT_ID = process.env.NEXT_PUBLIC_CONTRACT_ID || "";
@@ -126,7 +126,7 @@ export async function submitContractTransaction({
 }): Promise<string> {
   onPhase?.("building");
 
-  const buildTxRes = await fetch(`${BACKEND_URL}/api/jobs/build-tx`, {
+
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -162,7 +162,7 @@ export async function submitContractTransaction({
 
   onPhase?.("submitting");
 
-  const submitRes = await fetch(`${BACKEND_URL}/api/jobs/submit`, {
+
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ signedXdr }),
@@ -207,3 +207,9 @@ export async function runContractAction(
     return null;
   }
 }
+
+
+
+
+
+

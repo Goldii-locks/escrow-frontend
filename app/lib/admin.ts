@@ -1,4 +1,4 @@
-import { BACKEND_URL } from "@/app/lib/transactions";
+﻿import { getAdminAddress } from "@/app/lib/api";
 
 /**
  * Query the contract to get the admin address.
@@ -64,6 +64,8 @@ export async function isAdmin(
 ): Promise<boolean> {
   if (!walletAddress) return false;
 
-  const adminAddress = await fetchAdminAddress(contractId, options);
+  const adminAddress = await getAdminAddress(contractId, options);
   return adminAddress !== null && adminAddress === walletAddress;
 }
+
+
