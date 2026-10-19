@@ -93,9 +93,10 @@ describe("Dashboard – empty job list view (issue #276)", () => {
     expect(screen.queryByTestId("empty-state")).not.toBeInTheDocument();
   });
 
-  it("does NOT render the EmptyState placeholder while no wallet is connected", () => {
+  it("does NOT render the empty job list while no wallet is connected", () => {
     mockUseWallet.mockReturnValue({ address: null, signTransaction: vi.fn() });
     render(<Dashboard />);
-    expect(screen.queryByTestId("empty-state")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("dashboard-empty-state")).not.toBeInTheDocument();
+    expect(screen.getByTestId("dashboard-connect-wallet")).toBeInTheDocument();
   });
 });

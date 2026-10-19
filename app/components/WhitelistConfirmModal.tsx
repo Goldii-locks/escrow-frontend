@@ -5,12 +5,18 @@ import {
   getConfirmCopy,
   type WhitelistAction,
 } from "@/app/lib/admin_whitelist_panel";
+import { CONTRACT_ID, NETWORK_PASSPHRASE } from "@/app/lib/config";
+import { networkLabel, truncateContractId } from "@/app/lib/network";
 
 export interface WhitelistConfirmModalProps {
   /** Action awaiting confirmation; `null` keeps the modal closed. */
   action: WhitelistAction | null;
   onCancel: () => void;
   onConfirm: (action: WhitelistAction) => void;
+  /** Contract the transaction targets; defaults to the configured one. */
+  contractId?: string;
+  /** Network the transaction targets; defaults to the configured one. */
+  networkPassphrase?: string;
 }
 
 /**
@@ -22,6 +28,8 @@ export default function WhitelistConfirmModal({
   action,
   onCancel,
   onConfirm,
+  contractId = CONTRACT_ID,
+  networkPassphrase = NETWORK_PASSPHRASE,
 }: WhitelistConfirmModalProps) {
   if (!action) return null;
   // Keyed so the acknowledgement resets for every new action.
@@ -31,6 +39,8 @@ export default function WhitelistConfirmModal({
       action={action}
       onCancel={onCancel}
       onConfirm={onConfirm}
+      contractId={contractId}
+      networkPassphrase={networkPassphrase}
     />
   );
 }
@@ -39,6 +49,8 @@ function ConfirmBody({
   action,
   onCancel,
   onConfirm,
+  contractId,
+  networkPassphrase,
 }: Required<WhitelistConfirmModalProps> & { action: WhitelistAction }) {
   const [acknowledged, setAcknowledged] = useState(false);
   const copy = getConfirmCopy(action);
@@ -61,6 +73,13 @@ function ConfirmBody({
           className="font-mono text-sm break-all bg-gray-800 rounded-lg px-4 py-3"
         >
           {action.token}
+        </p>
+        <p data-testid="whitelist-confirm-target" className="text-xs text-gray-400">
+          Network: <span className="font-semibold">{networkLabel(networkPassphrase)}</span>
+          {" · "}Contract:{" "}
+          <span className="font-mono" title={contractId}>
+            {truncateContractId(contractId) || "Not configured"}
+          </span>
         </p>
         <label className="flex items-start gap-2 text-sm text-gray-300">
           <input

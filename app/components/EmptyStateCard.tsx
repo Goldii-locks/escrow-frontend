@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 interface EmptyStateCardProps {
   /** Test id for the card wrapper. Callers scope it to their surface. */
   testId?: string;
@@ -10,6 +12,15 @@ interface EmptyStateCardProps {
   /** Optional role/context chips rendered beneath the description. */
   badges?: string[];
   className?: string;
+  /** Announce the title as a polite live status (e.g. a gating message). */
+  statusTitle?: boolean;
+  /** Optional call-to-action content rendered at the bottom of the card. */
+  children?: ReactNode;
+  /**
+   * Optional action element rendered below the badges (e.g. a Retry button).
+   * Callers own the button's styling, disabled state, and test id.
+   */
+  action?: ReactNode;
 }
 
 function BriefcaseIcon() {
@@ -44,6 +55,9 @@ export default function EmptyStateCard({
   icon = "briefcase",
   badges,
   className = "",
+  statusTitle = false,
+  children,
+  action,
 }: EmptyStateCardProps) {
   return (
     <div
@@ -56,7 +70,12 @@ export default function EmptyStateCard({
         {icon === "briefcase" ? <BriefcaseIcon /> : null}
       </span>
 
-      <p data-testid="empty-state-title" className="text-white font-semibold">
+      <p
+        data-testid="empty-state-title"
+        className="text-white font-semibold"
+        role={statusTitle ? "status" : undefined}
+        aria-live={statusTitle ? "polite" : undefined}
+      >
         {title}
       </p>
 
@@ -79,6 +98,9 @@ export default function EmptyStateCard({
           ))}
         </div>
       )}
+
+      {children}
+      {action && <div className="flex justify-center">{action}</div>}
     </div>
   );
 }

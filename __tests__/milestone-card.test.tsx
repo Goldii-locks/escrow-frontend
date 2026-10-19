@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import MilestoneCard from "@/app/components/MilestoneCard";
 
@@ -60,6 +60,268 @@ describe("MilestoneCard", () => {
 
     expect(screen.getByTestId("milestone-card")).toHaveClass("bg-surface-card");
     expect(screen.getByRole("button", { name: /mark milestone \d+ as delivered/i })).toBeInTheDocument();
+  });
+
+  it("renders the Dispute button for client on a PartiallyReleased milestone", () => {
+    const onDispute = vi.fn();
+
+    render(
+      <MilestoneCard
+        milestone={{ index: 2, amount: "1000", status: "PartiallyReleased", releasedAmount: "400" }}
+        isClient
+        isFreelancer={false}
+        partialReleaseState={idleActionState}
+        claimAutoReleaseState={idleActionState}
+        isPartialReleasePending={false}
+        isClaimAutoReleasePending={false}
+        onDispute={onDispute}
+      />
+    );
+
+    const disputeButton = screen.getByRole("button", { name: /dispute milestone 3/i });
+    expect(disputeButton).toBeInTheDocument();
+    expect(disputeButton).not.toBeDisabled();
+  });
+
+  it("renders the Dispute button for freelancer on a PartiallyReleased milestone", () => {
+    const onDispute = vi.fn();
+
+    render(
+      <MilestoneCard
+        milestone={{ index: 2, amount: "1000", status: "PartiallyReleased", releasedAmount: "400" }}
+        isClient={false}
+        isFreelancer
+        partialReleaseState={idleActionState}
+        claimAutoReleaseState={idleActionState}
+        isPartialReleasePending={false}
+        isClaimAutoReleasePending={false}
+        onDispute={onDispute}
+      />
+    );
+
+    const disputeButton = screen.getByRole("button", { name: /dispute milestone 3/i });
+    expect(disputeButton).toBeInTheDocument();
+    expect(disputeButton).not.toBeDisabled();
+  });
+
+  it("does NOT render the Dispute button for a Released milestone", () => {
+    const onDispute = vi.fn();
+
+    render(
+      <MilestoneCard
+        milestone={{ index: 0, amount: "100", status: "Released" }}
+        isClient
+        isFreelancer={false}
+        partialReleaseState={idleActionState}
+        claimAutoReleaseState={idleActionState}
+        isPartialReleasePending={false}
+        isClaimAutoReleasePending={false}
+        onDispute={onDispute}
+      />
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /dispute milestone 1/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("disables the Dispute button when onDispute is absent on a PartiallyReleased milestone", () => {
+    render(
+      <MilestoneCard
+        milestone={{ index: 1, amount: "100", status: "PartiallyReleased" }}
+        isClient
+        isFreelancer={false}
+        partialReleaseState={idleActionState}
+        claimAutoReleaseState={idleActionState}
+        isPartialReleasePending={false}
+        isClaimAutoReleasePending={false}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /dispute milestone 2/i })
+    ).toBeDisabled();
+  });
+
+  describe("Approve / partial release confirmation", () => {
+    it("opens the ReleaseConfirmModal when Approve is clicked and does not call onApprove until confirmed", () => {
+      const onApprove = vi.fn();
+      const onPartialRelease = vi.fn();
+
+      render(
+        <MilestoneCard
+          milestone={{ index: 0, amount: "100", status: "Delivered" }}
+          isClient
+          isFreelancer={false}
+          freelancerAddress="GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          partialReleaseState={idleActionState}
+          claimAutoReleaseState={idleActionState}
+          isPartialReleasePending={false}
+          isClaimAutoReleasePending={false}
+          onApprove={onApprove}
+          onPartialRelease={onPartialRelease}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /approve milestone 1/i }));
+
+      expect(
+        screen.getByRole("dialog", { name: /confirm approve & release/i })
+      ).toBeInTheDocument();
+      expect(onApprove).not.toHaveBeenCalled();
+      expect(onPartialRelease).not.toHaveBeenCalled();
+    });
+
+    it("calls onApprove with the milestone index when Approve is confirmed", () => {
+      const onApprove = vi.fn();
+      const onPartialRelease = vi.fn();
+
+      render(
+        <MilestoneCard
+          milestone={{ index: 2, amount: "100", status: "Delivered" }}
+          isClient
+          isFreelancer={false}
+          freelancerAddress="GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          partialReleaseState={idleActionState}
+          claimAutoReleaseState={idleActionState}
+          isPartialReleasePending={false}
+          isClaimAutoReleasePending={false}
+          onApprove={onApprove}
+          onPartialRelease={onPartialRelease}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /approve milestone 3/i }));
+      fireEvent.click(screen.getByRole("button", { name: /approve & release/i }));
+
+      expect(onApprove).toHaveBeenCalledWith(2);
+      expect(onPartialRelease).not.toHaveBeenCalled();
+    });
+
+    it("does not call onApprove when Approve confirmation is cancelled", () => {
+      const onApprove = vi.fn();
+
+      render(
+        <MilestoneCard
+          milestone={{ index: 0, amount: "100", status: "Delivered" }}
+          isClient
+          isFreelancer={false}
+          freelancerAddress="GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          partialReleaseState={idleActionState}
+          claimAutoReleaseState={idleActionState}
+          isPartialReleasePending={false}
+          isClaimAutoReleasePending={false}
+          onApprove={onApprove}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /approve milestone 1/i }));
+      fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+
+      expect(onApprove).not.toHaveBeenCalled();
+      expect(
+        screen.queryByRole("dialog", { name: /confirm approve & release/i })
+      ).not.toBeInTheDocument();
+    });
+
+    it("opens the ReleaseConfirmModal for partial release and shows the amount in human units", () => {
+      const onPartialRelease = vi.fn();
+
+      render(
+        <MilestoneCard
+          milestone={{
+            index: 1,
+            amount: "100000000",
+            status: "PartiallyReleased",
+            releasedAmount: "40000000",
+          }}
+          isClient
+          isFreelancer={false}
+          freelancerAddress="GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          partialReleaseState={idleActionState}
+          claimAutoReleaseState={idleActionState}
+          isPartialReleasePending={false}
+          isClaimAutoReleasePending={false}
+          amountDecimals={7}
+          amountSymbol="XLM"
+          onPartialRelease={onPartialRelease}
+        />
+      );
+
+      const input = screen.getByTestId("partial-amount-input");
+      fireEvent.change(input, { target: { value: "30000000" } });
+      fireEvent.click(screen.getByRole("button", { name: /release partial amount/i }));
+
+      expect(
+        screen.getByRole("dialog", { name: /confirm partial release/i })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId("release-confirm-modal-amount")
+      ).toHaveTextContent("3 XLM");
+      expect(onPartialRelease).not.toHaveBeenCalled();
+    });
+
+    it("calls onPartialRelease with the validated amount when partial release is confirmed", () => {
+      const onPartialRelease = vi.fn();
+
+      render(
+        <MilestoneCard
+          milestone={{
+            index: 1,
+            amount: "100000000",
+            status: "Delivered",
+          }}
+          isClient
+          isFreelancer={false}
+          freelancerAddress="GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          partialReleaseState={idleActionState}
+          claimAutoReleaseState={idleActionState}
+          isPartialReleasePending={false}
+          isClaimAutoReleasePending={false}
+          amountDecimals={7}
+          amountSymbol="XLM"
+          onPartialRelease={onPartialRelease}
+        />
+      );
+
+      const input = screen.getByTestId("partial-amount-input");
+      fireEvent.change(input, { target: { value: "30000000" } });
+      fireEvent.click(screen.getByRole("button", { name: /release partial amount/i }));
+      fireEvent.click(screen.getByRole("button", { name: /release amount/i }));
+
+      expect(onPartialRelease).toHaveBeenCalledWith(1, "30000000");
+    });
+
+    it("does not call onPartialRelease when partial release confirmation is cancelled", () => {
+      const onPartialRelease = vi.fn();
+
+      render(
+        <MilestoneCard
+          milestone={{
+            index: 1,
+            amount: "100000000",
+            status: "Delivered",
+          }}
+          isClient
+          isFreelancer={false}
+          freelancerAddress="GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          partialReleaseState={idleActionState}
+          claimAutoReleaseState={idleActionState}
+          isPartialReleasePending={false}
+          isClaimAutoReleasePending={false}
+          amountDecimals={7}
+          amountSymbol="XLM"
+          onPartialRelease={onPartialRelease}
+        />
+      );
+
+      const input = screen.getByTestId("partial-amount-input");
+      fireEvent.change(input, { target: { value: "30000000" } });
+      fireEvent.click(screen.getByRole("button", { name: /release partial amount/i }));
+      fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
+
+      expect(onPartialRelease).not.toHaveBeenCalled();
+    });
   });
 
   it("keeps empty-state layout spacing stable across breakpoints", () => {

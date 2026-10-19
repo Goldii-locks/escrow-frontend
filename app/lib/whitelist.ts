@@ -1,18 +1,12 @@
 import { BACKEND_URL } from "@/app/lib/transactions";
+import {
+  ApiShapeError,
+  WhitelistResponseSchema,
+  validateResponse,
+  type WhitelistToken,
+} from "@/app/lib/api_schemas";
 
-/** A token accepted by the escrow contract's whitelist. */
-export interface WhitelistToken {
-  address: string;
-  symbol?: string;
-  name?: string;
-  decimals?: number;
-}
-
-/** Exact body of `GET /api/jobs/:contractId/whitelist` (backend `sendSuccess`). */
-interface WhitelistResponse {
-  success: true;
-  data: { tokens: unknown[] };
-}
+export type { WhitelistToken };
 
 /** Normalize a raw whitelist item (string address or object) into a WhitelistToken. */
 function normalizeToken(item: unknown): WhitelistToken | null {
@@ -52,13 +46,16 @@ function normalizeToken(item: unknown): WhitelistToken | null {
  *
  * Reads `{ success: true, data: { tokens: [...] } }`, whose items are either
  * address strings or `{ address|token|id, symbol?, name? }` objects, and
- * normalizes them to `WhitelistToken[]`. Throws on network/HTTP failure so the
- * caller can distinguish "failed to load" from "empty whitelist".
+ * normalizes them to `WhitelistToken[]`. The body is validated with Zod and an
+ * unexpected shape throws `ApiShapeError` instead of silently producing an
+ * empty list. Throws on network/HTTP failure so the caller can distinguish
+ * "failed to load" from "empty whitelist".
  */
 export async function fetchWhitelistedTokens(
   contractId: string,
   options?: { signal?: AbortSignal },
 ): Promise<WhitelistToken[]> {
+  const endpoint = `/api/jobs/${contractId}/whitelist`;
   const res = await fetch(
     `${BACKEND_URL}/api/jobs/${encodeURIComponent(contractId)}/whitelist`,
     { signal: options?.signal },
@@ -67,8 +64,9 @@ export async function fetchWhitelistedTokens(
     throw new Error(`Whitelist request failed with status ${res.status}`);
   }
 
-  const body = (await res.json()) as Partial<WhitelistResponse>;
-  const list = Array.isArray(body?.data?.tokens) ? body.data.tokens : [];
+  const rawBody: unknown = await res.json();
+  const body = validateResponse(WhitelistResponseSchema, rawBody, endpoint);
+  const list: unknown[] = body.data.tokens;
 
   return list
     .map(normalizeToken)
@@ -83,3 +81,5 @@ export function tokenLabel(token: WhitelistToken): string {
     ? `${token.address.slice(0, 4)}…${token.address.slice(-4)}`
     : token.address;
 }
+
+export { ApiShapeError };

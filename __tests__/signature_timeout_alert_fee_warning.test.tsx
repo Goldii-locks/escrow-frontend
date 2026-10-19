@@ -15,6 +15,9 @@ vi.mock("@/app/context/WalletContext", () => ({
     signatureTimeoutError: null,
     signatureTimeoutXdr: null,
     clearSignatureTimeout: () => {},
+    lastPendingAction: null,
+    registerPendingAction: () => {},
+    retryLastAction: async () => null,
   }),
 }));
 

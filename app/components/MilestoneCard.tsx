@@ -9,6 +9,7 @@ import DisputeRaiseModal from "@/app/components/DisputeRaiseModal";
 import ArbiterActionPanel from "@/app/components/ArbiterActionPanel";
 import { formatBaseUnits } from "@/app/lib/amounts";
 import { getClaimEligibility, CLAIM_UNKNOWN_DEADLINE_NOTE } from "@/app/lib/claimEligibility";
+import ReleaseConfirmModal from "@/app/components/ReleaseConfirmModal";
 
 interface Milestone {
   index: number;
@@ -75,6 +76,8 @@ interface Props {
   onMarkDelivered?: (i: number) => void;
   onApprove?: (i: number) => void;
   onDispute?: (i: number) => void;
+  /** Full address of the freelancer (recipient of approve/partial releases), shown shortened in the confirmation modal. */
+  freelancerAddress?: string | null;
 }
 
 const statusColor: Record<string, string> = {
@@ -167,6 +170,7 @@ export default function MilestoneCard({
   partialReleaseState,
   isPartialReleasePending,
   onPartialRelease,
+  freelancerAddress,
   ...unusedProps
 }: Props) {
   void unusedProps;
@@ -178,6 +182,16 @@ export default function MilestoneCard({
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
   const [partialAmount, setPartialAmount] = useState("");
   const [partialAmtError, setPartialAmtError] = useState<string | null>(null);
+
+  // Confirmation modal for irreversible payout actions (approve / partial
+  // release). The action and its validated args are staged here so the user
+  // can review the amount in token units, the recipient and the remaining
+  // balance before anything is submitted to the contract.
+  const [isReleaseConfirmOpen, setIsReleaseConfirmOpen] = useState(false);
+  const [pendingRelease, setPendingRelease] =
+    useState<{ kind: "approve" | "partial"; index: number; amount?: string } | null>(
+      null
+    );
 
   // Whether the auto-release deadline has passed. `mountedAt` is captured
   // once via a lazy initializer (mirrors CountdownTimer's own pattern) so
@@ -247,7 +261,22 @@ export default function MilestoneCard({
       return;
     }
 
-    onPartialRelease?.(milestone.index, trimmed);
+    // Stage the partial release for confirmation instead of submitting
+    // straight to the contract.
+    setPendingRelease({ kind: "partial", index: milestone.index, amount: trimmed });
+    setIsReleaseConfirmOpen(true);
+  }
+
+  /** Confirm a staged approve or partial release and invoke its handler. */
+  function handleConfirmRelease() {
+    if (!pendingRelease) return;
+    if (pendingRelease.kind === "approve") {
+      onApprove?.(pendingRelease.index);
+    } else if (pendingRelease.kind === "partial" && pendingRelease.amount != null) {
+      onPartialRelease?.(pendingRelease.index, pendingRelease.amount);
+    }
+    setPendingRelease(null);
+    setIsReleaseConfirmOpen(false);
   }
 
   if (
@@ -452,7 +481,10 @@ export default function MilestoneCard({
 
           {isClient && milestone.status === "Delivered" && (
             <button
-              onClick={() => onApprove?.(milestone.index)}
+              onClick={() => {
+                setPendingRelease({ kind: "approve", index: milestone.index });
+                setIsReleaseConfirmOpen(true);
+              }}
               disabled={!onApprove}
               aria-disabled={!onApprove}
               aria-label={`Approve ${milestoneLabel}`}
@@ -484,7 +516,9 @@ export default function MilestoneCard({
             )}
 
           {(isClient || isFreelancer) &&
-            ["Pending", "Delivered"].includes(milestone.status) && (
+            ["Pending", "Delivered", "PartiallyReleased"].includes(
+              milestone.status
+            ) && (
               <button
                 onClick={() => setIsDisputeModalOpen(true)}
                 disabled={!onDispute}
@@ -608,6 +642,40 @@ export default function MilestoneCard({
           onDispute?.(milestone.index);
         }}
       />
+
+      {/* Confirmation modal for the irreversible approve / partial release actions */}
+      {isReleaseConfirmOpen && pendingRelease && (
+        <ReleaseConfirmModal
+          isOpen
+          onClose={() => {
+            setIsReleaseConfirmOpen(false);
+            setPendingRelease(null);
+          }}
+          onConfirm={handleConfirmRelease}
+          action={pendingRelease.kind === "approve" ? "approve" : "partial-release"}
+          amountStroops={
+            pendingRelease.kind === "approve"
+              ? unreleasedBalance(milestone)?.toString() ?? "0"
+              : pendingRelease.amount ?? ""
+          }
+          decimals={amountDecimals}
+          symbol={amountSymbol}
+          recipientAddress={freelancerAddress ?? null}
+          remainingBalanceStroops={
+            pendingRelease.kind === "approve"
+              ? "0"
+              : pendingRelease.amount != null
+                ? (() => {
+                    const remaining = unreleasedBalance(milestone);
+                    return remaining !== null && pendingRelease.amount != null
+                      ? (remaining - BigInt(pendingRelease.amount)).toString()
+                      : null;
+                  })()
+                : null
+          }
+          isConfirming={false}
+        />
+      )}
     </div>
   );
 }

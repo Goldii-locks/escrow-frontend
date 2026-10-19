@@ -1007,7 +1007,7 @@ export function validateMultiSigAssembly(
 // below wires `TransactionBuilder.fromXDR` (from `@stellar/stellar-sdk`,
 // imported at the top with the other module imports) into that injection
 // slot. The Starlar SDK is already a project dependency via
-// `app/lib/contract.ts`, so adding it here does not pull a new package.
+// `app/lib/config.ts`, so adding it here does not pull a new package.
 // =============================================================
 
 /**

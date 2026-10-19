@@ -17,7 +17,7 @@ import { useState } from "react";
 import Link from "next/link";
 import LandingLogo from "./LandingLogo";
 import LandingArrow from "./LandingArrow";
-import { NETWORK_PASSPHRASE } from "@/app/lib/contract";
+import { NETWORK_PASSPHRASE } from "@/app/lib/config";
 import { networkLabel } from "@/app/lib/network";
 
 const MARKETING_LINKS = [

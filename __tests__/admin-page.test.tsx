@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AdminPage from "@/app/admin/page";
 
@@ -201,6 +201,54 @@ describe("AdminPage", () => {
       expect(screen.getAllByTestId("admin-whitelist-skeleton-row").length).toBeGreaterThan(0);
       await waitFor(() => expect(screen.getByText("CTOKEN1")).toBeInTheDocument());
       expect(screen.queryByTestId("admin-whitelist-skeleton")).not.toBeInTheDocument();
+    });
+  });
+  describe("funded escrow whitelist lock (Issue #659)", () => {
+    function stubFetchByMethod(funded: boolean) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockImplementation(async (url: string) => ({
+          ok: true,
+          json: async () =>
+            url.includes("/whitelist")
+              ? { success: true, data: ["CTOKEN1"] }
+              : { success: true, data: { funded } },
+        }))
+      );
+    }
+
+    beforeEach(() => {
+      mockUseWallet.mockReturnValue({
+        address: "GADMIN123",
+        signTransaction: vi.fn(),
+      });
+      mockIsAdmin.mockReturnValue({ loading: false, isAdminUser: true });
+    });
+
+    it("disables add and remove with an explanation when the escrow is funded", async () => {
+      stubFetchByMethod(true);
+      render(<AdminPage />);
+
+      await waitFor(() =>
+        expect(screen.getByTestId("whitelist-locked-notice")).toBeInTheDocument()
+      );
+      expect(screen.getByTestId("escrow-funded-status")).toHaveTextContent("Funded");
+      fireEvent.change(screen.getByLabelText(/token contract address/i), {
+        target: { value: "CNEWTOKEN" },
+      });
+      expect(screen.getByRole("button", { name: /add to whitelist/i })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /remove/i })).toBeDisabled();
+    });
+
+    it("keeps the actions enabled when the escrow is not funded", async () => {
+      stubFetchByMethod(false);
+      render(<AdminPage />);
+
+      await waitFor(() =>
+        expect(screen.getByTestId("escrow-funded-status")).toHaveTextContent("Not funded")
+      );
+      expect(screen.queryByTestId("whitelist-locked-notice")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /remove/i })).toBeEnabled();
     });
   });
 });

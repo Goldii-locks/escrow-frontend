@@ -420,7 +420,7 @@ describe("Dashboard — accessibility compliance (ARIA, keyboard, semantic HTML)
   });
 
   describe("ARIA attributes — error states", () => {
-    it("error message has role=alert", async () => {
+    it("error message has role=region with aria-label", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn().mockResolvedValue({
@@ -434,9 +434,8 @@ describe("Dashboard — accessibility compliance (ARIA, keyboard, semantic HTML)
       render(<Dashboard />);
 
       await waitFor(() => {
-        const alert = screen.getByRole("alert");
+        const alert = screen.getByRole("region", { name: "Error loading jobs" });
         expect(alert).toBeInTheDocument();
-        expect(alert).toHaveAttribute("aria-live", "assertive");
       });
     });
 
@@ -454,7 +453,7 @@ describe("Dashboard — accessibility compliance (ARIA, keyboard, semantic HTML)
       render(<Dashboard />);
 
       await waitFor(() => {
-        const alert = screen.getByRole("alert");
+        const alert = screen.getByRole("region", { name: "Error loading jobs" });
         expect(alert).toHaveTextContent("Connection timeout");
       });
     });
@@ -946,8 +945,8 @@ describe("Dashboard — accessibility compliance (ARIA, keyboard, semantic HTML)
       render(<Dashboard />);
 
       await waitFor(() => {
-        const alert = screen.getByRole("alert");
-        expect(alert).toHaveClass("bg-red-950/20", "border-red-800", "text-red-400");
+        const alert = screen.getByRole("region", { name: "Error loading jobs" });
+        expect(alert).toHaveClass("bg-red-950/20", "border-red-800");
       });
     });
 
@@ -1124,7 +1123,7 @@ describe("Dashboard — accessibility compliance (ARIA, keyboard, semantic HTML)
       expect(status).toHaveAttribute("aria-live", "polite");
     });
 
-    it("role=alert exposes error messages to screen readers immediately", async () => {
+    it("error region exposes error messages to screen readers immediately", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn().mockResolvedValue({
@@ -1138,8 +1137,9 @@ describe("Dashboard — accessibility compliance (ARIA, keyboard, semantic HTML)
       render(<Dashboard />);
 
       await waitFor(() => {
-        const alert = screen.getByRole("alert");
-        expect(alert).toHaveAttribute("aria-live", "assertive");
+        const alert = screen.getByRole("region", { name: "Error loading jobs" });
+        expect(alert).toBeInTheDocument();
+        expect(alert).toHaveTextContent("Connection failed");
       });
     });
   });

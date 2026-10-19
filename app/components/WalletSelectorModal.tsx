@@ -27,6 +27,14 @@ import {
   type WalletCachedKey,
 } from "@/app/lib/wallet_selector_modal";
 
+/**
+ * WalletConnect can only connect when a project ID was set at build time
+ * (#672), so it is left out of the list otherwise.
+ */
+export function isWalletSelectable(wallet: { id: string }): boolean {
+  return wallet.id !== "wallet_connect" || !!process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -402,7 +410,7 @@ export default function WalletSelectorModal({
 
         {/* Wallet list */}
         <div className="space-y-2" data-testid="wallet-selector-list">
-          {SUPPORTED_WALLETS.map((wallet) => {
+          {SUPPORTED_WALLETS.filter(isWalletSelectable).map((wallet) => {
             const isSelected = wallet.id === selectedWalletId;
             const isConnected =
               activeAddress !== null && wallet.id === selectedWalletId;

@@ -5,7 +5,7 @@ import "./landing.css";
 import LandingNav from "@/app/components/LandingNav";
 import LandingLogo from "@/app/components/LandingLogo";
 import LandingArrow from "@/app/components/LandingArrow";
-import { CONTRACT_ID, NETWORK_PASSPHRASE } from "@/app/lib/contract";
+import { CONTRACT_ID, NETWORK_PASSPHRASE } from "@/app/lib/config";
 import {
   networkProseName,
   stellarExpertContractUrl,

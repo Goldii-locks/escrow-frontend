@@ -1,12 +1,14 @@
 "use client";
 import { isMilestoneCapReached, milestoneLimitHint } from "../lib/milestone_limits";
 import { validateMilestoneAmount } from "../lib/milestone_amount_validation";
+import { getDefaultArbiter } from "../lib/default_arbiter";
 import { useEffect, useRef, useState } from "react";
 import { useWallet } from "@/app/context/WalletContext";
 import Navbar from "@/app/components/Navbar";
 import ButtonSpinner from "@/app/components/ButtonSpinner";
 import TxStatusBanner from "@/app/components/TxStatusBanner";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   CONTRACT_ID,
   getPhaseLabel,
@@ -19,6 +21,14 @@ import {
   WhitelistToken,
 } from "@/app/lib/whitelist";
 import { formatTxError } from "@/app/lib/errors";
+import {
+  clearCreateJobDraft,
+  CREATE_JOB_DRAFT_DEBOUNCE_MS,
+  CreateJobDraft,
+  EMPTY_CREATE_JOB_DRAFT,
+  loadCreateJobDraft,
+  saveCreateJobDraft,
+} from "@/app/lib/create_job_draft";
 
 type WizardSection = "details" | "milestones" | "review";
 
@@ -65,6 +75,12 @@ export default function CreateJob() {
   const [activeSection, setActiveSection] = useState<WizardSection>("details");
   const [freelancer, setFreelancer] = useState("");
   const [arbiter, setArbiter] = useState("");
+  const [defaultArbiter] = useState(getDefaultArbiter);
+  const [arbiterMode, setArbiterMode] = useState<"default" | "custom">(
+    defaultArbiter ? "default" : "custom"
+  );
+  const effectiveArbiter =
+    arbiterMode === "default" && defaultArbiter ? defaultArbiter : arbiter;
   const [token, setToken] = useState("");
   const [freelancerError, setFreelancerError] = useState("");
   const [arbiterError, setArbiterError] = useState("");
@@ -81,6 +97,66 @@ export default function CreateJob() {
   const [whitelist, setWhitelist] = useState<WhitelistToken[]>([]);
   const [whitelistLoading, setWhitelistLoading] = useState(true);
   const [whitelistError, setWhitelistError] = useState<string | null>(null);
+
+  const [draftRestored, setDraftRestored] = useState(false);
+  // Address whose draft has been restored; saving waits for it so the empty
+  // initial state never overwrites a stored draft.
+  const [draftAddress, setDraftAddress] = useState<string | null>(null);
+
+  const applyDraft = (draft: CreateJobDraft) => {
+    setFreelancer(draft.freelancer);
+    setArbiter(draft.arbiter);
+    setToken(draft.token);
+    setAutoReleaseDays(draft.autoReleaseDays);
+    setAcceptedAssets(draft.acceptedAssets);
+    setRequirements(draft.requirements);
+    setMilestones(draft.milestones);
+  };
+
+  useEffect(() => {
+    if (!address) return;
+    const draft = loadCreateJobDraft(address);
+    if (draft) {
+      // Restoring from sessionStorage is a one-off sync with external state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      applyDraft(draft);
+      setDraftRestored(true);
+    }
+    setDraftAddress(address);
+  }, [address]);
+
+  useEffect(() => {
+    if (!address || draftAddress !== address || txHash) return;
+    const timer = setTimeout(() => {
+      saveCreateJobDraft(address, {
+        freelancer,
+        arbiter,
+        token,
+        autoReleaseDays,
+        acceptedAssets,
+        requirements,
+        milestones,
+      });
+    }, CREATE_JOB_DRAFT_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [
+    address,
+    draftAddress,
+    txHash,
+    freelancer,
+    arbiter,
+    token,
+    autoReleaseDays,
+    acceptedAssets,
+    requirements,
+    milestones,
+  ]);
+
+  const discardDraft = () => {
+    if (address) clearCreateJobDraft(address);
+    applyDraft(EMPTY_CREATE_JOB_DRAFT);
+    setDraftRestored(false);
+  };
 
   // Refs for tab-panel sections — used for programmatic focus on tab activation
   const detailsPanelRef = useRef<HTMLDivElement>(null);
@@ -294,10 +370,10 @@ export default function CreateJob() {
       return;
     }
     validateFreelancer(freelancer);
-    validateArbiter(arbiter);
-    if (!freelancer || !arbiter || !/^G[A-Z2-7]{55}$/.test(freelancer) || !/^G[A-Z2-7]{55}$/.test(arbiter)) {
+    validateArbiter(effectiveArbiter);
+    if (!freelancer || !effectiveArbiter || !/^G[A-Z2-7]{55}$/.test(freelancer) || !/^G[A-Z2-7]{55}$/.test(effectiveArbiter)) {
       if (!freelancer) setFreelancerError("This field is required.");
-      if (!arbiter) setArbiterError("This field is required.");
+      if (!effectiveArbiter) setArbiterError("This field is required.");
       setError("Please fix the address fields before creating a job.");
       return;
     }
@@ -323,7 +399,7 @@ export default function CreateJob() {
           { type: "address", value: address },
           { type: "address", value: address },
           { type: "address", value: freelancer },
-          { type: "address", value: arbiter },
+          { type: "address", value: effectiveArbiter },
           { type: "address", value: token },
           { type: "u64", value: autoReleaseSeconds.toString() },
           {
@@ -340,6 +416,7 @@ export default function CreateJob() {
       });
 
       setPhase("success");
+      clearCreateJobDraft(address);
       setTxHash(txHash);
       alert("Job created successfully!");
       router.push("/dashboard");
@@ -404,6 +481,23 @@ export default function CreateJob() {
             Configure counterparties, funding structure, and delivery
             expectations before publishing the escrow job.
           </p>
+
+          {draftRestored && (
+            <div
+              className="mb-6 flex items-center justify-between gap-3 rounded-lg border border-border-subtle bg-surface-card px-4 py-3 text-sm text-text-secondary"
+              role="status"
+              data-testid="create-job-draft-banner"
+            >
+              <span>Restored your draft</span>
+              <button
+                type="button"
+                onClick={discardDraft}
+                className={`${buttonClassName} text-accent-soft hover:text-accent-soft-hover`}
+              >
+                Discard
+              </button>
+            </div>
+          )}
 
           {/*
            * Wizard navigation implemented as a proper ARIA tablist.
@@ -542,6 +636,45 @@ export default function CreateJob() {
 
                 {/* Arbiter Address */}
                 <div>
+                  {defaultArbiter && (
+                    <fieldset className="mb-3" disabled={loading}>
+                      <legend className="block text-sm text-text-muted mb-1">
+                        Arbiter
+                      </legend>
+                      <label className="flex items-center gap-2 text-sm text-text-primary">
+                        <input
+                          type="radio"
+                          name="arbiter-mode"
+                          value="default"
+                          checked={arbiterMode === "default"}
+                          onChange={() => {
+                            setArbiterMode("default");
+                            setArbiterError("");
+                          }}
+                        />
+                        Milesto arbitration (recommended)
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-text-primary">
+                        <input
+                          type="radio"
+                          name="arbiter-mode"
+                          value="custom"
+                          checked={arbiterMode === "custom"}
+                          onChange={() => setArbiterMode("custom")}
+                        />
+                        Custom address
+                      </label>
+                    </fieldset>
+                  )}
+                  <p className="text-xs text-text-muted mb-2">
+                    The arbiter resolves disputes and can split or refund
+                    escrowed funds.{" "}
+                    <Link href="/#security" className="underline hover:text-text-primary">
+                      Learn more
+                    </Link>
+                  </p>
+                  {arbiterMode === "custom" && (
+                  <>
                   <label
                     htmlFor="arbiter-address"
                     className="block text-sm text-text-muted mb-1"
@@ -566,6 +699,8 @@ export default function CreateJob() {
                     required
                     disabled={loading}
                   />
+                  </>
+                  )}
                   {arbiterError && <p className="text-sm text-danger-soft mt-1">{arbiterError}</p>}
                 </div>
 

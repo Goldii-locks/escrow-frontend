@@ -25,6 +25,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "check-test-locations": "node scripts/check-test-locations.mjs",
+    "generate-tokens": "node scripts/generate-tokens.mjs",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
@@ -34,7 +36,8 @@
     "@storybook/react": "^8.3.0",
     "next": "16.3.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "3.25.76"
   },
   "devDependencies": {
     "@storybook/test": "^8.6.18",
@@ -43,10 +46,11 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.6",
-    "@types/node": "^20",
+    "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.3",
+    "axe-core": "^4.14.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "jsdom": "^29.1.1",

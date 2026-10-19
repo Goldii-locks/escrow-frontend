@@ -1,5 +1,5 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import SignatureTimeoutAlert from "@/app/components/SignatureTimeoutAlert";
 import WalletLoaderOverlay from "@/app/components/WalletLoaderOverlay";
 import { endWalletOperation, startWalletOperation } from "@/app/lib/wallet_state_context";
@@ -11,8 +11,9 @@ import { endWalletOperation, startWalletOperation } from "@/app/lib/wallet_state
 // WalletContext provides via `createContext`. The real wallet library modules
 // (wallet_state_context, freighter_connector, albedo_connector,
 // ledger_usb_bridge) stay under test.
-const walletContextMock = vi.hoisted(() => ({
-  useWallet: () => ({
+const walletContextMock = vi.hoisted(() => {
+  const retryLastAction = vi.fn(async () => null);
+  const defaults = () => ({
     address: null,
     assembleMultiSigTransaction: vi.fn(async () => ({
       uniqueSigners: 0,
@@ -28,15 +29,23 @@ const walletContextMock = vi.hoisted(() => ({
     signatureTimeoutError: null,
     signatureTimeoutXdr: null,
     clearSignatureTimeout: vi.fn(),
+    lastPendingAction: null,
+    registerPendingAction: vi.fn(),
+    retryLastAction,
     simulationResult: null,
     setSimulationResult: vi.fn(),
     gasWarning: null,
-  }),
-}));
+  });
+  return { defaults, retryLastAction };
+});
 
 vi.mock("@/app/context/WalletContext", () => ({
-  useWallet: walletContextMock.useWallet,
+  useWallet: () => walletContextMock.defaults(),
 }));
+
+afterEach(() => {
+  walletContextMock.retryLastAction.mockClear();
+});
 
 describe("SignatureTimeoutAlert", () => {
   it("renders timeout details and logs a formatted stack trace", () => {
@@ -84,6 +93,31 @@ describe("SignatureTimeoutAlert", () => {
   it("does not render when there is no timeout or network warning", () => {
     render(<SignatureTimeoutAlert />);
     expect(screen.queryByTestId("signature-timeout-alert")).not.toBeInTheDocument();
+  });
+
+  it("shows the Retry button without onRetry and calls retryLastAction from context", async () => {
+    walletContextMock.retryLastAction.mockResolvedValueOnce("fresh-tx-hash" as never);
+
+    render(
+      <>
+        <SignatureTimeoutAlert isOpen />
+        <WalletLoaderOverlay />
+      </>
+    );
+
+    // Retry button is visible even without onRetry prop
+    const retryBtn = screen.getByTestId("signature-timeout-retry");
+    expect(retryBtn).toBeInTheDocument();
+    expect(retryBtn).not.toBeDisabled();
+
+    retryBtn.click();
+    await waitFor(() => expect(walletContextMock.retryLastAction).toHaveBeenCalledOnce());
+    await waitFor(() => expect(screen.queryByTestId("wallet-loader-overlay")).not.toBeInTheDocument());
+  });
+
+  it("does not render the 'Validate multisig' assemble button", () => {
+    render(<SignatureTimeoutAlert isOpen transactionXdr="some-xdr" />);
+    expect(screen.queryByTestId("signature-timeout-assemble")).not.toBeInTheDocument();
   });
 
   it("keeps the loader counter balanced when an external operation is active", async () => {

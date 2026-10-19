@@ -12,6 +12,8 @@ import { useIsAdmin } from "@/app/hooks/useIsAdmin";
 import { useToast } from "@/app/context/ToastContext";
 import { formatTxError } from "@/app/lib/errors";
 import WhitelistConfirmModal from "@/app/components/WhitelistConfirmModal";
+import AdminContractHeader from "@/app/components/AdminContractHeader";
+import { fetchEscrowFunded } from "@/app/lib/admin";
 import {
   containsCodeTags,
   downloadWhitelistCsv,
@@ -52,6 +54,10 @@ export default function AdminPage() {
   );
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
+  // The contract's whitelist is per escrow and locked once it is funded, so
+  // the actions are disabled then. Moving to the factory's add_token /
+  // remove_token is tracked in #572.
+  const [escrowFunded, setEscrowFunded] = useState<boolean | null>(null);
   const { showToast } = useToast();
   const { getState, isPending, setPhase, setError, setTxHash } =
     useActionStates();
@@ -128,6 +134,9 @@ export default function AdminPage() {
     Promise.resolve().then(() => {
       if (active && address && isAdminUser && !adminCheckLoading) {
         void fetchWhitelist();
+        void fetchEscrowFunded(CONTRACT_ID).then((funded) => {
+          if (active) setEscrowFunded(funded);
+        });
       }
     });
 
@@ -187,6 +196,8 @@ export default function AdminPage() {
     showToast(toast.message, toast.type);
   };
 
+  const whitelistLocked = escrowFunded === true;
+
   // Input containing code tags is ignored; the field keeps its previous value.
   const handleTokenAddressChange = (raw: string) => {
     if (containsCodeTags(raw)) return;
@@ -197,12 +208,12 @@ export default function AdminPage() {
   const handleAddToken = (e: React.FormEvent) => {
     e.preventDefault();
     const token = sanitizeTokenAddress(tokenAddress);
-    if (!address || !token) return;
+    if (!address || !token || whitelistLocked) return;
     setPendingAction({ kind: "add", token });
   };
 
   const handleRemoveToken = (token: string) => {
-    if (!address) return;
+    if (!address || whitelistLocked) return;
     setPendingAction({ kind: "remove", token });
   };
 
@@ -241,6 +252,7 @@ export default function AdminPage() {
           Manage whitelisted payment tokens for the escrow contract. Admin
           wallet required.
         </p>
+        <AdminContractHeader />
 
         <AdminAccessGate
           address={address}
@@ -259,6 +271,28 @@ export default function AdminPage() {
                 successMessage="Contract freeze state updated."
               />
             )}
+          <p
+            data-testid="escrow-funded-status"
+            className="text-sm text-gray-400"
+          >
+            Escrow status:{" "}
+            {escrowFunded === null
+              ? "Unknown"
+              : escrowFunded
+                ? "Funded"
+                : "Not funded"}
+          </p>
+          {whitelistLocked && (
+            <p
+              data-testid="whitelist-locked-notice"
+              className="text-sm text-amber-300 border border-amber-800 bg-amber-950/40 rounded-lg px-4 py-3"
+            >
+              This escrow is funded, so its token whitelist can no longer be
+              changed. The whitelist is per escrow and only editable before
+              funding; platform-wide token management will move to the
+              contract factory.
+            </p>
+          )}
           <div
             data-testid="whitelist-grid"
             className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:items-start"
@@ -290,7 +324,7 @@ export default function AdminPage() {
               </div>
               <button
                 type="submit"
-                disabled={addPending || !tokenAddress.trim()}
+                disabled={addPending || whitelistLocked || !tokenAddress.trim()}
                 className="w-full inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium py-3 rounded-lg transition"
               >
                 {addPending && <ButtonSpinner className="h-4 w-4" />}
@@ -355,7 +389,7 @@ export default function AdminPage() {
                           />
                           <button
                             onClick={() => handleRemoveToken(token)}
-                            disabled={removePending}
+                            disabled={removePending || whitelistLocked}
                             className="inline-flex items-center justify-center gap-2 shrink-0 min-h-[44px] text-xs bg-red-800 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg transition"
                           >
                             {removePending && <ButtonSpinner />}

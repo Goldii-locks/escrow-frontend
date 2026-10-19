@@ -1,4 +1,26 @@
 import "@testing-library/jest-dom/vitest";
+import { expect } from "vitest";
+import type { AxeResults } from "axe-core";
+
+// Asserts an axe-core run found no violations (#677). Kept local instead of
+// pulling in vitest-axe, whose peer range trips npm's resolver here.
+expect.extend({
+  toHaveNoViolations(results: AxeResults) {
+    const violations = results.violations;
+    return {
+      pass: violations.length === 0,
+      actual: violations,
+      message: () =>
+        violations
+          .map(
+            (v) =>
+              `${v.id} (${v.impact ?? "unknown"}): ${v.help}\n` +
+              v.nodes.map((n) => `  ${n.target.join(" ")}`).join("\n"),
+          )
+          .join("\n\n") || "Expected axe violations, found none",
+    };
+  },
+});
 
 // jsdom doesn't implement matchMedia. Provide a minimal stub so any code
 // that calls window.matchMedia("...").matches doesn't throw.

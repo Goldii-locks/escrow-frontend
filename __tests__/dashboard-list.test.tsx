@@ -34,6 +34,7 @@ vi.mock("@/app/components/EmptyStateCard", () => ({
     description,
     icon,
     badges,
+    statusTitle,
   }: {
     testId?: string;
     ariaLabel?: string;
@@ -41,6 +42,7 @@ vi.mock("@/app/components/EmptyStateCard", () => ({
     description: string;
     icon?: string;
     badges?: string[];
+    statusTitle?: boolean;
   }) => (
     <div
       data-testid={testId}
@@ -51,7 +53,13 @@ vi.mock("@/app/components/EmptyStateCard", () => ({
       <div data-testid="empty-state-icon" aria-hidden="true">
         {icon}
       </div>
-      <h2 className="font-semibold">{title}</h2>
+      <h2
+        className="font-semibold"
+        role={statusTitle ? "status" : undefined}
+        aria-live={statusTitle ? "polite" : undefined}
+      >
+        {title}
+      </h2>
       <p className="text-sm text-gray-400">{description}</p>
       <div className="flex flex-wrap gap-2 justify-center">
         {badges?.map((badge) => (
@@ -187,8 +195,8 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
 
       await waitFor(() => {
         const alert = screen.getByTestId("dashboard-error-alert");
-        expect(alert).toHaveAttribute("role", "alert");
-        expect(alert).toHaveAttribute("aria-live", "assertive");
+        expect(alert).toHaveAttribute("role", "region");
+        expect(alert).toHaveAttribute("aria-label", "Error loading jobs");
       });
     });
   });

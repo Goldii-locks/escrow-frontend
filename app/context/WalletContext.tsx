@@ -11,7 +11,12 @@ import {
 } from "react";
 import { Networks, StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
 import { defaultModules } from "@creit.tech/stellar-wallets-kit/modules/utils";
-import { NETWORK_PASSPHRASE } from "@/app/lib/contract";
+import {
+  WalletConnectModule,
+  WalletConnectTargetChain,
+  type TWalletConnectModuleParams,
+} from "@creit.tech/stellar-wallets-kit/modules/wallet-connect";
+import { NETWORK_PASSPHRASE } from "@/app/lib/config";
 import { useToast } from "./ToastContext";
 import {
   ledgerActiveAddresses,
@@ -33,6 +38,7 @@ import {
 } from "@/app/lib/wallet_state_context";
 import { walletStateStore } from "@/app/lib/wallet_state_store";
 import { WalletRejectedError, isWalletRejectedError } from "@/app/lib/errors";
+import { submitContractTransaction, type ContractArg } from "@/app/lib/transactions";
 
 const LEGACY_STORAGE_KEY = "milesto_wallet_connected";
 const STORAGE_KEY = LEGACY_STORAGE_KEY;
@@ -41,10 +47,12 @@ const APP_NETWORK_DISPLAY = "Testnet";
 
 function buildMismatchMessage(walletId: string, walletNetwork: string): string {
   const walletDisplay =
-    walletId === "freighter" ? "Freighter" :
-    walletId === "albedo"   ? "Albedo"   :
-    walletId === "xbull"    ? "xBull"    :
-    walletId === "hana"     ? "Hana"     : "your wallet";
+    walletId === "freighter"     ? "Freighter"      :
+    walletId === "albedo"        ? "Albedo"          :
+    walletId === "xbull"         ? "xBull"           :
+    walletId === "hana"          ? "Hana"            :
+    walletId === "lobstr"        ? "LOBSTR"          :
+    walletId === "wallet_connect" ? "WalletConnect"  : "your wallet";
 
   return `Network mismatch: your ${walletDisplay} is on ${walletNetwork} but this app expects Stellar ${APP_NETWORK_DISPLAY}. Please switch networks.`;
 }
@@ -54,12 +62,20 @@ export const SUPPORTED_WALLETS = [
   { id: "albedo", label: "Albedo" },
   { id: "xbull", label: "xBull" },
   { id: "hana", label: "Hana" },
+  { id: "lobstr", label: "LOBSTR" },
+  { id: "wallet_connect", label: "WalletConnect" },
 ] as const;
 
 export type SupportedWalletId = (typeof SUPPORTED_WALLETS)[number]["id"];
 
 interface KitSignResult {
   signedTxXdr?: string;
+}
+
+interface PendingContractAction {
+  method: string;
+  args: ContractArg[];
+  sourceAddress: string;
 }
 
 interface WalletContextType {
@@ -82,6 +98,12 @@ interface WalletContextType {
   signatureTimeoutError: WalletSignatureTimeoutError | null;
   signatureTimeoutXdr: string | null;
   clearSignatureTimeout: () => void;
+  /** Last contract action submitted, kept so a timed-out signature can be retried with a fresh XDR. */
+  lastPendingAction: PendingContractAction | null;
+  /** Stage an action so {@link retryLastAction} can rebuild and re-sign it after a timeout. */
+  registerPendingAction: (action: PendingContractAction) => void;
+  /** Rebuild the last pending transaction (fresh XDR) and request a signature again. */
+  retryLastAction: () => Promise<string | null>;
   /** Current simulation result used to derive gas/fee warning state. */
   simulationResult: LedgerSimulationResult | null;
   /** Set after a Soroban simulation completes; triggers fee warning evaluation. */
@@ -103,6 +125,9 @@ const WalletContext = createContext<WalletContextType>({
   signatureTimeoutError: null,
   signatureTimeoutXdr: null,
   clearSignatureTimeout: () => {},
+  lastPendingAction: null,
+  registerPendingAction: () => {},
+  retryLastAction: async () => null,
   simulationResult: null,
   setSimulationResult: () => {},
   gasWarning: null,
@@ -114,10 +139,24 @@ const walletTracker = new WalletTransactionTracker();
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [selectedWalletId, setSelectedWalletId] = useState<SupportedWalletId>(() => {
-    const persisted = walletStateStore.getActiveState();
-    return persisted?.selectedWalletId as SupportedWalletId ?? SUPPORTED_WALLETS[0].id;
-  });
+  // Start from the static default so prerendered markup and the first client
+  // render match; the persisted choice is restored after mount below.
+  const [selectedWalletId, setSelectedWalletId] = useState<SupportedWalletId>(
+    SUPPORTED_WALLETS[0].id
+  );
+
+  useEffect(() => {
+    let active = true;
+    Promise.resolve().then(() => {
+      const persisted = walletStateStore.getActiveState();
+      if (active && persisted?.selectedWalletId) {
+        setSelectedWalletId(persisted.selectedWalletId as SupportedWalletId);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
   const [networkMismatchMessage, setNetworkMismatchMessage] = useState<
     string | null
   >(null);
@@ -126,6 +165,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [signatureTimeoutXdr, setSignatureTimeoutXdr] = useState<string | null>(
     null
   );
+  /** Last contract action submitted, retained so a timed-out signature can be retried with a fresh XDR. */
+  const [lastPendingAction, setLastPendingAction] =
+    useState<PendingContractAction | null>(null);
   const [simulationResult, setSimulationResult] =
     useState<LedgerSimulationResult | null>(null);
   const initializedRef = useRef(false);
@@ -170,10 +212,40 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     const allowedIds = new Set<string>(SUPPORTED_WALLETS.map((wallet) => wallet.id));
 
+    // Build the WalletConnect module when a project ID is available.
+    // NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID must be set at build time.
+    const walletConnectProjectId =
+      process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "";
+
+    const wcModules = walletConnectProjectId
+      ? (() => {
+          const wcParams: TWalletConnectModuleParams = {
+            projectId: walletConnectProjectId,
+            metadata: {
+              name: "Goldii Escrow",
+              description: "Soroban milestone escrow on Stellar",
+              url: typeof window !== "undefined" ? window.location.origin : "https://goldii.app",
+              icons: [
+                typeof window !== "undefined"
+                  ? `${window.location.origin}/favicon.ico`
+                  : "https://goldii.app/favicon.ico",
+              ],
+            },
+            allowedChains: [WalletConnectTargetChain.TESTNET],
+          };
+          return [new WalletConnectModule(wcParams)];
+        })()
+      : [];
+
+    // LobstrModule is included in defaultModules already; no extra config needed.
     StellarWalletsKit.init({
-      modules: defaultModules({
-        filterBy: (module: { productId: string }) => allowedIds.has(module.productId),
-      }),
+      modules: [
+        ...defaultModules({
+          filterBy: (module: { productId: string }) => allowedIds.has(module.productId),
+        }),
+        // Add WalletConnect separately (requires project ID configuration).
+        ...wcModules,
+      ],
       network: Networks.TESTNET,
       authModal: {
         showInstallLabel: true,
@@ -384,6 +456,40 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setSignatureTimeoutXdr(null);
   }, []);
 
+  /** Stage the last submitted contract action so it can be retried after a signature timeout. */
+  const registerPendingAction = useCallback(
+    (action: PendingContractAction) => {
+      setLastPendingAction(action);
+    },
+    []
+  );
+
+  /**
+   * Rebuild the last pending transaction (fresh XDR from the backend) and
+   * request a wallet signature again. Called by the global
+   * SignatureTimeoutAlert after a signing timeout.
+   */
+  const retryLastAction = useCallback(async (): Promise<string | null> => {
+    const action = lastPendingAction;
+    if (!action) return null;
+    // Clear the staged action so a stale retry cannot re-submit it twice.
+    setLastPendingAction(null);
+    try {
+      return await submitContractTransaction({
+        method: action.method,
+        args: action.args,
+        sourceAddress: action.sourceAddress,
+        signTransaction,
+      });
+    } catch (err) {
+      logWalletWarning("RETRY LAST ACTION FAILED", "Retrying the last contract action failed", {
+        err: err instanceof Error ? err : new Error(String(err)),
+        phase: "error",
+      });
+      return null;
+    }
+  }, [lastPendingAction, signTransaction]);
+
   const assembleMultiSigTransaction = useCallback(
     async (
       splits: WalletMultiSigSplit[],
@@ -421,6 +527,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         signatureTimeoutError,
         signatureTimeoutXdr,
         clearSignatureTimeout,
+        lastPendingAction,
+        registerPendingAction,
+        retryLastAction,
         simulationResult,
         setSimulationResult,
         gasWarning,

@@ -24,6 +24,33 @@ Follow the project's existing code style and use ESLint to check:
 npm run lint
 ```
 
+## Test file convention
+
+**All test files must live in `__tests__/` at the repository root.**
+
+- Correct: `__tests__/my_feature.test.ts`
+- Wrong: `app/lib/__tests__/my_feature.test.ts`
+- Wrong: `app/components/MyComponent.test.tsx` (co-located)
+
+Use `@/app/...` absolute aliases in imports — relative imports such as
+`"../MyComponent"` are not valid from the root `__tests__/` directory:
+
+```ts
+// ✓ correct
+import { fetchWhitelistedTokens } from "@/app/lib/whitelist";
+
+// ✗ wrong (relative import from a nested location)
+import { fetchWhitelistedTokens } from "../whitelist";
+```
+
+A check script enforces this convention.  Run it before opening a PR:
+
+```bash
+npm run check-test-locations
+```
+
+This exits with code 1 and lists any misplaced test files if the rule is violated.
+
 ## Submitting Changes
 
 1. Commit your changes with a clear, descriptive message: `git commit -m "feat: add XYZ functionality"`

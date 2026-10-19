@@ -1,4 +1,12 @@
+import { BACKEND_URL, CONTRACT_ID } from "@/app/lib/config";
 import { formatTxError, WalletRejectedError } from "@/app/lib/errors";
+
+/**
+ * `BACKEND_URL` and `CONTRACT_ID` are deployment settings and live in
+ * `app/lib/config.ts`; they are re-exported here because every caller already
+ * imports this module and tests mock it.
+ */
+export { BACKEND_URL, CONTRACT_ID };
 
 export type ContractArg = { type: string; value: unknown };
 
@@ -76,11 +84,6 @@ export async function signTxWithTimeout<T>(
     if (timer !== undefined) clearTimeout(timer);
   }
 }
-
-export const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
-
-export const CONTRACT_ID = process.env.NEXT_PUBLIC_CONTRACT_ID || "";
 
 export function getPhaseLabel(phase: TxPhase): string {
   switch (phase) {

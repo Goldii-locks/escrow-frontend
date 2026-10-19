@@ -3,7 +3,7 @@ import {
   parseMultiSigTxPayload,
   evaluateMultiSigAssembly,
   MultiSigTxPayload,
-} from "../ledger_usb_bridge";
+} from "@/app/lib/ledger_usb_bridge";
 
 describe("ledger_usb_bridge - MultiSig Transaction Helpers", () => {
   const validPayload: MultiSigTxPayload = {

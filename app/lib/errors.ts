@@ -1,3 +1,5 @@
+import { reportClientError } from "@/app/lib/errorReporter";
+
 export class WalletRejectedError extends Error {
   constructor() {
     super("You declined the transaction in your wallet.");
@@ -77,8 +79,10 @@ export function formatTxError(err: unknown): string {
       return "The contract rejected this transaction. Check the job state and try again.";
     }
 
+    reportClientError({ source: "tx", message: err.message || err.name });
     return err.message || "Something went wrong. Please try again.";
   }
 
+  reportClientError({ source: "tx", message: String(err) });
   return "Something went wrong. Please try again.";
 }

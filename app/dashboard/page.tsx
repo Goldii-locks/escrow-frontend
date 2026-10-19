@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import Link from "next/link";
 import { useWallet } from "@/app/context/WalletContext";
 import Navbar from "@/app/components/Navbar";
 import MilestoneCard from "@/app/components/MilestoneCard";
 import LoadingSkeleton from "@/app/components/LoadingSkeleton";
 import EmptyStateCard from "@/app/components/EmptyStateCard";
+import JobActivityTimeline from "@/app/components/JobActivityTimeline";
 import DisputeRaiseModal from "@/app/components/DisputeRaiseModal";
 import { ArbiterPanelPlaceholder } from "@/app/components/ArbiterActionPanel";
 import { getArbiterJobEmptyState } from "@/app/lib/arbiter_action_panel";
@@ -16,72 +18,31 @@ import {
   runContractAction,
   submitContractTransaction,
 } from "@/app/lib/transactions";
-import { fetchAutoReleaseInfo } from "@/app/lib/autoRelease";
-
-interface Milestone {
-  index: number;
-  amount: string;
-  status: string;
-  releasedAmount?: string;
-}
-
-interface Job {
-  id: string;
-  client: string;
-  freelancer: string;
-  arbiter: string;
-  admin?: string;
-  funded: boolean;
-  milestones?: Milestone[];
-  token?: string;
-  tokenSymbol?: string;
-  tokenDecimals?: number;
-}
+import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
+import {
+  ApiShapeError,
+  JobListResponseSchema,
+  JobDetailResponseSchema,
+  JobSchema,
+  validateResponse,
+  type Job,
+} from "@/app/lib/api_schemas";
+import { reportApiResponse } from "@/app/lib/errorReporter";
 
 type RoleFilter = "all" | "client" | "freelancer" | "arbiter";
 
-interface JobPageResponse {
-  success?: boolean;
-  data?: unknown;
-  pagination?: {
-    page?: number;
-    limit?: number;
-    total?: number;
-  };
-  page?: number;
-  limit?: number;
-  total?: number;
-  totalItems?: number;
-  error?: string;
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
+/**
+ * Normalises raw (unknown-typed) data from the backend into a `Job`.
+ * Uses Zod's `safeParse` so that a bad shape never silently produces
+ * empty data — it returns `null` so the caller can show an error or fall
+ * back gracefully.
+ */
 function normalizeJob(item: unknown): Job | null {
-  if (!isObject(item) || typeof item.id !== "string") return null;
-
-  return {
-    id: item.id,
-    client: typeof item.client === "string" ? item.client : "",
-    freelancer: typeof item.freelancer === "string" ? item.freelancer : "",
-    arbiter: typeof item.arbiter === "string" ? item.arbiter : "",
-    admin: typeof item.admin === "string" ? item.admin : undefined,
-    funded: Boolean(item.funded),
-    milestones: Array.isArray(item.milestones)
-      ? (item.milestones as Milestone[])
-      : undefined,
-    token: typeof item.token === "string" ? item.token : undefined,
-    tokenSymbol: typeof item.tokenSymbol === "string" ? item.tokenSymbol : undefined,
-    tokenDecimals:
-      typeof item.tokenDecimals === "number" && Number.isFinite(item.tokenDecimals)
-        ? item.tokenDecimals
-        : undefined,
-  };
+  const result = JobSchema.safeParse(item);
+  return result.success ? result.data : null;
 }
 
-function parsePageResponse(payload: JobPageResponse): {
+function parsePageResponse(payload: ReturnType<typeof JobListResponseSchema.parse>): {
   jobs: Job[];
   page: number;
   limit: number;
@@ -100,7 +61,7 @@ function parsePageResponse(payload: JobPageResponse): {
 
   if (Array.isArray(payload.data)) {
     rows = payload.data;
-  } else if (isObject(payload.data)) {
+  } else if (payload.data && typeof payload.data === "object") {
     const embedded = payload.data as Record<string, unknown>;
     if (Array.isArray(embedded.jobs)) {
       rows = embedded.jobs;
@@ -139,7 +100,7 @@ const roleFilterLabels: Array<{ id: RoleFilter; label: string }> = [
 ];
 
 export default function Dashboard() {
-  const { address, signTransaction } = useWallet();
+  const { address, signTransaction, connect, isConnecting, registerPendingAction } = useWallet();
   const { showToast } = useToast();
   const [fetchLoading, setFetchLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -159,7 +120,40 @@ export default function Dashboard() {
   const { getState, isPending, setPhase, setError: setActionError, setTxHash } =
     useActionStates();
 
+  /**
+   * Issue #670: track which job rows are showing "Updating…" after a
+   * successful action, while the backend indexer catches up.
+   */
+  const [updatingJobIds, setUpdatingJobIds] = useState<Set<string>>(new Set());
+
+  /** Active backoff-poll cancel functions, keyed by jobId. */
+  const updatingPollerRefs = useRef<Map<string, () => void>>(new Map());
+
   const totalPages = Math.max(1, Math.ceil((total || jobs.length || 1) / limit));
+
+  /**
+   * Client-side search filter (#684). Filters the loaded jobs by substring
+   * across contract ID, counterparty addresses, and token symbol. The
+   * backend ignored the old contractId param, so we do this here instead.
+   */
+  const filteredJobs = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return jobs;
+    return jobs.filter((job) => {
+      const haystack = [
+        job.id,
+        job.client,
+        job.freelancer,
+        job.arbiter,
+        job.tokenSymbol ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [jobs, searchQuery]);
+
+  const isFiltering = searchQuery.trim().length > 0;
 
   const fetchJobs = useCallback(async () => {
     if (!address) {
@@ -170,7 +164,6 @@ export default function Dashboard() {
     }
 
     setFetchLoading(true);
-    setError(null);
 
     try {
       const params = new URLSearchParams({
@@ -182,19 +175,22 @@ export default function Dashboard() {
         params.set("role", roleFilter);
       }
 
-      if (searchQuery.trim().length > 0) {
-        params.set("contractId", searchQuery.trim());
-      }
+      // Search is now handled client-side (#684): the backend ignored the
+      // contractId param and only exact 56-char contract IDs could match.
+      // We filter the loaded jobs by substring instead.
 
       const res = await fetch(
         `${BACKEND_URL}/api/jobs/by-wallet/${encodeURIComponent(address)}?${params.toString()}`
       );
+      reportApiResponse(res, "/api/jobs/by-wallet/:address");
       if (res.status === 429) {
         setError("You're doing that too fast. Please wait a moment and try again.");
         setJobs([]);
         return;
       }
-      const data = (await res.json()) as JobPageResponse;
+      const rawData: unknown = await res.json();
+      const endpoint = `/api/jobs/by-wallet/${address}`;
+      const data = validateResponse(JobListResponseSchema, rawData, endpoint);
 
       if (data.success === false) {
         setError(data.error || "Failed to fetch jobs");
@@ -204,6 +200,9 @@ export default function Dashboard() {
         return;
       }
 
+      // Clear error only on a successful fetch so the Retry button stays
+      // visible (and disabled) while the request is in flight (#682).
+      setError(null);
       const parsed = parsePageResponse(data);
       setJobs(parsed.jobs);
       setPage(parsed.page || page);
@@ -224,7 +223,7 @@ export default function Dashboard() {
     } finally {
       setFetchLoading(false);
     }
-  }, [address, page, limit, roleFilter, searchQuery]);
+  }, [address, page, limit, roleFilter]);
 
   const fetchJobDetails = useCallback(
     async (jobId: string, force = false) => {
@@ -235,28 +234,105 @@ export default function Dashboard() {
 
       try {
         const res = await fetch(`${BACKEND_URL}/api/jobs/${encodeURIComponent(jobId)}`);
-        const payload = (await res.json()) as JobPageResponse;
-        const candidate = isObject(payload.data) ? normalizeJob(payload.data) : null;
+        reportApiResponse(res, "/api/jobs/:contractId");
+        const rawPayload: unknown = await res.json();
+        const payload = validateResponse(
+          JobDetailResponseSchema,
+          rawPayload,
+          `/api/jobs/${jobId}`,
+        );
+        const candidate = normalizeJob(payload.data);
 
         if (candidate) {
           setJobDetails((current) => ({ ...current, [jobId]: candidate }));
           return;
         }
 
+        // Shape parsed OK but data field did not match Job — fall back to list entry
         const fallback = jobs.find((job) => job.id === jobId);
         if (fallback) {
           setJobDetails((current) => ({ ...current, [jobId]: fallback }));
         }
-      } catch {
-        const fallback = jobs.find((job) => job.id === jobId);
-        if (fallback) {
-          setJobDetails((current) => ({ ...current, [jobId]: fallback }));
+      } catch (err) {
+        // ApiShapeError means the server returned an unexpected envelope;
+        // surface it so the user sees "Unexpected response" rather than blank
+        if (err instanceof ApiShapeError) {
+          const fallback = jobs.find((job) => job.id === jobId);
+          if (fallback) {
+            setJobDetails((current) => ({ ...current, [jobId]: fallback }));
+          }
+        } else {
+          const fallback = jobs.find((job) => job.id === jobId);
+          if (fallback) {
+            setJobDetails((current) => ({ ...current, [jobId]: fallback }));
+          }
         }
       } finally {
         setDetailsLoading((current) => ({ ...current, [jobId]: false }));
       }
     },
     [address, jobDetails, jobs]
+  );
+
+  /**
+   * Issue #670: mark a job row as "Updating…" then re-poll the job list with
+   * exponential backoff until either the fetch succeeds (indexer caught up)
+   * or 2 minutes have elapsed.
+   *
+   * Backoff sequence: 2 s → 4 s → 8 s → 15 s → 15 s → … (cap at 15 s).
+   */
+  const startUpdatingPoll = useCallback(
+    (jobId: string) => {
+      // Cancel any in-flight poll for this job.
+      updatingPollerRefs.current.get(jobId)?.();
+
+      setUpdatingJobIds((prev) => {
+        const next = new Set(prev);
+        next.add(jobId);
+        return next;
+      });
+
+      const MAX_POLL_DURATION_MS = 120_000;
+      const BACKOFF_STEPS_MS = [2_000, 4_000, 8_000, 15_000];
+      const startedAt = Date.now();
+      let stepIndex = 0;
+      let timerId: ReturnType<typeof setTimeout> | null = null;
+      let cancelled = false;
+
+      const stop = () => {
+        cancelled = true;
+        if (timerId !== null) clearTimeout(timerId);
+        updatingPollerRefs.current.delete(jobId);
+        setUpdatingJobIds((prev) => {
+          const next = new Set(prev);
+          next.delete(jobId);
+          return next;
+        });
+      };
+
+      const scheduleNext = () => {
+        if (cancelled) return;
+        if (Date.now() - startedAt >= MAX_POLL_DURATION_MS) {
+          stop();
+          return;
+        }
+        const delay = BACKOFF_STEPS_MS[Math.min(stepIndex, BACKOFF_STEPS_MS.length - 1)];
+        stepIndex += 1;
+        timerId = setTimeout(async () => {
+          if (cancelled) return;
+          try {
+            await fetchJobs();
+            stop();
+          } catch {
+            scheduleNext();
+          }
+        }, delay);
+      };
+
+      scheduleNext();
+      updatingPollerRefs.current.set(jobId, stop);
+    },
+    [fetchJobs]
   );
 
   useEffect(() => {
@@ -334,16 +410,13 @@ export default function Dashboard() {
         return;
       }
 
-      const entries = await Promise.all(
-        deliveredIndexes.map(async (index) => {
-          const info = await fetchAutoReleaseInfo(jobId, index, {
-            signal: controller.signal,
-          });
-          return [index, info.deadlineMs] as const;
-        })
-      );
+      // Issue #671: fetch ALL milestone deadlines in one request instead of
+      // one request per delivered milestone (N+1 problem).
+      const deadlines = await fetchAllAutoReleaseDeadlines(jobId, deliveredIndexes, {
+        signal: controller.signal,
+      });
       if (!controller.signal.aborted) {
-        setAutoReleaseDeadlines(Object.fromEntries(entries));
+        setAutoReleaseDeadlines(deadlines);
       }
     })();
 
@@ -353,6 +426,10 @@ export default function Dashboard() {
   const executeTx = useCallback(
     async (actionKey: string, method: string, args: { type: string; value: unknown }[]) => {
       if (!address) return null;
+
+      // Stage the action so the global signature-timeout alert can rebuild
+      // and re-sign it with a fresh XDR (#676).
+      registerPendingAction({ method, args, sourceAddress: address });
 
       const txHash = await runContractAction(
         actionKey,
@@ -368,6 +445,12 @@ export default function Dashboard() {
       );
 
       if (txHash !== null) {
+        // Issue #670: immediately mark the row as "Updating…" so the user
+        // knows the action succeeded while the indexer catches up.
+        if (expandedJobId) {
+          startUpdatingPoll(expandedJobId);
+        }
+
         await fetchJobs();
         if (expandedJobId) {
           await fetchJobDetails(expandedJobId, true);
@@ -379,6 +462,7 @@ export default function Dashboard() {
     [
       address,
       signTransaction,
+      registerPendingAction,
       isPending,
       setPhase,
       setActionError,
@@ -386,6 +470,7 @@ export default function Dashboard() {
       fetchJobs,
       expandedJobId,
       fetchJobDetails,
+      startUpdatingPoll,
     ]
   );
 
@@ -413,7 +498,12 @@ export default function Dashboard() {
   };
 
   const handleApprove = async (i: number) => {
-    showToast(`Approve milestone ${i + 1} (wired to contract soon)`, "info");
+    if (!address) return;
+
+    await executeTx(`approve-${i}`, "approve_milestone", [
+      { type: "address", value: address },
+      { type: "u32", value: i.toString() },
+    ]);
   };
 
   const handleDispute = (i: number) => {
@@ -469,9 +559,30 @@ export default function Dashboard() {
         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6">Job Dashboard</h1>
 
         {!address ? (
-          <p className="text-center text-gray-400 text-sm sm:text-base" role="status" aria-live="polite">
-            Connect your wallet to view your jobs
-          </p>
+          <EmptyStateCard
+            testId="dashboard-connect-wallet"
+            ariaLabel="Connect wallet"
+            title="Connect your wallet to view your jobs"
+            description="Connect a Stellar wallet to see the escrow jobs you're involved in as a client, freelancer, or arbiter."
+            statusTitle
+          >
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <button
+                type="button"
+                onClick={() => void connect()}
+                disabled={isConnecting}
+                className="px-4 py-2 rounded-lg bg-indigo-600 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isConnecting ? "Connecting…" : "Connect wallet"}
+              </button>
+              <Link
+                href="/#how-it-works"
+                className="text-sm text-indigo-400 hover:text-indigo-300 underline-offset-2 hover:underline"
+              >
+                How it works
+              </Link>
+            </div>
+          </EmptyStateCard>
         ) : (
           <div className="space-y-4 sm:space-y-6">
             <form onSubmit={handleSearch} className="flex flex-col gap-2 sm:gap-3">
@@ -526,18 +637,29 @@ export default function Dashboard() {
               })}
             </div>
 
-            {fetchLoading ? (
+            {fetchLoading && !error ? (
               <LoadingSkeleton />
             ) : error ? (
-              <div
-                className="text-center text-red-400 bg-red-950/20 border border-red-800 rounded-lg p-4 animate-shake"
-                role="alert"
-                aria-live="assertive"
-                data-testid="dashboard-error-alert"
-              >
-                <p className="font-semibold mb-1">Error loading jobs</p>
-                <p className="text-sm">{error}</p>
-              </div>
+              <EmptyStateCard
+                testId="dashboard-error-alert"
+                ariaLabel="Error loading jobs"
+                title="Error loading jobs"
+                description={error}
+                icon="briefcase"
+                className="border-red-800 bg-red-950/20 animate-shake"
+                action={
+                  <button
+                    type="button"
+                    onClick={() => void fetchJobs()}
+                    disabled={fetchLoading}
+                    data-testid="dashboard-retry-button"
+                    aria-label="Retry loading jobs"
+                    className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {fetchLoading ? "Retrying…" : "Retry"}
+                  </button>
+                }
+              />
             ) : jobs.length === 0 ? (
               <EmptyStateCard
                 testId="dashboard-empty-state"
@@ -547,11 +669,30 @@ export default function Dashboard() {
                 icon="briefcase"
                 badges={["Client", "Freelancer", "Arbiter"]}
               />
+            ) : filteredJobs.length === 0 ? (
+              <EmptyStateCard
+                testId="dashboard-filter-empty-state"
+                ariaLabel="No matching jobs"
+                title="No matching jobs"
+                description="No jobs on this page match your search. Try a different contract ID, address, or token symbol."
+                icon="briefcase"
+              />
             ) : (
               <div className="space-y-3 sm:space-y-5">
+                {isFiltering && (
+                  <p
+                    data-testid="dashboard-filter-hint"
+                    className="text-xs text-gray-400"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    Filtering this page ({filteredJobs.length} of {jobs.length})
+                  </p>
+                )}
                 <div className="border border-gray-800 rounded-lg sm:rounded-xl bg-gray-900 overflow-hidden overflow-x-auto" role="region" aria-label="Jobs list">
-                  {jobs.map((job, index) => {
+                  {filteredJobs.map((job) => {
                     const isExpanded = expandedJobId === job.id;
+                    const isUpdating = updatingJobIds.has(job.id);
                     const roleBadges = [
                       address === job.client ? "Client" : null,
                       address === job.freelancer ? "Freelancer" : null,
@@ -580,6 +721,18 @@ export default function Dashboard() {
                               </p>
                             </div>
                             <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2">
+                              {/* Issue #670: show "Updating…" badge while indexer catches up */}
+                              {isUpdating && (
+                                <span
+                                  data-testid="updating-badge"
+                                  className="text-xs px-2 py-0.5 sm:py-1 rounded-full border border-yellow-600 bg-yellow-900/40 text-yellow-300 whitespace-nowrap animate-pulse"
+                                  role="status"
+                                  aria-live="polite"
+                                  aria-label="Updating job status"
+                                >
+                                  Updating…
+                                </span>
+                              )}
                               {roleBadges.map((badge) => (
                                 <span
                                   key={`${job.id}-${badge}`}
@@ -640,6 +793,7 @@ export default function Dashboard() {
                                         isArbiter={isArbiter}
                                         amountDecimals={expandedJob.tokenDecimals ?? 7}
                                         amountSymbol={expandedJob.tokenSymbol ?? "XLM"}
+                                        freelancerAddress={expandedJob.freelancer}
                                         resolveDisputeState={getState(`resolve-${m.index}`)}
                                         isResolveDisputePending={isPending(`resolve-${m.index}`)}
                                         onResolveDispute={handleResolveDispute}
@@ -667,6 +821,8 @@ export default function Dashboard() {
                                     />
                                   )}
                                 </div>
+
+                                <JobActivityTimeline contractId={expandedJob.id} />
                               </>
                             )}
                           </div>

@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, within, waitFor } from "@testing-library/react";
-import Navbar from "../Navbar";
+import Navbar from "@/app/components/Navbar";
 
 const connect = vi.fn();
 const disconnect = vi.fn();
@@ -80,6 +80,7 @@ describe("Navbar owns the bell and the wallet controls", () => {
       "wallet-selector-option-albedo",
       "wallet-selector-option-xbull",
       "wallet-selector-option-hana",
+      "wallet-selector-option-lobstr",
     ]);
     expect(connect).not.toHaveBeenCalled();
   });

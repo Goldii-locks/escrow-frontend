@@ -2,15 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useWallet } from "@/app/context/WalletContext";
-import { NETWORK_PASSPHRASE } from "@/app/lib/contract";
+import { NETWORK_PASSPHRASE } from "@/app/lib/config";
 import {
   createStellarEnvelopeParser,
   logWalletWarning,
   parseMultiSigEnvelope,
-  type WalletMultiSigSigner,
 } from "@/app/lib/wallet_state_context";
-import { useAlbedoMultiSigAssembly } from "@/app/hooks/useAlbedoMultiSigAssembly";
-import { useLedgerMultiSigAssembly } from "@/app/hooks/useLedgerMultiSigAssembly";
 import { withWalletLoader } from "@/app/lib/wallet_state_context";
 import {
   inspectSignatureFee,
@@ -25,7 +22,6 @@ export interface SignatureTimeoutAlertProps {
   isOpen?: boolean;
   transactionId?: string;
   transactionXdr?: string;
-  signers?: WalletMultiSigSigner[];
   onRetry?: () => Promise<void> | void;
   onDismiss?: () => void;
   /**
@@ -49,7 +45,6 @@ export default function SignatureTimeoutAlert({
   isOpen = false,
   transactionId,
   transactionXdr,
-  signers = [],
   onRetry,
   onDismiss,
   simulation = null,
@@ -58,14 +53,11 @@ export default function SignatureTimeoutAlert({
 }: SignatureTimeoutAlertProps) {
   const {
     networkMismatchMessage,
-    selectedWalletId,
-    assembleMultiSigTransaction,
     signatureTimeoutError,
     signatureTimeoutXdr,
     clearSignatureTimeout,
+    retryLastAction,
   } = useWallet();
-  const albedoAssembly = useAlbedoMultiSigAssembly(NETWORK_PASSPHRASE);
-  const ledgerAssembly = useLedgerMultiSigAssembly(NETWORK_PASSPHRASE);
   const [isRetrying, setIsRetrying] = useState(false);
 
   const activeError = error ?? signatureTimeoutError;
@@ -109,11 +101,12 @@ export default function SignatureTimeoutAlert({
   }
 
   async function retry() {
-    if (!onRetry || isRetrying) return;
+    const effectiveOnRetry = onRetry ?? retryLastAction;
+    if (!effectiveOnRetry || isRetrying) return;
     setIsRetrying(true);
     try {
       await withWalletLoader(async () => {
-        await onRetry();
+        await effectiveOnRetry();
       });
     } catch (retryError) {
       logWalletWarning("SIGNATURE RETRY FAILED", "Wallet signature retry failed", {
@@ -123,27 +116,6 @@ export default function SignatureTimeoutAlert({
       });
     } finally {
       setIsRetrying(false);
-    }
-  }
-
-  async function assemble() {
-    if (!activeTransactionXdr || signers.length === 0) return;
-    try {
-      const assembly =
-        selectedWalletId === "albedo" ? albedoAssembly : ledgerAssembly;
-      assembly.parseStructure(activeTransactionXdr);
-      const splits = signers.map((signer) => ({
-        baseXdr: activeTransactionXdr,
-        signer,
-        signedXdr: activeTransactionXdr,
-      }));
-      await assembleMultiSigTransaction(splits);
-    } catch (assemblyError) {
-      logWalletWarning("MULTISIG ASSEMBLY FAILED", "Could not validate transaction signatures", {
-        err: assemblyError,
-        txId: transactionId,
-        phase: "error",
-      });
     }
   }
 
@@ -176,16 +148,9 @@ export default function SignatureTimeoutAlert({
             </p>
           )}
           <div className="mt-3 flex flex-wrap gap-2">
-            {onRetry && (
-              <button type="button" onClick={retry} disabled={isRetrying} data-testid="signature-timeout-retry">
-                {isRetrying ? <ButtonSpinner className="h-4 w-4" /> : "Retry signature"}
-              </button>
-            )}
-            {activeTransactionXdr && signers.length > 0 && (
-              <button type="button" onClick={assemble} data-testid="signature-timeout-assemble">
-                Validate multisig
-              </button>
-            )}
+            <button type="button" onClick={retry} disabled={isRetrying} data-testid="signature-timeout-retry">
+              {isRetrying ? <ButtonSpinner className="h-4 w-4" /> : "Retry signature"}
+            </button>
             {onDismiss && (
               <button
                 type="button"

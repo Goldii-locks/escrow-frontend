@@ -485,27 +485,30 @@ export {
   relativeLuminance,
 } from "@/app/lib/theme_tokens";
 
+import { THEME_TOKENS } from "@/app/lib/generated_tokens";
+
 /**
- * Hex values of every theme token the panel paints with. These mirror the
- * `@theme` block in `app/globals.css` (the core design variables config);
- * tests assert the mirror still matches, and that every colour utility in
- * the class maps below resolves to one of these tokens, so a palette change
- * or an off-palette class cannot slip in silently.
+ * Hex values of every theme token the panel paints with.
+ *
+ * Previously these were hardcoded hex literals (a mirror of the `@theme`
+ * block in `app/globals.css`), meaning a design change required updating
+ * both places (issue #680). Now they are derived from the generated
+ * `THEME_TOKENS` map so `globals.css` is the single source of truth.
  */
 export const ARBITER_PANEL_TOKENS = {
-  "surface-page": "#030712",
-  "surface-card": "#111827",
-  "surface-field": "#1f2937",
-  "border-subtle": "#374151",
-  "text-primary": "#f9fafb",
-  "text-secondary": "#d1d5db",
-  "text-muted": "#9ca3af",
-  "accent": "#4f46e5",
-  "accent-soft": "#818cf8",
-  "success": "#16a34a",
-  "success-soft": "#4ade80",
-  "danger": "#991b1b",
-  "danger-soft": "#f87171",
+  "surface-page": THEME_TOKENS["surface-page"],
+  "surface-card": THEME_TOKENS["surface-card"],
+  "surface-field": THEME_TOKENS["surface-field"],
+  "border-subtle": THEME_TOKENS["border-subtle"],
+  "text-primary": THEME_TOKENS["text-primary"],
+  "text-secondary": THEME_TOKENS["text-secondary"],
+  "text-muted": THEME_TOKENS["text-muted"],
+  "accent": THEME_TOKENS["accent"],
+  "accent-soft": THEME_TOKENS["accent-soft"],
+  "success": THEME_TOKENS["success"],
+  "success-soft": THEME_TOKENS["success-soft"],
+  "danger": THEME_TOKENS["danger"],
+  "danger-soft": THEME_TOKENS["danger-soft"],
 } as const;
 
 export type ArbiterPanelToken = keyof typeof ARBITER_PANEL_TOKENS;

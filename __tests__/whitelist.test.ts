@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchWhitelistedTokens, tokenLabel } from "@/app/lib/whitelist";
+import { ApiShapeError, fetchWhitelistedTokens, tokenLabel } from "@/app/lib/whitelist";
 
 function stubFetch(body: unknown, ok = true, status = 200) {
   vi.stubGlobal(
@@ -40,11 +40,12 @@ describe("fetchWhitelistedTokens", () => {
     ]);
   });
 
-  it("returns an empty list for unexpected shapes", async () => {
+  // An unexpected body is an error, not an empty whitelist (#678).
+  it("throws ApiShapeError for unexpected shapes instead of returning []", async () => {
     stubFetch(["CAAA"]);
-    expect(await fetchWhitelistedTokens("CID")).toEqual([]);
+    await expect(fetchWhitelistedTokens("CID")).rejects.toBeInstanceOf(ApiShapeError);
     stubFetch({ success: true, data: ["CAAA"] });
-    expect(await fetchWhitelistedTokens("CID")).toEqual([]);
+    await expect(fetchWhitelistedTokens("CID")).rejects.toBeInstanceOf(ApiShapeError);
   });
 
   it("throws on a non-ok response", async () => {

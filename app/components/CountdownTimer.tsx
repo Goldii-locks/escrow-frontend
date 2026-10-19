@@ -54,6 +54,31 @@ export function formatRemaining(msRemaining: number): string {
   return parts.slice(0, 2).join(", ");
 }
 
+/**
+ * Format the absolute deadline as a locale-aware date/time string including
+ * the time zone, e.g. "Releases Thu 21 Oct, 14:00 GMT+1".
+ *
+ * Uses `Intl.DateTimeFormat` with the user's locale (or `en-US` as a fallback
+ * in test environments where `navigator.language` may be unavailable).
+ */
+export function formatAbsoluteDeadline(deadlineMs: number): string {
+  const locale =
+    typeof navigator !== "undefined" && navigator.language
+      ? navigator.language
+      : "en-US";
+
+  const formatter = new Intl.DateTimeFormat(locale, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "shortOffset",
+  });
+
+  return `Releases ${formatter.format(new Date(deadlineMs))}`;
+}
+
 export default function CountdownTimer({
   deadline,
   eligibleLabel = "Eligible for auto-release",
@@ -69,6 +94,9 @@ export default function CountdownTimer({
 
   const remaining = deadline - now;
   const isElapsed = remaining <= 0;
+
+  // ISO string for the <time dateTime> attribute — stable per deadline.
+  const isoDeadline = new Date(deadline).toISOString();
 
   useEffect(() => {
     if (isElapsed) {
@@ -129,6 +157,13 @@ export default function CountdownTimer({
       className={`text-xs text-text-muted tabular-nums ${className}`}
     >
       {formatRemaining(remaining)} remaining
+      <time
+        dateTime={isoDeadline}
+        data-testid="countdown-absolute"
+        className="ml-1 text-text-muted/70"
+      >
+        {formatAbsoluteDeadline(deadline)}
+      </time>
     </span>
   );
 }

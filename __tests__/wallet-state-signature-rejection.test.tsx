@@ -29,7 +29,8 @@ vi.mock("@creit.tech/stellar-wallets-kit/modules/utils", () => ({
   defaultModules: vi.fn(() => []),
 }));
 
-vi.mock("@/app/lib/contract", () => ({
+vi.mock("@/app/lib/config", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/app/lib/config")>()),
   NETWORK_PASSPHRASE: "Test SDF Network ; September 2015",
 }));
 

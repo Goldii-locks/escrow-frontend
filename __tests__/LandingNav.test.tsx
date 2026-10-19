@@ -10,9 +10,9 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import LandingNav from "../LandingNav";
+import LandingNav from "@/app/components/LandingNav";
 
-vi.mock("@/app/lib/contract", () => ({
+vi.mock("@/app/lib/config", () => ({
   NETWORK_PASSPHRASE: "Test SDF Network ; September 2015",
 }));
 
