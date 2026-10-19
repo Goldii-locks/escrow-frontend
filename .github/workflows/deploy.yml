@@ -76,7 +76,7 @@ jobs:
           [ -n "$CID" ] || { echo "::error::no CONTRACT_ID — set the repo variable"; exit 1; }
           echo "id=${CID}" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: .
           push: true
