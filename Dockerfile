@@ -5,7 +5,7 @@
 # ---- build ----
 # Node 24 to match the frontend's existing CI (backend is on 20; the
 # mismatch is fine across repos, but pin it here so builds are reproducible).
-FROM node:24-bookworm-slim AS build
+FROM node:26-bookworm-slim AS build
 
 WORKDIR /app
 
