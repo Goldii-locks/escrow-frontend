@@ -1,5 +1,5 @@
-import { BACKEND_URL, CONTRACT_ID } from "@/app/lib/config";
-import { formatTxError, WalletRejectedError } from "@/app/lib/errors";
+﻿import { BACKEND_URL, CONTRACT_ID } from "@/app/lib/config";
+import { formatTxError, WalletRejectedError } from "@/app/lib/errors";\nimport { BACKEND_URL, buildTx, submitTx } from "@/app/lib/api";
 
 /**
  * `BACKEND_URL` and `CONTRACT_ID` are deployment settings and live in
@@ -113,7 +113,7 @@ export function isTxPending(phase: TxPhase): boolean {
 // `sendError`'s `{ success: false, error }` or, for schema rejections, as the
 // validate middleware's `ValidationError` body carrying `details` / `fields`.
 // The parsing below is deliberately tolerant of the older flat shapes
-// (`{ hash }`, `{ txHash }`, …) so a backend that has not yet been redeployed
+// (`{ hash }`, `{ txHash }`, â€¦) so a backend that has not yet been redeployed
 // still yields a usable hash.
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -225,7 +225,7 @@ export async function submitContractTransaction({
 }): Promise<string> {
   onPhase?.("building");
 
-  const buildTxRes = await fetch(`${BACKEND_URL}/api/jobs/build-tx`, {
+
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -267,7 +267,7 @@ export async function submitContractTransaction({
 
   onPhase?.("submitting");
 
-  const submitRes = await fetch(`${BACKEND_URL}/api/jobs/submit`, {
+
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ signedXdr }),
@@ -320,3 +320,11 @@ export async function runContractAction(
     return null;
   }
 }
+
+
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
@@ -201,7 +201,7 @@ export default function Dashboard() {
       );
       reportApiResponse(res, "/api/jobs/by-wallet/:address");
       if (res.status === 429) {
-        setError("You're doing that too fast. Please wait a moment and try again.");
+
         setJobs([]);
         return;
       }
@@ -535,7 +535,7 @@ export default function Dashboard() {
   const handleResolveDispute = async (index: number, releaseToFreelancer: boolean) => {
     if (!address) return;
 
-    await executeTx(`resolve-${index}`, "resolve_dispute", [
+    await executeTx(\resolve-${index}`, "resolve_dispute", [
       { type: "address", value: address },
       { type: "u32", value: index.toString() },
       { type: "bool", value: releaseToFreelancer },
@@ -969,7 +969,7 @@ export default function Dashboard() {
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page >= totalPages}
                     className="w-full xs:w-auto px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-xs sm:text-sm transition-all duration-200 hover:bg-gray-800 hover:border-gray-600 active:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-900 disabled:hover:border-gray-700"
-                    aria-label={`Next page, current page is ${page} of ${totalPages}`}
+                    aria-label={\next page, current page is ${page} of ${totalPages}`}
                   >
                     Next
                   </button>
@@ -997,3 +997,15 @@ export default function Dashboard() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-import { BACKEND_URL } from "@/app/lib/transactions";
+﻿import { BACKEND_URL } from "@/app/lib/transactions";
 import { AdminResponseSchema, validateResponse } from "@/app/lib/api_schemas";
 
 /**
@@ -78,7 +78,7 @@ export async function isAdmin(
 ): Promise<boolean> {
   if (!walletAddress) return false;
 
-  const adminAddress = await fetchAdminAddress(contractId, options);
+  const adminAddress = await getAdminAddress(contractId, options);
   return adminAddress !== null && adminAddress === walletAddress;
 }
 
@@ -105,3 +105,5 @@ export async function fetchEscrowFunded(
     return null;
   }
 }
+
+

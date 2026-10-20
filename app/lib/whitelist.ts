@@ -1,4 +1,4 @@
-import { BACKEND_URL } from "@/app/lib/transactions";
+﻿import { BACKEND_URL } from "@/app/lib/transactions";
 import {
   ApiShapeError,
   WhitelistResponseSchema,
@@ -75,8 +75,10 @@ export function tokenLabel(token: WhitelistToken): string {
   if (token.symbol) return token.symbol;
   if (token.name) return token.name;
   return token.address.length > 12
-    ? `${token.address.slice(0, 4)}…${token.address.slice(-4)}`
+    ? `${token.address.slice(0, 4)}Ã¢â‚¬Â¦${token.address.slice(-4)}`
     : token.address;
 }
 
 export { ApiShapeError };
+
+
