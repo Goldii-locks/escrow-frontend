@@ -1,11 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ArbitratorEvidenceList from "@/app/components/ArbitratorEvidenceList";
+import { MOCK_EVIDENCE_DATASET } from "@/__tests__/fixtures/arbitrator_evidence_list";
 import {
   isArbitratorAuthorized,
   sanitizeEvidenceInput,
   fetchArbitratorEvidence,
-  MOCK_EVIDENCE_DATASET,
 } from "@/app/lib/arbitrator_evidence_list";
 
 describe("arbitrator_evidence_list module", () => {
@@ -110,12 +110,24 @@ describe("arbitrator_evidence_list module", () => {
   });
 
   describe("Data Mapping & Backend Query Bindings (Issue #423)", () => {
-    it("fetchArbitratorEvidence returns mock dataset when backend API is unreachable", async () => {
+    it("fetchArbitratorEvidence returns data from the backend", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({ ok: true, json: async () => MOCK_EVIDENCE_DATASET }),
+      );
       const data = await fetchArbitratorEvidence("disp-101");
       expect(data.length).toBeGreaterThan(0);
       expect(data[0]).toHaveProperty("disputeId", "disp-101");
       expect(data[0]).toHaveProperty("title");
       expect(data[0]).toHaveProperty("hash");
+    });
+
+    it("throws when the backend is unreachable", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockRejectedValue(new Error("network down")),
+      );
+      await expect(fetchArbitratorEvidence("disp-101")).rejects.toThrow(/network down/);
     });
 
     it("renders evidence items loaded from dataset", async () => {
@@ -189,7 +201,7 @@ describe("arbitrator_evidence_list module", () => {
     it("renders a fetched dataset end to end through a mocked backend", async () => {
       vi.stubGlobal(
         "fetch",
-        vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: MOCK_EVIDENCE_DATASET }) })
+        vi.fn().mockResolvedValue({ ok: true, json: async () => MOCK_EVIDENCE_DATASET }),
       );
 
       render(

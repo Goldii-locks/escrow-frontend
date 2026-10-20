@@ -12,6 +12,14 @@
 
 # testing
 /coverage
+/__snapshots__/
+*.snap
+*.snap.md
+
+# test artifacts
+.test-results/
+playwright-report/
+trace/
 
 # next.js
 /.next/

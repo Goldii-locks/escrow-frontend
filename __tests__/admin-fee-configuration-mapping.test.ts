@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { MOCK_FEE_CONFIG } from "@/__tests__/fixtures/admin_fee_configuration";
 import {
   FEE_CONFIG_ENDPOINT,
-  MOCK_FEE_CONFIG,
   loadFeeConfig,
   mapFeeConfigResponse,
   toFeeConfigPayload,
@@ -27,6 +27,6 @@ describe("admin_fee_configuration mapping", () => {
     const v = await loadFeeConfig(async (u) => { called = u; return { fee_bps: 100 }; });
     expect(called).toBe(FEE_CONFIG_ENDPOINT);
     expect(v.feePercent).toBe("1");
-    expect((await loadFeeConfig()).feePercent).toBe("2.5");
+    expect((await loadFeeConfig(async () => MOCK_FEE_CONFIG)).feePercent).toBe("2.5");
   });
 });

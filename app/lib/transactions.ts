@@ -1,4 +1,5 @@
 import { formatTxError, WalletRejectedError } from "@/app/lib/errors";
+import type { LedgerSimulationResult } from "@/app/lib/ledger_usb_bridge";
 
 export type ContractArg = { type: string; value: unknown };
 
@@ -114,6 +115,7 @@ export async function submitContractTransaction({
   sourceAddress,
   signTransaction,
   onPhase,
+  setSimulationResult,
   signingTimeoutMs = DEFAULT_SIGNING_TIMEOUT_MS,
 }: {
   method: string;
@@ -121,6 +123,8 @@ export async function submitContractTransaction({
   sourceAddress: string;
   signTransaction: (xdr: string) => Promise<string>;
   onPhase?: (phase: TxPhase) => void;
+  /** Set after a Soroban simulation completes; triggers fee warning evaluation. */
+  setSimulationResult?: (result: LedgerSimulationResult | null) => void;
   /** Maximum milliseconds to wait for a wallet signature before aborting. */
   signingTimeoutMs?: number;
 }): Promise<string> {
@@ -145,7 +149,12 @@ export async function submitContractTransaction({
     throw new Error(message);
   }
 
-  const { xdr } = await buildTxRes.json();
+  const buildTxBody = await buildTxRes.json();
+  const { xdr } = buildTxBody;
+
+  if (setSimulationResult && buildTxBody.simulationResult) {
+    setSimulationResult(buildTxBody.simulationResult as LedgerSimulationResult);
+  }
 
   onPhase?.("signing");
 

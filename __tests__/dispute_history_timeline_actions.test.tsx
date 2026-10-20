@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DisputeHistoryTimeline from "@/app/components/DisputeHistoryTimeline";
 import Toast from "@/app/components/Toast";
 import { ToastProvider } from "@/app/context/ToastContext";
+import { MOCK_TIMELINE_EVENTS } from "@/__tests__/fixtures/dispute_history_timeline";
 import {
   DISPUTE_STATUS_BADGES,
-  MOCK_TIMELINE_EVENTS,
   buildTimelineCsv,
   canSubmitAction,
   downloadTimelineCsv,

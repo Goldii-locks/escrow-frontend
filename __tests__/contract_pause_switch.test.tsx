@@ -2,11 +2,13 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ContractPauseSwitch from "@/app/components/ContractPauseSwitch";
 import {
+  MOCK_CONTRACT_PAUSE_STATE,
+  MOCK_CONTRACT_PAUSE_TRANSITIONS,
+} from "@/__tests__/fixtures/contract_pause_switch";
+import {
   CONTRACT_PAUSE_DESKTOP_MIN_WIDTH,
   CONTRACT_PAUSE_GRID_CLASSES,
   CONTRACT_PAUSE_TABLET_MIN_WIDTH,
-  MOCK_CONTRACT_PAUSE_STATE,
-  MOCK_CONTRACT_PAUSE_TRANSITIONS,
   classifyContractPauseViewport,
   fetchContractPauseState,
   getContractPauseGridLayout,
@@ -213,18 +215,16 @@ describe("contract_pause_switch module", () => {
       expect(readouts.contractId).toBe(MOCK_CONTRACT_PAUSE_STATE.contractId);
     });
 
-    it("returns the mock state when the backend is unreachable", async () => {
+    it("throws when the backend is unreachable", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn(() => Promise.reject(new Error("network down"))),
       );
 
-      await expect(fetchContractPauseState()).resolves.toEqual(
-        MOCK_CONTRACT_PAUSE_STATE,
-      );
+      await expect(fetchContractPauseState()).rejects.toThrow(/network down/);
     });
 
-    it("returns the mock state when the backend payload is incomplete", async () => {
+    it("throws when the backend payload is incomplete", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn(() =>
@@ -235,20 +235,18 @@ describe("contract_pause_switch module", () => {
         ),
       );
 
-      await expect(fetchContractPauseState()).resolves.toEqual(
-        MOCK_CONTRACT_PAUSE_STATE,
+      await expect(fetchContractPauseState()).rejects.toThrow(
+        /Pause state response missing required fields/,
       );
     });
 
-    it("returns the mock state on a non-ok response", async () => {
+    it("throws on a non-ok response", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn(() => Promise.resolve({ ok: false, status: 503 })),
       );
 
-      await expect(fetchContractPauseState()).resolves.toEqual(
-        MOCK_CONTRACT_PAUSE_STATE,
-      );
+      await expect(fetchContractPauseState()).rejects.toThrow(/503/);
     });
 
     it("returns a complete backend payload through a success envelope", async () => {
@@ -271,12 +269,7 @@ describe("contract_pause_switch module", () => {
     });
 
     it("renders every readout from the mock state with no backend", async () => {
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(() => Promise.reject(new Error("network down"))),
-      );
-
-      render(<ContractPauseSwitch />);
+      render(<ContractPauseSwitch initialState={MOCK_CONTRACT_PAUSE_STATE} />);
 
       await waitFor(() => {
         expect(
@@ -296,7 +289,7 @@ describe("contract_pause_switch module", () => {
     });
 
     it("shows placeholders while the freeze state resolves", async () => {
-      render(<ContractPauseSwitch isLoading />);
+      render(<ContractPauseSwitch isLoading initialState={MOCK_CONTRACT_PAUSE_STATE} />);
 
       const loading = screen.getByTestId("contract-pause-loading");
       expect(loading).toBeInTheDocument();

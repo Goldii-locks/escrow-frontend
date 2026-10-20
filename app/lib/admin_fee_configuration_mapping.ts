@@ -17,12 +17,6 @@ export interface FeeConfigFormValues {
 
 export const FEE_CONFIG_ENDPOINT = "/api/admin/fee-configuration";
 
-export const MOCK_FEE_CONFIG: FeeConfigResponse = {
-  fee_bps: 250,
-  fee_recipient: "GDEXAMPLEFEERECIPIENT",
-  updated_at: "2025-01-01T00:00:00Z",
-};
-
 /** Map a backend payload (basis points) to form values (percent). */
 export function mapFeeConfigResponse(data: FeeConfigResponse | null | undefined): FeeConfigFormValues {
   const bps = Number(data?.fee_bps);
@@ -41,9 +35,9 @@ export function toFeeConfigPayload(values: Pick<FeeConfigFormValues, "feePercent
   };
 }
 
-/** Load values via an injectable fetcher (defaults to the mock dataset). */
+/** Load values via an injectable fetcher (no mock fallback). */
 export async function loadFeeConfig(
-  fetcher: (url: string) => Promise<FeeConfigResponse> = async () => MOCK_FEE_CONFIG,
+  fetcher: (url: string) => Promise<FeeConfigResponse>,
 ): Promise<FeeConfigFormValues> {
   return mapFeeConfigResponse(await fetcher(FEE_CONFIG_ENDPOINT));
 }

@@ -51,6 +51,40 @@ export function networkProseName(passphrase: string): string {
 }
 
 /**
+ * Stellar Expert transaction URL, or null when there is nothing honest to link to.
+ *
+ * Mainnet's path segment is "public", not "mainnet". Stellar Expert has no
+ * futurenet explorer, so that case returns null rather than a link that 404s.
+ */
+export function explorerTxUrl(
+  txHash: string,
+  passphrase: string,
+): string | null {
+  if (!txHash) return null;
+  const kind = networkKind(passphrase);
+  if (kind === "public") {
+    return `https://stellar.expert/explorer/public/tx/${txHash}`;
+  }
+  if (kind === "testnet") {
+    return `https://stellar.expert/explorer/testnet/tx/${txHash}`;
+  }
+  return null;
+}
+
+/**
+ * Stellar Expert contract URL, or null when there is nothing honest to link to.
+ *
+ * Mainnet's path segment is "public", not "mainnet". Stellar Expert has no
+ * futurenet explorer, so that case returns null rather than a link that 404s.
+ */
+export function explorerContractUrl(
+  contractId: string,
+  passphrase: string,
+): string | null {
+  return stellarExpertContractUrl(contractId, passphrase);
+}
+
+/**
  * Stellar Expert contract URL, or null when there is nothing honest to link to.
  *
  * Mainnet's path segment is "public", not "mainnet". Stellar Expert has no

@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ResolutionVoteForm from "@/app/components/ResolutionVoteForm";
+import { MOCK_RESOLUTION_DISPUTES } from "@/__tests__/fixtures/resolution_vote_form";
 import {
-  MOCK_RESOLUTION_DISPUTES,
   RESOLUTION_BADGE_STYLES,
   RESOLUTION_LOAD_ERROR,
   VOTE_CUSTOM_SPLIT_ERROR,

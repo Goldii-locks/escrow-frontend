@@ -175,27 +175,10 @@ export function getArbitrationEscrowReadouts(
 }
 
 /**
- * Mock locked escrow record used as the fallback for backend queries.
- */
-export const MOCK_ARBITRATION_ESCROW_DETAILS: ArbitrationEscrowDetailsRecord = {
-  escrowId: "ESC-000000000000000000000000000000000000000000000042",
-  disputeId: "DIS-000000000000000000000000000000000000000000000117",
-  status: "under_review",
-  lockedAt: "2026-09-23T09:12:00Z",
-  lockedAmount: "500.00 USDC",
-  token: "USDC",
-  clientAddress: "GCLIENT7HQ2WKM4XPL6TFV3ZB9DCNR8YASEK5",
-  freelancerAddress: "GFREELANCER3NZ8WQ6LK2VH5CJB0DTXR4MASEK9",
-  arbiterAddress: "GARBITER5PD3XCW8QL0NR6ZTKM2VBHJF4SASEK2",
-  reason: "Freelancer marked the milestone delivered; client disputes acceptance.",
-};
-
-/**
  * Queries the locked escrow record for a dispute.
  *
  * Pulls from the backend when reachable and the payload carries the party
- * addresses the role check needs; otherwise falls back to
- * `MOCK_ARBITRATION_ESCROW_DETAILS`.
+ * addresses the role check needs; throws when the backend is unreachable.
  */
 export async function fetchArbitrationEscrowDetails(
   disputeId: string,
@@ -205,27 +188,23 @@ export async function fetchArbitrationEscrowDetails(
     options?.apiUrl ??
     `/api/disputes/${encodeURIComponent(disputeId)}/escrow`;
 
-  try {
-    const res = await fetch(url, { signal: options?.signal });
-    if (res.ok) {
-      const data: unknown = await res.json();
-      const payload =
-        typeof data === "object" &&
-        data !== null &&
-        "success" in data &&
-        "data" in data
-          ? (data as { data: unknown }).data
-          : data;
-
-      if (isArbitrationEscrowDetailsRecord(payload)) {
-        return payload;
-      }
-    }
-  } catch {
-    // Network or server error - fall through to the mock record.
+  const res = await fetch(url, { signal: options?.signal });
+  if (!res.ok) {
+    throw new Error(`Failed to load escrow details for dispute ${disputeId} (${res.status})`);
   }
+  const data: unknown = await res.json();
+  const payload =
+    typeof data === "object" &&
+    data !== null &&
+    "success" in data &&
+    "data" in data
+      ? (data as { data: unknown }).data
+      : data;
 
-  return { ...MOCK_ARBITRATION_ESCROW_DETAILS };
+  if (isArbitrationEscrowDetailsRecord(payload)) {
+    return payload;
+  }
+  throw new Error(`Invalid escrow details response for dispute ${disputeId}`);
 }
 
 /**

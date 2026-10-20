@@ -1,0 +1,70 @@
+import type { DisputeHistoryEvent, DisputeTimelineEvent } from "@/app/lib/dispute_history_timeline";
+
+export const MOCK_DISPUTE_HISTORY: DisputeHistoryEvent[] = [
+  {
+    id: "evt-001",
+    disputeId: "disp-101",
+    type: "raised",
+    actor: "GCKF7J3...CLIENT",
+    actorRole: "client",
+    title: "Dispute raised",
+    description: "Client disputed milestone 2 deliverables.",
+    timestamp: "2026-09-20T10:15:00Z",
+  },
+  {
+    id: "evt-002",
+    disputeId: "disp-101",
+    type: "response",
+    actor: "GAX4K9L...FREELANCER",
+    actorRole: "freelancer",
+    title: "Freelancer responded",
+    description: "Freelancer submitted deployment proof for the milestone.",
+    timestamp: "2026-09-21T14:30:00Z",
+  },
+  {
+    id: "evt-003",
+    disputeId: "disp-101",
+    type: "arbiter_assigned",
+    actor: "GARB2M8...ARBITER",
+    actorRole: "arbiter",
+    title: "Arbiter assigned",
+    description: "An arbiter accepted the dispute for review.",
+    timestamp: "2026-09-22T09:00:00Z",
+  },
+];
+
+export const MOCK_TIMELINE_EVENTS: DisputeTimelineEvent[] = [
+  {
+    id: "evt-001",
+    disputeId: "disp-101",
+    type: "raised",
+    title: "Dispute raised",
+    description: "Client disputed milestone 2 delivery.",
+    actor: "client",
+    actorRole: "client",
+    status: "resolved",
+    timestamp: "2026-09-20T10:15:00Z",
+  },
+  {
+    id: "evt-002",
+    disputeId: "disp-101",
+    type: "arbiter_assigned",
+    title: "Arbiter assigned",
+    description: "An arbiter accepted the case and began review.",
+    actor: "arbiter",
+    actorRole: "arbiter",
+    status: "under_review",
+    timestamp: "2026-09-21T14:30:00Z",
+  },
+  {
+    id: "evt-003",
+    disputeId: "disp-101",
+    type: "response",
+    title: "Awaiting freelancer response",
+    description: "Freelancer has until the response deadline to reply.",
+    actor: "freelancer",
+    actorRole: "freelancer",
+    status: "pending",
+    timestamp: "2026-09-22T09:00:00Z",
+  },
+];

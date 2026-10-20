@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ArbitrationEscrowDetails from "@/app/components/ArbitrationEscrowDetails";
 import Toast from "@/app/components/Toast";
 import { ToastProvider } from "@/app/context/ToastContext";
+import { MOCK_ARBITRATION_ESCROW_DETAILS } from "@/__tests__/fixtures/arbitration_escrow_details";
 import {
   ESCROW_ROLE_LABELS,
-  MOCK_ARBITRATION_ESCROW_DETAILS,
   UNAUTHORIZED_ARBITRATION_WARNING,
   type ArbitrationEscrowDetailsRecord,
   getArbitrationEscrowReadouts,
@@ -393,7 +393,7 @@ describe("arbitration_escrow_details module", () => {
       expect(isArbitrationEscrowDetailsRecord(null)).toBe(false);
     });
 
-    it("returns the mock record when the backend is unreachable", async () => {
+    it("throws when the backend is unreachable", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn(() => Promise.reject(new Error("network down"))),
@@ -401,10 +401,10 @@ describe("arbitration_escrow_details module", () => {
 
       await expect(
         fetchArbitrationEscrowDetails(RECORD.disputeId),
-      ).resolves.toEqual(RECORD);
+      ).rejects.toThrow(/network down/);
     });
 
-    it("returns the mock record when the backend payload is incomplete", async () => {
+    it("throws when the backend payload is incomplete", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn(() =>
@@ -417,13 +417,18 @@ describe("arbitration_escrow_details module", () => {
 
       await expect(
         fetchArbitrationEscrowDetails(RECORD.disputeId),
-      ).resolves.toEqual(RECORD);
+      ).rejects.toThrow(/Invalid escrow details/);
     });
 
-    it("still enforces the role check against a mock-fetched record", async () => {
+    it("still enforces the role check against a fetched record", async () => {
       vi.stubGlobal(
         "fetch",
-        vi.fn(() => Promise.reject(new Error("network down"))),
+        vi.fn(() =>
+          Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(RECORD),
+          }),
+        ),
       );
 
       render(
@@ -446,7 +451,12 @@ describe("arbitration_escrow_details module", () => {
     it("renders the fetched record for an authorized wallet", async () => {
       vi.stubGlobal(
         "fetch",
-        vi.fn(() => Promise.reject(new Error("network down"))),
+        vi.fn(() =>
+          Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(RECORD),
+          }),
+        ),
       );
 
       render(

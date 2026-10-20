@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { MOCK_CLAIM_PAYLOAD } from "@/__tests__/fixtures/freelancer_claim_panel_mapping";
 import {
-  MOCK_CLAIM_PAYLOAD,
   fetchClaimEntries,
   mapClaimEntry,
   mapClaimPayload,

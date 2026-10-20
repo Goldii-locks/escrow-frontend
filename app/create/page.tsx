@@ -7,6 +7,12 @@ import TxStatusBanner from "@/app/components/TxStatusBanner";
 import { useRouter } from "next/navigation";
 import {
   CONTRACT_ID,
+  NETWORK_PASSPHRASE,
+} from "@/app/lib/contract";
+import {
+  explorerTxUrl,
+} from "@/app/lib/network";
+import {
   getPhaseLabel,
   submitContractTransaction,
   TxPhase,
@@ -58,7 +64,7 @@ function EmptyCollectionState({
 }
 
 export default function CreateJob() {
-  const { address, signTransaction } = useWallet();
+  const { address, signTransaction, setSimulationResult } = useWallet();
   const router = useRouter();
   const [activeSection, setActiveSection] = useState<WizardSection>("details");
   const [freelancer, setFreelancer] = useState("");
@@ -332,6 +338,7 @@ export default function CreateJob() {
         sourceAddress: address,
         signTransaction,
         onPhase: setPhase,
+        setSimulationResult,
       });
 
       setPhase("success");
@@ -361,7 +368,7 @@ export default function CreateJob() {
               Your escrow job is live on Stellar testnet.
             </p>
             <a
-              href={`https://stellar.expert/explorer/testnet/tx/${txHash}`}
+              href={explorerTxUrl(txHash, NETWORK_PASSPHRASE) || ""}
               target="_blank"
               rel="noopener noreferrer"
               className="text-accent-soft hover:text-accent-soft-hover underline text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-surface-page rounded-sm"

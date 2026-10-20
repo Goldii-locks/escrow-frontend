@@ -222,57 +222,14 @@ export interface ContractPauseState {
   reason: string;
 }
 
-/**
- * Mock freeze state used as the fallback for backend queries.
- *
- * Frozen rather than active: it is the state an operator needs to be able to
- * read at a glance, and it is the one worth asserting in tests, since a
- * mislabelled toggle is the failure this panel exists to prevent.
- */
-export const MOCK_CONTRACT_PAUSE_STATE: ContractPauseState = {
-  contractId: "CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH",
-  paused: true,
-  updatedAt: "2026-09-24T18:42:00Z",
-  updatedBy: "GADMIN3XQ7LKZP4V2M6YB9WDHRTC5FJN8AUE2HSVG6KCDY",
-  reason: "Payout indexer reports duplicate release events for milestone 3.",
-};
-
 /** One entry in the freeze transition log. */
-export interface ContractPauseTransition {
+export type ContractPauseTransition = {
   id: string;
   at: string;
   by: string;
   to: "frozen" | "active";
   reason: string;
-}
-
-/**
- * Mock transition log backing the freeze history readout, so the panel renders
- * a real history instead of an empty shell when the backend is unreachable.
- */
-export const MOCK_CONTRACT_PAUSE_TRANSITIONS: ContractPauseTransition[] = [
-  {
-    id: "pause-002",
-    at: "2026-09-24T18:42:00Z",
-    by: "GADMIN3XQ7LKZP4V2M6YB9WDHRTC5FJN8AUE2HSVG6KCDY",
-    to: "frozen",
-    reason: "Payout indexer reports duplicate release events for milestone 3.",
-  },
-  {
-    id: "pause-001",
-    at: "2026-09-21T07:15:00Z",
-    by: "GADMIN3XQ7LKZP4V2M6YB9WDHRTC5FJN8AUE2HSVG6KCDY",
-    to: "frozen",
-    reason: "Scheduled upgrade of the dispute escrow entrypoint.",
-  },
-  {
-    id: "pause-000",
-    at: "2026-09-18T11:03:00Z",
-    by: "GADMIN3XQ7LKZP4V2M6YB9WDHRTC5FJN8AUE2HSVG6KCDY",
-    to: "active",
-    reason: "Freeze lifted after the entrypoint upgrade completed.",
-  },
-];
+};
 
 /** Narrows an unknown value to a `ContractPauseState`. */
 export function isContractPauseState(
@@ -326,9 +283,8 @@ export function getContractPauseReadouts(state: ContractPauseState): {
  * Queries the emergency freeze state for a contract.
  *
  * Pulls from the backend when an endpoint is reachable and the payload carries
- * every field the panel reads; otherwise falls back to
- * `MOCK_CONTRACT_PAUSE_STATE` so the toggle still renders in a test
- * environment with no network.
+ * every field the panel reads; throws when the backend is unreachable or the
+ * payload is incomplete.
  */
 export async function fetchContractPauseState(options?: {
   apiUrl?: string;
@@ -337,33 +293,26 @@ export async function fetchContractPauseState(options?: {
   const url =
     options?.apiUrl ??
     `/api/jobs/query?contractId=${encodeURIComponent(
-      MOCK_CONTRACT_PAUSE_STATE.contractId,
+      "CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH",
     )}&method=is_paused`;
 
-  try {
-    const res = await fetch(url, { signal: options?.signal });
-    if (res.ok) {
-      const data: unknown = await res.json();
-      // The backend may return the snapshot bare or wrapped in a success
-      // envelope; accept either, but only when the payload is complete.
-      const payload =
-        typeof data === "object" &&
-        data !== null &&
-        "success" in data &&
-        "data" in data
-          ? (data as { data: unknown }).data
-          : data;
-
-      if (isContractPauseState(payload)) {
-        return payload;
-      }
-      console.warn(
-        `${LOG_PREFIX} pause state response missing fields, using mock state`,
-      );
-    }
-  } catch {
-    // Network or server error - fall through to the mock state.
+  const res = await fetch(url, { signal: options?.signal });
+  if (!res.ok) {
+    throw new Error(`Failed to load pause state (${res.status})`);
   }
+  const data: unknown = await res.json();
+  // The backend may return the snapshot bare or wrapped in a success
+  // envelope; accept either, but only when the payload is complete.
+  const payload =
+    typeof data === "object" &&
+    data !== null &&
+    "success" in data &&
+    "data" in data
+      ? (data as { data: unknown }).data
+      : data;
 
-  return { ...MOCK_CONTRACT_PAUSE_STATE };
+  if (isContractPauseState(payload)) {
+    return payload;
+  }
+  throw new Error("Pause state response missing required fields");
 }
