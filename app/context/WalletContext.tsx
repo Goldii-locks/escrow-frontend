@@ -12,6 +12,7 @@ import {
 import { Networks, StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
 import { defaultModules } from "@creit.tech/stellar-wallets-kit/modules/utils";
 import { NETWORK_PASSPHRASE } from "@/app/lib/config";
+import { NETWORK_PASSPHRASES } from "@/app/lib/network_config";
 import { assertWalletNetwork } from "@/app/lib/network";
 import { useToast } from "./ToastContext";
 import {
@@ -42,6 +43,23 @@ import {
   isWalletRejectedError,
 } from "@/app/lib/errors";
 import { submitContractTransaction, type ContractArg } from "@/app/lib/transactions";
+
+/**
+ * Map NETWORK_PASSPHRASE to the kit's Networks enum value.
+ * Falls back to Networks.TESTNET for unknown passphrases so the kit
+ * never receives an empty string.
+ */
+function passphraseToKitNetwork(passphrase: string): (typeof Networks)[keyof typeof Networks] {
+  switch (passphrase) {
+    case NETWORK_PASSPHRASES.PUBLIC:
+      return Networks.PUBLIC;
+    case NETWORK_PASSPHRASES.FUTURENET:
+      return Networks.FUTURENET;
+    case NETWORK_PASSPHRASES.TESTNET:
+    default:
+      return Networks.TESTNET;
+  }
+}
 
 const LEGACY_STORAGE_KEY = "milesto_wallet_connected";
 const STORAGE_KEY = LEGACY_STORAGE_KEY;
@@ -202,6 +220,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         const { WalletConnectModule, WalletConnectTargetChain } = await import(
           "@creit.tech/stellar-wallets-kit/modules/wallet-connect"
         );
+        // Derive the WalletConnect chain from the build-time passphrase so a
+        // mainnet build registers "stellar:pubnet" instead of "stellar:testnet".
+        const wcChain =
+          NETWORK_PASSPHRASE === NETWORK_PASSPHRASES.PUBLIC
+            ? WalletConnectTargetChain.PUBLIC
+            : WalletConnectTargetChain.TESTNET;
         wcModules.push(
           new WalletConnectModule({
             projectId: walletConnectProjectId,
@@ -211,7 +235,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
               url: window.location.origin,
               icons: [`${window.location.origin}/favicon.ico`],
             },
-            allowedChains: [WalletConnectTargetChain.TESTNET],
+            allowedChains: [wcChain],
           })
         );
       }
@@ -224,7 +248,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           }),
           ...wcModules,
         ],
-        network: Networks.TESTNET,
+        // Derived from the build-time NETWORK_PASSPHRASE so this is never
+        // hardcoded to testnet on a mainnet build.
+        network: passphraseToKitNetwork(NETWORK_PASSPHRASE),
         authModal: {
           showInstallLabel: true,
           hideUnsupportedWallets: false,
