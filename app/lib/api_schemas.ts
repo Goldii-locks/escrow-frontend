@@ -192,15 +192,23 @@ export type WhitelistResponse = z.infer<typeof WhitelistResponseSchema>;
 // Admin response
 // ---------------------------------------------------------------------------
 
-export const AdminResponseSchema = z.union([
-  z.string(),
-  z.object({
-    success: z.boolean().optional(),
-    data: z.string().optional(),
-    result: z.string().optional(),
-    error: z.string().optional(),
+/**
+ * Exact body of `POST /api/jobs/query` for the contract's read-only
+ * `get_escrow_state` view (#599): the backend's standard envelope around
+ * `{ contractId, method, result }`, where `result` is the decoded
+ * `EscrowState`. Only `admin` is read here; the rest of the state passes
+ * through untouched.
+ */
+export const AdminResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.object({
+    result: z
+      .object({
+        admin: z.string().regex(/^G[A-Z2-7]{55}$/, "admin must be a Stellar account (G...)"),
+      })
+      .passthrough(),
   }),
-]);
+});
 
 export type AdminResponse = z.infer<typeof AdminResponseSchema>;
 

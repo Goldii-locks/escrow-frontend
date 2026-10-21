@@ -2,11 +2,19 @@ import { BACKEND_URL } from "@/app/lib/transactions";
 import { AdminResponseSchema, validateResponse } from "@/app/lib/api_schemas";
 
 /**
+ * The contract's read-only view that includes the admin address. The
+ * contract has no standalone `get_admin`; `get_escrow_state` bundles the
+ * admin with the rest of the escrow state (escrow-contract #719) and the
+ * backend's `/api/jobs/query` allowlists it (#599).
+ */
+export const ADMIN_QUERY_METHOD = "get_escrow_state";
+
+/**
  * Query the contract to get the admin address.
  *
- * Uses the backend's query endpoint to call the `get_admin` contract method.
- * Validates the response with Zod so an unexpected backend shape is caught
- * explicitly rather than silently returning null.
+ * Calls the backend's read-only query route with `get_escrow_state` and reads
+ * `admin` from the standard `{ success, data }` envelope. Any other shape is
+ * rejected by the Zod schema rather than guessed at.
  * Returns the admin address or null if the query fails.
  */
 export async function fetchAdminAddress(
@@ -18,11 +26,7 @@ export async function fetchAdminAddress(
     const res = await fetch(`${BACKEND_URL}${endpoint}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contractId,
-        method: "get_admin",
-        args: [],
-      }),
+      body: JSON.stringify({ contractId, method: ADMIN_QUERY_METHOD }),
       signal: options?.signal,
     });
 
@@ -32,36 +36,8 @@ export async function fetchAdminAddress(
     }
 
     const rawData: unknown = await res.json();
-    const data = validateResponse(AdminResponseSchema, rawData, endpoint);
-
-    // Backend might return the address directly or wrapped in a success object
-    if (typeof data === "string" && data.startsWith("G")) {
-      return data;
-    }
-
-    if (
-      typeof data === "object" &&
-      data !== null &&
-      "data" in data &&
-      typeof data.data === "string" &&
-      data.data.startsWith("G")
-    ) {
-      return data.data;
-    }
-
-    // Try result field as well
-    if (
-      typeof data === "object" &&
-      data !== null &&
-      "result" in data &&
-      typeof data.result === "string" &&
-      data.result.startsWith("G")
-    ) {
-      return data.result;
-    }
-
-    console.error("Admin address not found in response", data);
-    return null;
+    const body = validateResponse(AdminResponseSchema, rawData, endpoint);
+    return body.data.result.admin;
   } catch (err) {
     console.error("Failed to fetch admin address", err);
     return null;
