@@ -11,8 +11,10 @@
   --color-surface-page: #030712;
   --color-surface-card: #111827;
   --color-surface-field: #1f2937;
+  --color-surface-raised: #374151;
   --color-border-strong: #1f2937;
   --color-border-subtle: #374151;
+  --color-border-hover: #4b5563;
   --color-text-primary: #f9fafb;
   --color-text-secondary: #d1d5db;
   --color-text-muted: #9ca3af;

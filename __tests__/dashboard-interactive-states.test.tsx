@@ -90,7 +90,7 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
 
       await waitFor(() => {
         const input = screen.getByPlaceholderText("Search by contract/job ID");
-        expect(input).toHaveClass("hover:border-gray-600");
+        expect(input).toHaveClass("hover:border-border-hover");
       });
     });
 
@@ -248,9 +248,9 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
       await waitFor(() => {
         const buttons = screen.getAllByRole("tab");
         const clientButton = buttons.find((btn) => btn.textContent === "As Client");
-        expect(clientButton).toHaveClass("hover:text-white");
-        expect(clientButton).toHaveClass("hover:border-gray-600");
-        expect(clientButton).toHaveClass("hover:bg-gray-800");
+        expect(clientButton).toHaveClass("hover:text-text-primary");
+        expect(clientButton).toHaveClass("hover:border-border-hover");
+        expect(clientButton).toHaveClass("hover:bg-surface-field");
       });
     });
 
@@ -282,7 +282,7 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
       await waitFor(() => {
         const buttons = screen.getAllByRole("tab");
         const filterButton = buttons.find((btn) => btn.textContent === "As Client");
-        expect(filterButton).toHaveClass("active:bg-gray-700");
+        expect(filterButton).toHaveClass("active:bg-surface-raised");
       });
     });
 
@@ -381,7 +381,7 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
       await waitFor(() => {
         const main = screen.getByRole("main");
         const jobButton = main.querySelector("button[aria-expanded]");
-        expect(jobButton).toHaveClass("hover:bg-gray-800/50");
+        expect(jobButton).toHaveClass("hover:bg-surface-field/50");
       });
     });
 
@@ -413,7 +413,7 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
       await waitFor(() => {
         const main = screen.getByRole("main");
         const jobButton = main.querySelector("button[aria-expanded]");
-        expect(jobButton).toHaveClass("active:bg-gray-800/75");
+        expect(jobButton).toHaveClass("active:bg-surface-field/75");
       });
     });
 
@@ -575,8 +575,8 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
 
       await waitFor(() => {
         const prevButton = screen.getByRole("button", { name: /Previous page/i });
-        expect(prevButton).toHaveClass("disabled:hover:bg-gray-900");
-        expect(prevButton).toHaveClass("disabled:hover:border-gray-700");
+        expect(prevButton).toHaveClass("disabled:hover:bg-surface-card");
+        expect(prevButton).toHaveClass("disabled:hover:border-border-subtle");
       });
     });
 
@@ -607,8 +607,8 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
 
       await waitFor(() => {
         const nextButton = screen.getByRole("button", { name: /Next page/i });
-        expect(nextButton).toHaveClass("hover:bg-gray-800");
-        expect(nextButton).toHaveClass("hover:border-gray-600");
+        expect(nextButton).toHaveClass("hover:bg-surface-field");
+        expect(nextButton).toHaveClass("hover:border-border-hover");
       });
     });
 
@@ -639,7 +639,7 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
 
       await waitFor(() => {
         const nextButton = screen.getByRole("button", { name: /Next page/i });
-        expect(nextButton).toHaveClass("active:bg-gray-700");
+        expect(nextButton).toHaveClass("active:bg-surface-raised");
       });
     });
 
@@ -702,7 +702,7 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
       await waitFor(() => {
         const prevButton = screen.getByRole("button", { name: /Previous page/i });
         expect(prevButton).toHaveClass("focus-visible:ring-offset-2");
-        expect(prevButton).toHaveClass("focus-visible:ring-offset-gray-950");
+        expect(prevButton).toHaveClass("focus-visible:ring-offset-surface-page");
       });
     });
   });

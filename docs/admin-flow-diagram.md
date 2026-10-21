@@ -122,11 +122,11 @@ flowchart LR
     B -->|Yes| D[Call fetchAdminAddress]
 
     D --> E[POST /api/jobs/query]
-    E --> F[method: get_admin]
+    E --> F[method: get_escrow_state]
     F --> G{Query successful?}
 
     G -->|No| H[Return null]
-    G -->|Yes| I[Parse admin address]
+    G -->|Yes| I[Read data.result.admin]
 
     I --> J{Valid address?}
     J -->|No| H
@@ -258,7 +258,7 @@ flowchart LR
     end
 
     subgraph Smart Contract
-        J[get_admin Method]
+        J[get_escrow_state View]
         K[get_whitelist Method]
         L[add_whitelisted_token]
         M[remove_whitelisted_token]
