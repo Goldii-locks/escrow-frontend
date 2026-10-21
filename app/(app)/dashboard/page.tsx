@@ -152,6 +152,24 @@ export default function Dashboard() {
   /** Active backoff-poll cancel functions, keyed by jobId. */
   const updatingPollerRefs = useRef<Map<string, () => void>>(new Map());
 
+  // ── Polling reliability refs ──────────────────────────────────────────────
+  /** AbortController for the in-flight fetchJobs request. */
+  const jobsAbortRef = useRef<AbortController | null>(null);
+  /** AbortController for the in-flight fetchJobDetails request. */
+  const detailsAbortRef = useRef<AbortController | null>(null);
+  /** Monotonically-increasing counter; stale responses are dropped. */
+  const jobsRequestIdRef = useRef(0);
+  const detailsRequestIdRef = useRef(0);
+  /**
+   * Rolling window of the last 3 fetchJobs response fingerprints.
+   * We use a cheap JSON-length + first-id hash — good enough to detect
+   * "nothing changed" without a full deep-equal.
+   */
+  const jobsResponseHistory = useRef<string[]>([]);
+  /** Current poll interval multiplier (1 = 30 s, 2 = 60 s, 3 = 90 s, cap 4 = 120 s). */
+  const pollBackoffRef = useRef(1);
+  // ─────────────────────────────────────────────────────────────────────────
+
   const totalPages = Math.max(1, Math.ceil((total || jobs.length || 1) / limit));
 
   /**
@@ -180,6 +198,15 @@ export default function Dashboard() {
       return;
     }
 
+    // Abort any in-flight request and issue a fresh one.
+    jobsAbortRef.current?.abort();
+    const controller = new AbortController();
+    jobsAbortRef.current = controller;
+
+    // Capture the sequence number for this request.
+    jobsRequestIdRef.current += 1;
+    const requestId = jobsRequestIdRef.current;
+
     setFetchLoading(true);
 
     try {
@@ -197,8 +224,13 @@ export default function Dashboard() {
       // We filter the loaded jobs by substring instead.
 
       const res = await fetch(
-        `${BACKEND_URL}/api/jobs/by-wallet/${encodeURIComponent(address)}?${params.toString()}`
+        `${BACKEND_URL}/api/jobs/by-wallet/${encodeURIComponent(address)}?${params.toString()}`,
+        { signal: controller.signal }
       );
+
+      // Drop stale responses (a newer request already completed).
+      if (requestId !== jobsRequestIdRef.current) return;
+
       reportApiResponse(res, "/api/jobs/by-wallet/:address");
       if (res.status === 429) {
         setError("You're doing that too fast. Please wait a moment and try again.");
@@ -206,6 +238,10 @@ export default function Dashboard() {
         return;
       }
       const rawData: unknown = await res.json();
+
+      // Drop stale responses again after the body read.
+      if (requestId !== jobsRequestIdRef.current) return;
+
       const endpoint = `/api/jobs/by-wallet/${address}`;
       const data = validateResponse(JobListResponseSchema, rawData, endpoint);
 
@@ -221,6 +257,24 @@ export default function Dashboard() {
       // visible (and disabled) while the request is in flight (#682).
       setError(null);
       const parsed = parsePageResponse(data);
+
+      // ── Identical-data backoff (#581) ──────────────────────────────────
+      // Fingerprint: total count + first job id + last job id (cheap proxy
+      // for "the list changed"). Reset backoff on any change.
+      const fingerprint = `${parsed.total}:${parsed.jobs[0]?.id ?? ""}:${parsed.jobs[parsed.jobs.length - 1]?.id ?? ""}`;
+      const history = jobsResponseHistory.current;
+      history.push(fingerprint);
+      if (history.length > 3) history.shift();
+
+      const allIdentical = history.length === 3 && history.every((h) => h === history[0]);
+      if (allIdentical) {
+        // Widen the effective interval (capped at 4× = 120 s).
+        pollBackoffRef.current = Math.min(pollBackoffRef.current + 1, 4);
+      } else {
+        pollBackoffRef.current = 1;
+      }
+      // ──────────────────────────────────────────────────────────────────
+
       setJobs(parsed.jobs);
       setPage(parsed.page || page);
       setTotal(parsed.total);
@@ -233,12 +287,17 @@ export default function Dashboard() {
         return parsed.jobs[0].id;
       });
     } catch (err: unknown) {
+      // Ignore aborted-request errors — they're intentional.
+      if (err instanceof Error && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Failed to connect to backend");
       setJobs([]);
       setTotal(0);
       setExpandedJobId(null);
     } finally {
-      setFetchLoading(false);
+      // Only clear the loading flag if this response is still current.
+      if (requestId === jobsRequestIdRef.current) {
+        setFetchLoading(false);
+      }
     }
   }, [address, page, limit, roleFilter]);
 
@@ -247,12 +306,29 @@ export default function Dashboard() {
       if (!address || !jobId) return;
       if (!force && jobDetails[jobId]) return;
 
+      // Abort any in-flight detail request and issue a fresh one.
+      detailsAbortRef.current?.abort();
+      const controller = new AbortController();
+      detailsAbortRef.current = controller;
+
+      detailsRequestIdRef.current += 1;
+      const requestId = detailsRequestIdRef.current;
+
       setDetailsLoading((current) => ({ ...current, [jobId]: true }));
 
       try {
-        const res = await fetch(`${BACKEND_URL}/api/jobs/${encodeURIComponent(jobId)}`);
+        const res = await fetch(`${BACKEND_URL}/api/jobs/${encodeURIComponent(jobId)}`, {
+          signal: controller.signal,
+        });
+
+        // Drop stale responses.
+        if (requestId !== detailsRequestIdRef.current) return;
+
         reportApiResponse(res, "/api/jobs/:contractId");
         const rawPayload: unknown = await res.json();
+
+        if (requestId !== detailsRequestIdRef.current) return;
+
         const payload = validateResponse(JobDetailResponseSchema, rawPayload, `/api/jobs/${jobId}`);
         const candidate = normalizeJob(payload.data);
 
@@ -267,6 +343,9 @@ export default function Dashboard() {
           setJobDetails((current) => ({ ...current, [jobId]: fallback }));
         }
       } catch (err) {
+        // Ignore intentional aborts.
+        if (err instanceof Error && err.name === "AbortError") return;
+
         // ApiShapeError means the server returned an unexpected envelope;
         // surface it so the user sees "Unexpected response" rather than blank
         if (err instanceof ApiShapeError) {
@@ -281,7 +360,9 @@ export default function Dashboard() {
           }
         }
       } finally {
-        setDetailsLoading((current) => ({ ...current, [jobId]: false }));
+        if (requestId === detailsRequestIdRef.current) {
+          setDetailsLoading((current) => ({ ...current, [jobId]: false }));
+        }
       }
     },
     [address, jobDetails, jobs]
@@ -379,14 +460,61 @@ export default function Dashboard() {
   useEffect(() => {
     if (!address) return;
 
-    const interval = setInterval(() => {
+    const BASE_INTERVAL_MS = 30_000;
+
+    const tick = () => {
       void fetchJobs();
       if (expandedJobId) {
         void fetchJobDetails(expandedJobId, true);
       }
-    }, 30_000);
+    };
 
-    return () => clearInterval(interval);
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const startInterval = () => {
+      if (intervalId !== null) return; // already running
+      const delay = BASE_INTERVAL_MS * pollBackoffRef.current;
+      intervalId = setInterval(() => {
+        // Re-read backoff: if it changed since last tick, restart with new delay.
+        const expectedDelay = BASE_INTERVAL_MS * pollBackoffRef.current;
+        if (intervalId !== null && expectedDelay !== delay) {
+          clearInterval(intervalId);
+          intervalId = null;
+          startInterval();
+          return;
+        }
+        tick();
+      }, delay);
+    };
+
+    const stopInterval = () => {
+      if (intervalId !== null) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        stopInterval();
+      } else {
+        // Tab became visible — fetch immediately then restart the interval.
+        tick();
+        startInterval();
+      }
+    };
+
+    // Only poll while the tab is visible.
+    if (document.visibilityState !== "hidden") {
+      startInterval();
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      stopInterval();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [address, expandedJobId, fetchJobs, fetchJobDetails]);
 
   const expandedJob = expandedJobId ? (jobDetails[expandedJobId] ?? null) : null;
