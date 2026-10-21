@@ -132,6 +132,7 @@ export default function Dashboard() {
   const [jobLabels, setJobLabels] = useState<Record<string, string>>({});
   const [jobDetails, setJobDetails] = useState<Record<string, Job>>({});
   const [detailsLoading, setDetailsLoading] = useState<Record<string, boolean>>({});
+  const [detailsError, setDetailsError] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
   const [limit] = useState(5);
   const [total, setTotal] = useState(0);
@@ -252,34 +253,27 @@ export default function Dashboard() {
       try {
         const res = await fetch(`${BACKEND_URL}/api/jobs/${encodeURIComponent(jobId)}`);
         reportApiResponse(res, "/api/jobs/:contractId");
+        if (!res.ok) {
+          throw new Error(`Failed to load job details: HTTP ${res.status}`);
+        }
         const rawPayload: unknown = await res.json();
         const payload = validateResponse(JobDetailResponseSchema, rawPayload, `/api/jobs/${jobId}`);
         const candidate = normalizeJob(payload.data);
 
         if (candidate) {
           setJobDetails((current) => ({ ...current, [jobId]: candidate }));
+          setDetailsError((current) => {
+            const next = { ...current };
+            delete next[jobId];
+            return next;
+          });
           return;
         }
 
-        // Shape parsed OK but data field did not match Job — fall back to list entry
-        const fallback = jobs.find((job) => job.id === jobId);
-        if (fallback) {
-          setJobDetails((current) => ({ ...current, [jobId]: fallback }));
-        }
+        throw new Error("Invalid job data received");
       } catch (err) {
-        // ApiShapeError means the server returned an unexpected envelope;
-        // surface it so the user sees "Unexpected response" rather than blank
-        if (err instanceof ApiShapeError) {
-          const fallback = jobs.find((job) => job.id === jobId);
-          if (fallback) {
-            setJobDetails((current) => ({ ...current, [jobId]: fallback }));
-          }
-        } else {
-          const fallback = jobs.find((job) => job.id === jobId);
-          if (fallback) {
-            setJobDetails((current) => ({ ...current, [jobId]: fallback }));
-          }
-        }
+        const message = err instanceof Error ? err.message : "Failed to load job details";
+        setDetailsError((current) => ({ ...current, [jobId]: message }));
       } finally {
         setDetailsLoading((current) => ({ ...current, [jobId]: false }));
       }
@@ -809,6 +803,20 @@ export default function Dashboard() {
                             </label>
                             {detailsLoading[job.id] ? (
                               <LoadingSkeleton />
+                            ) : detailsError[job.id] ? (
+                              <div className="bg-red-950/40 border border-red-800/60 rounded-lg p-3 sm:p-4 my-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <div>
+                                  <p className="text-red-400 font-semibold text-sm">Failed to load job details</p>
+                                  <p className="text-red-300/80 text-xs mt-0.5">{detailsError[job.id]}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => fetchJobDetails(job.id, true)}
+                                  className="px-3 py-1.5 bg-red-800 hover:bg-red-700 text-white rounded text-xs font-medium transition"
+                                >
+                                  Retry
+                                </button>
+                              </div>
                             ) : !expandedJob ? (
                               <p className="text-xs sm:text-sm text-gray-400" role="status">
                                 Unable to load job details.
