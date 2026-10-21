@@ -1,5 +1,6 @@
 "use client";
 import { isMilestoneCapReached, milestoneLimitHint } from "../../lib/milestone_limits";
+import { parseDecimalToBaseUnits } from "../../lib/amounts";
 import { validateMilestoneAmount } from "../../lib/milestone_amount_validation";
 import { getDefaultArbiter } from "../../lib/default_arbiter";
 import { useEffect, useRef, useState } from "react";
@@ -466,7 +467,7 @@ export default function CreateJob() {
         if (trimmed === "" || validateMilestoneAmount(trimmed) !== null) {
           throw new Error("Invalid milestone amount");
         }
-        return BigInt(trimmed);
+        return parseDecimalToBaseUnits(trimmed, 7);
       });
       const autoReleaseSeconds = BigInt(autoReleaseDays) * BigInt(24) * BigInt(60) * BigInt(60);
 
@@ -1190,13 +1191,13 @@ export default function CreateJob() {
                             value={m.amount}
                             onChange={(e) => updateMilestone(i, e.target.value)}
                             onFocus={() => setActiveSection("milestones")}
-                            placeholder={`Milestone ${i + 1} amount (stroops)`}
-                            aria-label={`Milestone ${i + 1} amount in stroops`}
+                            placeholder={`Milestone ${i + 1} amount`}
+                            aria-label={`Milestone ${i + 1} amount`}
                             aria-required="true"
                             type="text"
-                            inputMode="numeric"
+                            inputMode="decimal"
                             required
-                            pattern="^[0-9]+$"
+                            pattern="^[0-9]+(\.[0-9]+)?$"
                             aria-invalid={validateMilestoneAmount(m.amount) !== null}
                             disabled={loading}
                           />
