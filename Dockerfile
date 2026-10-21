@@ -21,6 +21,7 @@ COPY . .
 # environment, and a contract redeploy means a rebuild, not a restart.
 ARG NEXT_PUBLIC_BACKEND_URL
 ARG NEXT_PUBLIC_CONTRACT_ID
+ARG NEXT_PUBLIC_PLATFORM_ADMIN
 # No defaults for the network pair: a mainnet build that forgot them would
 # otherwise silently ship a testnet-wired bundle.
 ARG NEXT_PUBLIC_SOROBAN_RPC_URL
@@ -28,6 +29,7 @@ ARG NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE
 
 ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL \
     NEXT_PUBLIC_CONTRACT_ID=$NEXT_PUBLIC_CONTRACT_ID \
+    NEXT_PUBLIC_PLATFORM_ADMIN=$NEXT_PUBLIC_PLATFORM_ADMIN \
     NEXT_PUBLIC_SOROBAN_RPC_URL=$NEXT_PUBLIC_SOROBAN_RPC_URL \
     NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=$NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE
 
@@ -40,6 +42,8 @@ RUN case "$NEXT_PUBLIC_BACKEND_URL" in \
     esac
 RUN test -n "$NEXT_PUBLIC_CONTRACT_ID" \
       || (echo "ERROR: NEXT_PUBLIC_CONTRACT_ID must be set at build time" && exit 1)
+RUN echo "$NEXT_PUBLIC_PLATFORM_ADMIN" | grep -qE '^G[A-Z2-7]{55}$' \
+      || (echo "ERROR: NEXT_PUBLIC_PLATFORM_ADMIN must be a valid Stellar account address at build time" && exit 1)
 RUN test -n "$NEXT_PUBLIC_SOROBAN_RPC_URL" \
       || (echo "ERROR: NEXT_PUBLIC_SOROBAN_RPC_URL must be set at build time" && exit 1)
 RUN test -n "$NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE" \

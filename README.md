@@ -77,9 +77,15 @@ bundle.
 | Variable                                 | Default                                             | Purpose                                                                                                                                                                     |
 | ---------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `NEXT_PUBLIC_CONTRACT_ID`                | _(required)_                                        | Soroban contract ID the frontend talks to. In CI this comes from the `CONTRACT_ID` repo variable; the deploy workflow allows a manual override via the `contract_id` input. |
+| `NEXT_PUBLIC_PLATFORM_ADMIN`             | _(required)_                                        | Platform Stellar account assigned as admin on newly initialized escrows. Configure the GitHub repository variable `PLATFORM_ADMIN`; the create form rejects missing, invalid, or client-matching values. |
 | `NEXT_PUBLIC_BACKEND_URL`                | `http://localhost:3001`                             | Base URL of the escrow backend API (used by `app/lib/transactions.ts`).                                                                                                     |
 | `NEXT_PUBLIC_SOROBAN_RPC_URL`            | `https://soroban-testnet.stellar.org`               | Soroban RPC endpoint used by `app/lib/contract.ts`.                                                                                                                         |
 | `NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE` | `Networks.TESTNET` (`Test SDF Future Network 2025`) | Network passphrase used by `app/lib/contract.ts`; set to `Networks.MAINNET` (`Public Global Stellar Network 2022`) for mainnet.                                             |
+
+For production deploys, set the GitHub repository variable `PLATFORM_ADMIN` to
+the platform's valid Stellar account address. It is passed to the build as
+`NEXT_PUBLIC_PLATFORM_ADMIN`; Docker builds and the deploy workflow reject a
+missing or invalid address.
 
 ## Backend URL (NEXT_PUBLIC_BACKEND_URL)
 
@@ -93,29 +99,36 @@ Accepted values:
 - `https://...`
 - Loopback for local dev: `http://localhost`, `http://127.0.0.1`, `http://[::1]` (optional port and path)
 
+For manual Docker builds, set `PLATFORM_ADMIN` to the platform account address
+before running these commands.
+
 ```bash
 # Production (recommended): empty - same-origin /api
 docker build -t escrow-frontend \
   --build-arg NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH \
+  --build-arg NEXT_PUBLIC_PLATFORM_ADMIN="$PLATFORM_ADMIN" \
   .
 
 # HTTPS backend
 docker build -t escrow-frontend \
   --build-arg NEXT_PUBLIC_BACKEND_URL=https://api.example.com \
   --build-arg NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH \
+  --build-arg NEXT_PUBLIC_PLATFORM_ADMIN="$PLATFORM_ADMIN" \
   .
 
 # Local loopback
 docker build -t escrow-frontend \
   --build-arg NEXT_PUBLIC_BACKEND_URL=http://localhost:3001 \
   --build-arg NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH \
+  --build-arg NEXT_PUBLIC_PLATFORM_ADMIN="$PLATFORM_ADMIN" \
   .
 
 # Rejected: plain HTTP remote (fails the build)
 docker build -t escrow-frontend \
-  --build-arg NEXT_PUBLIC_BACKEND_URL=http://example.com \
-  --build-arg NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH \
-  .
+--build-arg NEXT_PUBLIC_BACKEND_URL=http://example.com \
+--build-arg NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH \
+--build-arg NEXT_PUBLIC_PLATFORM_ADMIN="$PLATFORM_ADMIN" \
+.
 ```
 
 ## Related Repos

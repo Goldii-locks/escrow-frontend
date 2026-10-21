@@ -6,6 +6,8 @@ const mockPush = vi.fn();
 const mockUseWallet = vi.fn();
 const mockShowToast = vi.fn();
 const mockSubmitContractTransaction = vi.fn();
+const CLIENT_ADDRESS = `G${"C".repeat(55)}`;
+const PLATFORM_ADMIN = `G${"A".repeat(55)}`;
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
@@ -31,6 +33,8 @@ vi.mock("@/app/lib/transactions", async (importOriginal) => ({
 describe("Create page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSubmitContractTransaction.mockResolvedValue("TX_HASH");
+    vi.stubEnv("NEXT_PUBLIC_PLATFORM_ADMIN", PLATFORM_ADMIN);
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -41,14 +45,16 @@ describe("Create page", () => {
         }),
       })
     );
+    vi.stubGlobal("alert", vi.fn());
     mockUseWallet.mockReturnValue({
-      address: "GCLIENTADDRESS",
+      address: CLIENT_ADDRESS,
       signTransaction: vi.fn(),
     });
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   it("uses semantic design tokens and keeps submit disabled for partial milestone data", () => {
@@ -174,5 +180,137 @@ describe("Create page", () => {
     expect(alertSpy).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
     alertSpy.mockRestore();
+  });
+
+  it("passes the configured platform admin, not the client, as initialize admin", async () => {
+    render(<CreateJob />);
+
+    fireEvent.change(screen.getByLabelText("Freelancer Address"), {
+      target: { value: `G${"F".repeat(55)}` },
+    });
+    fireEvent.change(screen.getByLabelText("Arbiter Address"), {
+      target: { value: `G${"B".repeat(55)}` },
+    });
+    await screen.findByRole("option", { name: "USDC" });
+    fireEvent.change(
+      screen.getByLabelText("Token Contract Address", { selector: "select" }),
+      { target: { value: "CTOKEN" } },
+    );
+    fireEvent.change(screen.getByLabelText("Milestone 1 amount in stroops"), {
+      target: { value: "100" },
+    });
+    fireEvent.click(screen.getByTestId("agreement-checkbox"));
+
+    fireEvent.submit(screen.getByTestId("create-job-form"));
+
+    expect(mockSubmitContractTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "initialize",
+        args: [
+          { type: "address", value: PLATFORM_ADMIN },
+          { type: "address", value: CLIENT_ADDRESS },
+          { type: "address", value: `G${"F".repeat(55)}` },
+          { type: "address", value: `G${"B".repeat(55)}` },
+          { type: "address", value: "CTOKEN" },
+          { type: "u64", value: "604800" },
+          { type: "vec", value: [{ type: "i128", value: "100" }] },
+        ],
+      }),
+    );
+    expect(mockSubmitContractTransaction.mock.calls[0][0].args[0].value).not.toBe(
+      CLIENT_ADDRESS,
+    );
+  });
+
+  it("blocks submission when the platform admin matches the client", () => {
+    vi.stubEnv("NEXT_PUBLIC_PLATFORM_ADMIN", CLIENT_ADDRESS);
+    render(<CreateJob />);
+
+    expect(
+      screen.getByText(
+        "Platform administrator must be different from the connected client wallet.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create Job" })).toBeDisabled();
+    fireEvent.submit(screen.getByTestId("create-job-form"));
+    expect(mockSubmitContractTransaction).not.toHaveBeenCalled();
+  });
+
+  it("requires a configured platform admin", () => {
+    vi.stubEnv("NEXT_PUBLIC_PLATFORM_ADMIN", "");
+    render(<CreateJob />);
+
+    expect(
+      screen.getByText(
+        "Platform administrator is not configured. Set NEXT_PUBLIC_PLATFORM_ADMIN to a valid Stellar account before creating escrows.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create Job" })).toBeDisabled();
+  });
+
+  it("rejects a freelancer address that matches the client", () => {
+    render(<CreateJob />);
+    const freelancerInput = screen.getByLabelText("Freelancer Address");
+
+    fireEvent.change(freelancerInput, { target: { value: CLIENT_ADDRESS } });
+
+    expect(freelancerInput).toHaveAttribute("aria-invalid", "true");
+    expect(
+      screen.getByText(
+        "Freelancer address must be different from the client address.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create Job" })).toBeDisabled();
+  });
+
+  it("rejects an arbiter address that matches the client", () => {
+    render(<CreateJob />);
+    const arbiterInput = screen.getByLabelText("Arbiter Address");
+
+    fireEvent.change(arbiterInput, { target: { value: CLIENT_ADDRESS } });
+
+    expect(arbiterInput).toHaveAttribute("aria-invalid", "true");
+    expect(
+      screen.getByText(
+        "Arbiter address must be different from the client address.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create Job" })).toBeDisabled();
+  });
+
+  it("rejects matching freelancer and arbiter addresses", () => {
+    render(<CreateJob />);
+    const sharedAddress = `G${"F".repeat(55)}`;
+    const freelancerInput = screen.getByLabelText("Freelancer Address");
+    const arbiterInput = screen.getByLabelText("Arbiter Address");
+
+    fireEvent.change(freelancerInput, { target: { value: sharedAddress } });
+    fireEvent.change(arbiterInput, { target: { value: sharedAddress } });
+
+    expect(freelancerInput).toHaveAttribute("aria-invalid", "true");
+    expect(arbiterInput).toHaveAttribute("aria-invalid", "true");
+    expect(
+      screen.getAllByText(
+        "Freelancer and arbiter addresses must be different.",
+      ),
+    ).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Create Job" })).toBeDisabled();
+  });
+
+  it("validates a configured default arbiter against the freelancer", () => {
+    const defaultArbiter = `G${"F".repeat(55)}`;
+    vi.stubEnv("NEXT_PUBLIC_DEFAULT_ARBITER", defaultArbiter);
+    render(<CreateJob />);
+
+    fireEvent.change(screen.getByLabelText("Freelancer Address"), {
+      target: { value: defaultArbiter },
+    });
+
+    expect(
+      screen.getAllByText(
+        "Freelancer and arbiter addresses must be different.",
+      ),
+    ).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Create Job" })).toBeDisabled();
   });
 });

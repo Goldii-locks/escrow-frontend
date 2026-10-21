@@ -73,6 +73,7 @@ export default function CreateJob() {
   const { address, signTransaction } = useWallet();
   const { showToast } = useToast();
   const router = useRouter();
+  const platformAdmin = process.env.NEXT_PUBLIC_PLATFORM_ADMIN?.trim() ?? "";
   const [activeSection, setActiveSection] = useState<WizardSection>("details");
   const [freelancer, setFreelancer] = useState("");
   const [arbiter, setArbiter] = useState("");
@@ -275,7 +276,17 @@ export default function CreateJob() {
     return validateMilestoneAmount(trimmed) !== null;
   });
 
-  const hasValidationErrors = !!freelancerError || !!arbiterError || !!tokenError;
+  const platformAdminError = !/^G[A-Z2-7]{55}$/.test(platformAdmin)
+    ? "Platform administrator is not configured. Set NEXT_PUBLIC_PLATFORM_ADMIN to a valid Stellar account before creating escrows."
+    : platformAdmin === address
+      ? "Platform administrator must be different from the connected client wallet."
+      : "";
+
+  const hasValidationErrors =
+    !!freelancerError ||
+    !!arbiterError ||
+    !!tokenError ||
+    !!platformAdminError;
   // A non-whitelisted token requires explicit confirmation (issue #668).
   // A token that failed SEP-41 validation blocks submission entirely.
   const hasTokenIssue =
@@ -294,20 +305,60 @@ export default function CreateJob() {
     hasTokenIssue ||
     !agreed;
 
-  const validateFreelancer = (val: string) => {
-    if (val && !/^G[A-Z2-7]{55}$/.test(val)) {
-      setFreelancerError("Invalid Stellar public key format");
-    } else {
-      setFreelancerError("");
+  const getFreelancerError = (
+    value: string,
+    arbiterValue: string,
+    clientAddress: string | null,
+  ) => {
+    if (value && !/^G[A-Z2-7]{55}$/.test(value)) {
+      return "Invalid Stellar public key format";
     }
+    if (value && value === clientAddress) {
+      return "Freelancer address must be different from the client address.";
+    }
+    if (value && value === arbiterValue) {
+      return "Freelancer and arbiter addresses must be different.";
+    }
+    return "";
   };
 
-  const validateArbiter = (val: string) => {
-    if (val && !/^G[A-Z2-7]{55}$/.test(val)) {
-      setArbiterError("Invalid Stellar public key format");
-    } else {
-      setArbiterError("");
+  const getArbiterError = (
+    value: string,
+    freelancerValue: string,
+    clientAddress: string | null,
+  ) => {
+    if (value && !/^G[A-Z2-7]{55}$/.test(value)) {
+      return "Invalid Stellar public key format";
     }
+    if (value && value === clientAddress) {
+      return "Arbiter address must be different from the client address.";
+    }
+    if (value && value === freelancerValue) {
+      return "Freelancer and arbiter addresses must be different.";
+    }
+    return "";
+  };
+
+  const validatePartyAddresses = (
+    freelancerValue = freelancer,
+    arbiterValue = effectiveArbiter,
+  ) => {
+    const nextFreelancerError = getFreelancerError(
+      freelancerValue,
+      arbiterValue,
+      address,
+    );
+    const nextArbiterError = getArbiterError(
+      arbiterValue,
+      freelancerValue,
+      address,
+    );
+    setFreelancerError(nextFreelancerError);
+    setArbiterError(nextArbiterError);
+    return {
+      freelancerError: nextFreelancerError,
+      arbiterError: nextArbiterError,
+    };
   };
 
   const validateToken = (val: string) => {
@@ -402,6 +453,10 @@ export default function CreateJob() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!address) return;
+    if (platformAdminError) {
+      setError(platformAdminError);
+      return;
+    }
 
     // Validate deadline on submit
     const deadlineValidationError = validateDeadline(autoReleaseDays);
@@ -442,8 +497,7 @@ export default function CreateJob() {
         return;
       }
     }
-    validateFreelancer(freelancer);
-    validateArbiter(effectiveArbiter);
+    const partyErrors = validatePartyAddresses(freelancer, effectiveArbiter);
     if (
       !freelancer ||
       !effectiveArbiter ||
@@ -453,6 +507,10 @@ export default function CreateJob() {
       if (!freelancer) setFreelancerError("This field is required.");
       if (!effectiveArbiter) setArbiterError("This field is required.");
       setError("Please fix the address fields before creating a job.");
+      return;
+    }
+    if (partyErrors.freelancerError || partyErrors.arbiterError) {
+      setError("Please use distinct client, freelancer, and arbiter addresses.");
       return;
     }
     setLoading(true);
@@ -473,7 +531,7 @@ export default function CreateJob() {
       const txHash = await submitContractTransaction({
         method: "initialize",
         args: [
-          { type: "address", value: address },
+          { type: "address", value: platformAdmin },
           { type: "address", value: address },
           { type: "address", value: freelancer },
           { type: "address", value: effectiveArbiter },
@@ -633,6 +691,15 @@ export default function CreateJob() {
             aria-atomic="true"
             aria-relevant="additions removals"
           >
+            {platformAdminError && (
+              <div
+                id="platform-admin-error"
+                role="alert"
+                className="mb-5 rounded-lg bg-danger border border-danger-soft/40 px-4 py-3 text-sm text-danger-soft"
+              >
+                {platformAdminError}
+              </div>
+            )}
             {error && (
               <div
                 id="form-error"
@@ -697,27 +764,43 @@ export default function CreateJob() {
                     autoComplete="off"
                     spellCheck={false}
                     aria-required="true"
+                    aria-invalid={!!freelancerError}
+                    aria-describedby={
+                      freelancerError ? "freelancer-address-error" : undefined
+                    }
                     className={`${inputClassName} ${freelancerError ? "!border-danger" : ""}`}
                     value={freelancer}
                     onChange={(e) => {
+                      validatePartyAddresses(e.target.value, effectiveArbiter);
                       setFreelancer(e.target.value);
-                      validateFreelancer(e.target.value);
                     }}
-                    onBlur={(e) => validateFreelancer(e.target.value)}
+                    onBlur={() => validatePartyAddresses()}
                     onFocus={() => setActiveSection("details")}
                     placeholder="G..."
                     required
                     disabled={loading}
                   />
                   {freelancerError && (
-                    <p className="text-sm text-danger-soft mt-1">{freelancerError}</p>
+                    <p
+                      id="freelancer-address-error"
+                      role="alert"
+                      className="text-sm text-danger-soft mt-1"
+                    >
+                      {freelancerError}
+                    </p>
                   )}
                 </div>
 
                 {/* Arbiter Address */}
                 <div>
                   {defaultArbiter && (
-                    <fieldset className="mb-3" disabled={loading}>
+                    <fieldset
+                      className="mb-3"
+                      aria-describedby={
+                        arbiterError ? "arbiter-address-error" : undefined
+                      }
+                      disabled={loading}
+                    >
                       <legend className="block text-sm text-text-muted mb-1">Arbiter</legend>
                       <label className="flex items-center gap-2 text-sm text-text-primary">
                         <input
@@ -727,7 +810,7 @@ export default function CreateJob() {
                           checked={arbiterMode === "default"}
                           onChange={() => {
                             setArbiterMode("default");
-                            setArbiterError("");
+                            validatePartyAddresses(freelancer, defaultArbiter);
                           }}
                         />
                         Milesto arbitration (recommended)
@@ -738,7 +821,10 @@ export default function CreateJob() {
                           name="arbiter-mode"
                           value="custom"
                           checked={arbiterMode === "custom"}
-                          onChange={() => setArbiterMode("custom")}
+                          onChange={() => {
+                            setArbiterMode("custom");
+                            validatePartyAddresses(freelancer, arbiter);
+                          }}
                         />
                         Custom address
                       </label>
@@ -764,13 +850,17 @@ export default function CreateJob() {
                         autoComplete="off"
                         spellCheck={false}
                         aria-required="true"
+                        aria-invalid={!!arbiterError}
+                        aria-describedby={
+                          arbiterError ? "arbiter-address-error" : undefined
+                        }
                         className={`${inputClassName} ${arbiterError ? "!border-danger" : ""}`}
                         value={arbiter}
                         onChange={(e) => {
+                          validatePartyAddresses(freelancer, e.target.value);
                           setArbiter(e.target.value);
-                          validateArbiter(e.target.value);
                         }}
-                        onBlur={(e) => validateArbiter(e.target.value)}
+                        onBlur={() => validatePartyAddresses()}
                         onFocus={() => setActiveSection("details")}
                         placeholder="G..."
                         required
@@ -778,7 +868,15 @@ export default function CreateJob() {
                       />
                     </>
                   )}
-                  {arbiterError && <p className="text-sm text-danger-soft mt-1">{arbiterError}</p>}
+                  {arbiterError && (
+                    <p
+                      id="arbiter-address-error"
+                      role="alert"
+                      className="text-sm text-danger-soft mt-1"
+                    >
+                      {arbiterError}
+                    </p>
+                  )}
                 </div>
 
                 {/*
