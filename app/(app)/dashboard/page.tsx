@@ -502,7 +502,20 @@ export default function Dashboard() {
   };
 
   const handleMarkDelivered = async (i: number) => {
-    showToast(`Mark milestone ${i + 1} delivered (wired to contract soon)`, "info");
+    if (!address) return;
+
+    await executeTx(`deliver-${i}`, "mark_delivered", [
+      { type: "address", value: address },
+      { type: "u32", value: i.toString() },
+    ]);
+  };
+
+  const handleFund = async () => {
+    if (!address || !expandedJob) return;
+
+    await executeTx(`fund-${expandedJob.id}`, "fund", [
+      { type: "address", value: address },
+    ]);
   };
 
   const handleApprove = async (i: number) => {
@@ -525,7 +538,6 @@ export default function Dashboard() {
     await executeTx(`dispute-${disputeMilestoneIndex}`, "raise_dispute", [
       { type: "address", value: address },
       { type: "u32", value: disputeMilestoneIndex.toString() },
-      { type: "string", value: reason },
     ]);
 
     setDisputeModalOpen(false);
@@ -865,6 +877,22 @@ export default function Dashboard() {
                                   </div>
                                 </div>
 
+                                {isClient && !expandedJob.funded && (
+                                  <div className="bg-amber-950/40 border border-amber-600/50 rounded-lg p-3 sm:p-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                    <div>
+                                      <p className="text-amber-300 font-semibold text-sm">Escrow Unfunded</p>
+                                      <p className="text-amber-200/80 text-xs mt-0.5">Deposit the escrow tokens so the freelancer can begin delivery.</p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={handleFund}
+                                      disabled={isPending("fund-" + expandedJob.id)}
+                                      className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-semibold transition"
+                                    >
+                                      {isPending("fund-" + expandedJob.id) ? "Funding..." : "Fund escrow"}
+                                    </button>
+                                  </div>
+                                )}
                                 <div
                                   className="space-y-3 sm:space-y-4"
                                   role="region"
