@@ -21,6 +21,7 @@ import { fetchWhitelistedTokens, tokenLabel, WhitelistToken } from "@/app/lib/wh
 import { agreementLines } from "@/app/lib/escrow_agreement";
 import { validateTokenContract, TokenValidationResult } from "@/app/lib/token_validation";
 import { formatTxError } from "@/app/lib/errors";
+import { StrKey } from "@stellar/stellar-sdk";
 import {
   clearCreateJobDraft,
   CREATE_JOB_DRAFT_DEBOUNCE_MS,
@@ -295,7 +296,7 @@ export default function CreateJob() {
     !agreed;
 
   const validateFreelancer = (val: string) => {
-    if (val && !/^G[A-Z2-7]{55}$/.test(val)) {
+    if (val && !StrKey.isValidEd25519PublicKey(val)) {
       setFreelancerError("Invalid Stellar public key format");
     } else {
       setFreelancerError("");
@@ -303,15 +304,15 @@ export default function CreateJob() {
   };
 
   const validateArbiter = (val: string) => {
-    if (val && !/^G[A-Z2-7]{55}$/.test(val)) {
-      setArbiterError("Invalid Stellar public key format");
+    if (val && !(StrKey.isValidEd25519PublicKey(val) || StrKey.isValidContract(val))) {
+      setArbiterError("Invalid Stellar public key or contract address format");
     } else {
       setArbiterError("");
     }
   };
 
   const validateToken = (val: string) => {
-    if (val && !/^C[A-Z2-7]{55}$/.test(val)) {
+    if (val && !StrKey.isValidContract(val)) {
       setTokenError("Invalid Soroban contract ID format");
     } else {
       setTokenError("");
@@ -447,8 +448,8 @@ export default function CreateJob() {
     if (
       !freelancer ||
       !effectiveArbiter ||
-      !/^G[A-Z2-7]{55}$/.test(freelancer) ||
-      !/^G[A-Z2-7]{55}$/.test(effectiveArbiter)
+      !StrKey.isValidEd25519PublicKey(freelancer) ||
+      !(StrKey.isValidEd25519PublicKey(effectiveArbiter) || StrKey.isValidContract(effectiveArbiter))
     ) {
       if (!freelancer) setFreelancerError("This field is required.");
       if (!effectiveArbiter) setArbiterError("This field is required.");
