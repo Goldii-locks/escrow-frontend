@@ -92,6 +92,15 @@ jobs:
           fi
           echo "Contract ID format is valid: ${CID}"
 
+      - name: Validate platform admin address
+        env:
+          ADMIN: ${{ vars.PLATFORM_ADMIN }}
+        run: |
+          if ! printf '%s' "$ADMIN" | grep -qE '^G[A-Z2-7]{55}$'; then
+            echo "::error::Invalid or missing PLATFORM_ADMIN repository variable. Set it to the platform Stellar account address."
+            exit 1
+          fi
+
       - uses: docker/build-push-action@v6
         with:
           context: .
@@ -100,6 +109,7 @@ jobs:
           build-args: |
             NEXT_PUBLIC_BACKEND_URL=${{ vars.PUBLIC_ORIGIN }}
             NEXT_PUBLIC_CONTRACT_ID=${{ steps.contract.outputs.id }}
+            NEXT_PUBLIC_PLATFORM_ADMIN=${{ vars.PLATFORM_ADMIN }}
             NEXT_PUBLIC_SOROBAN_RPC_URL=${{ vars.SOROBAN_RPC_URL }}
             NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=${{ vars.SOROBAN_NETWORK_PASSPHRASE }}
           tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }}

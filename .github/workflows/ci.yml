@@ -37,6 +37,8 @@ jobs:
         run: npm run test
 
       - name: Build
+        env:
+          NEXT_PUBLIC_PLATFORM_ADMIN: GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
         run: npm run build
 
       - name: Bundle size budget
