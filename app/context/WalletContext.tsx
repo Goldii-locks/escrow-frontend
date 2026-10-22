@@ -101,26 +101,7 @@ interface WalletContextType {
   gasWarning: WalletGasWarningState | null;
 }
 
-const WalletContext = createContext<WalletContextType>({
-  address: null,
-  assembleMultiSigTransaction: async () => ({ uniqueSigners: 0, splitsValidated: 0 }),
-  connect: async () => {},
-  disconnect: () => {},
-  isConnecting: false,
-  networkMismatchMessage: null,
-  selectedWalletId: SUPPORTED_WALLETS[0].id,
-  setSelectedWalletId: () => {},
-  signTransaction: async () => "",
-  signatureTimeoutError: null,
-  signatureTimeoutXdr: null,
-  clearSignatureTimeout: () => {},
-  lastPendingAction: null,
-  registerPendingAction: () => {},
-  retryLastAction: async () => null,
-  simulationResult: null,
-  setSimulationResult: () => {},
-  gasWarning: null,
-});
+const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 /** Shared transaction/debug tracker for the active wallet context store. */
 const walletTracker = new WalletTransactionTracker();
@@ -527,4 +508,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export const useWallet = () => useContext(WalletContext);
+export function useWallet(): WalletContextType {
+  const context = useContext(WalletContext);
+  if (context === undefined) {
+    throw new Error("useWallet must be used within a WalletProvider");
+  }
+  return context;
+}
