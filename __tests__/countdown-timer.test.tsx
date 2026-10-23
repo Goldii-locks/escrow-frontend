@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CountdownTimer, { formatRemaining } from "@/app/components/CountdownTimer";

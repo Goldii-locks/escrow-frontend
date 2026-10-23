@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import {
   CLIENT_REFUND_NO_WALLET_MESSAGE,
