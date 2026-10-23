@@ -34,7 +34,7 @@ describe("arbitration_escrow_details export helpers (#487)", () => {
   it("generates timestamped export filenames", () => {
     const date = new Date("2026-09-28T12:00:00Z");
     expect(arbitrationExportFilename("DIS-123", date)).toBe(
-      "arbitration-escrow-DIS-123-2026-09-28.csv",
+      "arbitration-escrow-DIS-123-2026-09-28.csv"
     );
   });
 
@@ -48,9 +48,7 @@ describe("arbitration_escrow_details export helpers (#487)", () => {
       .spyOn(URL, "createObjectURL")
       .mockReturnValue("blob:arbitration-export");
     // Stub click so jsdom never attempts a real navigation (#644).
-    const clickSpy = vi
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(() => {});
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     const appendChildSpy = vi
       .spyOn(document.body, "appendChild")
       .mockImplementation((node) => node);
@@ -59,10 +57,7 @@ describe("arbitration_escrow_details export helpers (#487)", () => {
       .mockImplementation((node) => node);
 
     const filename = "arbitration-escrow-DIS-123-2026-09-28.csv";
-    const success = handleArbitrationExport(
-      [MOCK_ARBITRATION_ESCROW_DETAILS],
-      filename,
-    );
+    const success = handleArbitrationExport([MOCK_ARBITRATION_ESCROW_DETAILS], filename);
     expect(success).toBe(true);
     expect(createElementSpy).toHaveBeenCalledWith("a");
     expect(createObjectURLSpy).toHaveBeenCalledOnce();

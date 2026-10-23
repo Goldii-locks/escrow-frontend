@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import CreateJob from "@/app/create/page";
+import CreateJob from "@/app/(app)/create/page";
 
 const mockUseWallet = vi.fn();
 
@@ -18,10 +18,7 @@ vi.mock("@/app/context/WalletContext", () => ({
 }));
 
 function stubFetch(body: unknown, ok = true) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({ ok, json: async () => body }),
-  );
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok, json: async () => body }));
 }
 
 describe("Create Job token selector (#4)", () => {

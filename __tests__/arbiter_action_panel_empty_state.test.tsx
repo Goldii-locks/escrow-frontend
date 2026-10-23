@@ -7,10 +7,8 @@
 
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import ArbiterActionPanel, {
-  ArbiterPanelPlaceholder,
-} from "@/app/components/ArbiterActionPanel";
-import Dashboard from "@/app/dashboard/page";
+import ArbiterActionPanel, { ArbiterPanelPlaceholder } from "@/app/components/ArbiterActionPanel";
+import Dashboard from "@/app/(app)/dashboard/page";
 import {
   ARBITER_EMPTY_COPY,
   getArbiterJobEmptyState,
@@ -41,12 +39,9 @@ describe("isValidMilestoneIndex", () => {
     expect(isValidMilestoneIndex(value)).toBe(true);
   });
 
-  it.each([null, undefined, -1, 1.5, NaN, Infinity, "0", {}])(
-    "rejects %s",
-    (value) => {
-      expect(isValidMilestoneIndex(value)).toBe(false);
-    },
-  );
+  it.each([null, undefined, -1, 1.5, NaN, Infinity, "0", {}])("rejects %s", (value) => {
+    expect(isValidMilestoneIndex(value)).toBe(false);
+  });
 });
 
 describe("getArbiterJobEmptyState", () => {
@@ -56,7 +51,7 @@ describe("getArbiterJobEmptyState", () => {
 
   it("reports no-milestones for a non-array value", () => {
     expect(
-      getArbiterJobEmptyState({} as unknown as Parameters<typeof getArbiterJobEmptyState>[0]),
+      getArbiterJobEmptyState({} as unknown as Parameters<typeof getArbiterJobEmptyState>[0])
     ).toBe("no-milestones");
   });
 
@@ -67,14 +62,12 @@ describe("getArbiterJobEmptyState", () => {
         { status: "Released" },
         null,
         { status: undefined },
-      ]),
+      ])
     ).toBe("no-disputes");
   });
 
   it("returns null once any milestone is disputed", () => {
-    expect(
-      getArbiterJobEmptyState([{ status: "Released" }, { status: "Disputed" }]),
-    ).toBeNull();
+    expect(getArbiterJobEmptyState([{ status: "Released" }, { status: "Disputed" }])).toBeNull();
   });
 });
 
@@ -86,12 +79,10 @@ describe("ArbiterPanelPlaceholder", () => {
     const copy = ARBITER_EMPTY_COPY[variant];
     const placeholder = screen.getByTestId("arbiter-panel-placeholder");
     expect(placeholder).toHaveAttribute("data-variant", variant);
-    expect(screen.getByTestId("arbiter-panel-placeholder-title")).toHaveTextContent(
-      copy.title,
+    expect(screen.getByTestId("arbiter-panel-placeholder-title")).toHaveTextContent(copy.title);
+    expect(screen.getByTestId("arbiter-panel-placeholder-description")).toHaveTextContent(
+      copy.description
     );
-    expect(
-      screen.getByTestId("arbiter-panel-placeholder-description"),
-    ).toHaveTextContent(copy.description);
   });
 
   it.each(variants)("%s copy is a full sentence, not bare text", (variant) => {
@@ -120,7 +111,7 @@ describe("ArbiterPanelPlaceholder", () => {
     expect(screen.getByTestId("arbiter-panel-placeholder")).toHaveClass(
       "border-dashed",
       "text-center",
-      "w-full",
+      "w-full"
     );
   });
 
@@ -137,12 +128,12 @@ describe("ArbiterActionPanel with empty data", () => {
       render(<ArbiterActionPanel milestoneIndex={milestoneIndex} onResolve={vi.fn()} />);
       expect(screen.getByTestId("arbiter-panel-placeholder")).toHaveAttribute(
         "data-variant",
-        "no-milestone",
+        "no-milestone"
       );
       expect(screen.queryByTestId("arbiter-action-panel")).not.toBeInTheDocument();
       expect(screen.queryByRole("button")).not.toBeInTheDocument();
       expect(screen.queryByRole("radio")).not.toBeInTheDocument();
-    },
+    }
   );
 
   it("renders the placeholder without any props at all", () => {
@@ -183,7 +174,7 @@ describe("Dashboard — arbiter empty dispute list", () => {
           String(url).includes("/by-wallet/")
             ? { success: true, data: [payload], page: 1, limit: 5, total: 1 }
             : { success: true, data: payload },
-      })),
+      }))
     );
   }
 
@@ -203,7 +194,7 @@ describe("Dashboard — arbiter empty dispute list", () => {
       job([
         { index: 0, amount: "100", status: "Pending" },
         { index: 1, amount: "200", status: "Released" },
-      ]),
+      ])
     );
     render(<Dashboard />);
 
@@ -219,7 +210,7 @@ describe("Dashboard — arbiter empty dispute list", () => {
       job([
         { index: 0, amount: "100", status: "Pending" },
         { index: 1, amount: "200", status: "Disputed" },
-      ]),
+      ])
     );
     render(<Dashboard />);
 

@@ -1,8 +1,6 @@
 # escrow-frontend/Dockerfile
 #
-# Requires output: "export" in next.config.ts (see DECISIONS.md).
-# If the export attempt fails, use Dockerfile.node instead — same build
-# stage, Node runtime rather than nginx.
+# Requires output: "export" in next.config.ts.
 
 # ---- build ----
 # Node 24 to match the frontend's existing CI (backend is on 20; the
@@ -23,21 +21,39 @@ COPY . .
 # environment, and a contract redeploy means a rebuild, not a restart.
 ARG NEXT_PUBLIC_BACKEND_URL
 ARG NEXT_PUBLIC_CONTRACT_ID
-ARG NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
-ARG NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE="Test SDF Network ; September 2015"
+# No defaults for the network pair: a mainnet build that forgot them would
+# otherwise silently ship a testnet-wired bundle.
+ARG NEXT_PUBLIC_SOROBAN_RPC_URL
+ARG NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE
 
 ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL \
     NEXT_PUBLIC_CONTRACT_ID=$NEXT_PUBLIC_CONTRACT_ID \
     NEXT_PUBLIC_SOROBAN_RPC_URL=$NEXT_PUBLIC_SOROBAN_RPC_URL \
     NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=$NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE
 
-# Fail loudly rather than shipping a bundle pointing at localhost:3001.
-# The || fallback in app/lib/transactions.ts makes an unset value silent,
-# so catch it here where it's still cheap to catch.
-RUN test -n "$NEXT_PUBLIC_BACKEND_URL" \
-      || (echo "ERROR: NEXT_PUBLIC_BACKEND_URL must be set at build time" && exit 1)
+# Reject a plain-HTTP remote backend (mixed content on the HTTPS site).
+# Empty is allowed: the app uses same-origin relative /api (nginx proxies it).
+# Local http:// loopback URLs are allowed for local docker/dev builds.
+RUN case "$NEXT_PUBLIC_BACKEND_URL" in \
+      ""|https://*|http://localhost|http://localhost:*|http://localhost/*|http://127.0.0.1|http://127.0.0.1:*|http://127.0.0.1/*|http://\[::1\]|http://\[::1\]:*|http://\[::1\]/*) ;; \
+      *) echo "ERROR: NEXT_PUBLIC_BACKEND_URL must start with https:// (got \"$NEXT_PUBLIC_BACKEND_URL\"). Use https://, a localhost URL for local dev, or leave it empty to use same-origin /api." && exit 1 ;; \
+    esac
 RUN test -n "$NEXT_PUBLIC_CONTRACT_ID" \
       || (echo "ERROR: NEXT_PUBLIC_CONTRACT_ID must be set at build time" && exit 1)
+RUN test -n "$NEXT_PUBLIC_SOROBAN_RPC_URL" \
+      || (echo "ERROR: NEXT_PUBLIC_SOROBAN_RPC_URL must be set at build time" && exit 1)
+RUN test -n "$NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE" \
+      || (echo "ERROR: NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE must be set at build time" && exit 1)
+# The passphrase must be a known network, and the RPC host must agree with it.
+RUN case "$NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE" in \
+      "Test SDF Network ; September 2015") \
+        echo "$NEXT_PUBLIC_SOROBAN_RPC_URL" | grep -q testnet \
+          || (echo "ERROR: testnet passphrase but RPC URL is not a testnet host" && exit 1) ;; \
+      "Public Global Stellar Network ; September 2015") \
+        ! echo "$NEXT_PUBLIC_SOROBAN_RPC_URL" | grep -q testnet \
+          || (echo "ERROR: public passphrase but RPC URL is a testnet host" && exit 1) ;; \
+      *) echo "ERROR: unknown NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE" && exit 1 ;; \
+    esac
 
 RUN npm run build
 

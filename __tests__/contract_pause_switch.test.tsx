@@ -54,19 +54,11 @@ describe("contract_pause_switch module", () => {
     it("classifies viewport widths onto the documented breakpoints", () => {
       expect(classifyContractPauseViewport(WIDTHS.phoneSmall)).toBe("mobile");
       expect(classifyContractPauseViewport(WIDTHS.phone)).toBe("mobile");
-      expect(classifyContractPauseViewport(CONTRACT_PAUSE_TABLET_MIN_WIDTH - 1)).toBe(
-        "mobile",
-      );
-      expect(classifyContractPauseViewport(CONTRACT_PAUSE_TABLET_MIN_WIDTH)).toBe(
-        "tablet",
-      );
+      expect(classifyContractPauseViewport(CONTRACT_PAUSE_TABLET_MIN_WIDTH - 1)).toBe("mobile");
+      expect(classifyContractPauseViewport(CONTRACT_PAUSE_TABLET_MIN_WIDTH)).toBe("tablet");
       expect(classifyContractPauseViewport(WIDTHS.tablet)).toBe("tablet");
-      expect(classifyContractPauseViewport(CONTRACT_PAUSE_DESKTOP_MIN_WIDTH - 1)).toBe(
-        "tablet",
-      );
-      expect(classifyContractPauseViewport(CONTRACT_PAUSE_DESKTOP_MIN_WIDTH)).toBe(
-        "desktop",
-      );
+      expect(classifyContractPauseViewport(CONTRACT_PAUSE_DESKTOP_MIN_WIDTH - 1)).toBe("tablet");
+      expect(classifyContractPauseViewport(CONTRACT_PAUSE_DESKTOP_MIN_WIDTH)).toBe("desktop");
       expect(classifyContractPauseViewport(WIDTHS.desktop)).toBe("desktop");
     });
 
@@ -74,9 +66,7 @@ describe("contract_pause_switch module", () => {
       expect(classifyContractPauseViewport(-1)).toBe("mobile");
       expect(classifyContractPauseViewport(Number.NaN)).toBe("mobile");
       expect(classifyContractPauseViewport(Number.POSITIVE_INFINITY)).toBe("mobile");
-      expect(
-        classifyContractPauseViewport("1024" as unknown as number),
-      ).toBe("mobile");
+      expect(classifyContractPauseViewport("1024" as unknown as number)).toBe("mobile");
     });
 
     it("widens the status grid one column per breakpoint", () => {
@@ -110,9 +100,7 @@ describe("contract_pause_switch module", () => {
     });
 
     it("resolves the layout straight from a pixel width", () => {
-      expect(getContractPauseGridLayoutForWidth(WIDTHS.tablet).viewport).toBe(
-        "tablet",
-      );
+      expect(getContractPauseGridLayoutForWidth(WIDTHS.tablet).viewport).toBe("tablet");
       expect(getContractPauseGridLayoutForWidth(WIDTHS.laptop).statusColumns).toBe(3);
     });
 
@@ -165,12 +153,9 @@ describe("contract_pause_switch module", () => {
       expect(screen.getByTestId("contract-pause-status-grid")).toHaveClass(
         "grid-cols-1",
         "sm:grid-cols-2",
-        "lg:grid-cols-3",
+        "lg:grid-cols-3"
       );
-      expect(screen.getByTestId("contract-pause-toggle")).toHaveClass(
-        "w-full",
-        "sm:w-auto",
-      );
+      expect(screen.getByTestId("contract-pause-toggle")).toHaveClass("w-full", "sm:w-auto");
     });
   });
 
@@ -182,9 +167,7 @@ describe("contract_pause_switch module", () => {
     it("exposes a complete mock freeze state", () => {
       expect(isContractPauseState(MOCK_CONTRACT_PAUSE_STATE)).toBe(true);
       expect(MOCK_CONTRACT_PAUSE_STATE.contractId).toMatch(/^C/);
-      expect(MOCK_CONTRACT_PAUSE_STATE.updatedAt).toMatch(
-        /^\d{4}-\d{2}-\d{2}T/,
-      );
+      expect(MOCK_CONTRACT_PAUSE_STATE.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
       expect(MOCK_CONTRACT_PAUSE_TRANSITIONS.length).toBeGreaterThan(0);
     });
 
@@ -192,9 +175,7 @@ describe("contract_pause_switch module", () => {
       expect(isContractPauseState(null)).toBe(false);
       expect(isContractPauseState("frozen")).toBe(false);
       expect(isContractPauseState({})).toBe(false);
-      expect(
-        isContractPauseState({ ...MOCK_CONTRACT_PAUSE_STATE, paused: "yes" }),
-      ).toBe(false);
+      expect(isContractPauseState({ ...MOCK_CONTRACT_PAUSE_STATE, paused: "yes" })).toBe(false);
       const incomplete: Record<string, unknown> = {
         ...MOCK_CONTRACT_PAUSE_STATE,
       };
@@ -220,42 +201,36 @@ describe("contract_pause_switch module", () => {
       expect(readouts.contractId).toBe(MOCK_CONTRACT_PAUSE_STATE.contractId);
     });
 
-    it("returns the mock state when the backend is unreachable", async () => {
+    it("returns null when the backend is unreachable (#629)", async () => {
       vi.stubGlobal(
         "fetch",
-        vi.fn(() => Promise.reject(new Error("network down"))),
+        vi.fn(() => Promise.reject(new Error("network down")))
       );
 
-      await expect(fetchContractPauseState()).resolves.toEqual(
-        MOCK_CONTRACT_PAUSE_STATE,
-      );
+      await expect(fetchContractPauseState()).resolves.toBeNull();
     });
 
-    it("returns the mock state when the backend payload is incomplete", async () => {
+    it("returns null when the backend payload is incomplete (#629)", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn(() =>
           Promise.resolve({
             ok: true,
             json: () => Promise.resolve({ paused: true }),
-          }),
-        ),
+          })
+        )
       );
 
-      await expect(fetchContractPauseState()).resolves.toEqual(
-        MOCK_CONTRACT_PAUSE_STATE,
-      );
+      await expect(fetchContractPauseState()).resolves.toBeNull();
     });
 
-    it("returns the mock state on a non-ok response", async () => {
+    it("returns null on a non-ok response (#629)", async () => {
       vi.stubGlobal(
         "fetch",
-        vi.fn(() => Promise.resolve({ ok: false, status: 503 })),
+        vi.fn(() => Promise.resolve({ ok: false, status: 503 }))
       );
 
-      await expect(fetchContractPauseState()).resolves.toEqual(
-        MOCK_CONTRACT_PAUSE_STATE,
-      );
+      await expect(fetchContractPauseState()).resolves.toBeNull();
     });
 
     it("returns a complete backend payload through a success envelope", async () => {
@@ -270,39 +245,39 @@ describe("contract_pause_switch module", () => {
           Promise.resolve({
             ok: true,
             json: () => Promise.resolve({ success: true, data: backendState }),
-          }),
-        ),
+          })
+        )
       );
 
       await expect(fetchContractPauseState()).resolves.toEqual(backendState);
     });
 
-    it("renders every readout from the mock state with no backend", async () => {
+    it("renders an error state when the backend is unreachable (#629)", async () => {
       vi.stubGlobal(
         "fetch",
-        vi.fn(() => Promise.reject(new Error("network down"))),
+        vi.fn(() => Promise.reject(new Error("network down")))
       );
 
       render(<ContractPauseSwitch />);
 
       await waitFor(() => {
-        expect(
-          screen.getByText(MOCK_CONTRACT_PAUSE_STATE.reason),
-        ).toBeInTheDocument();
+        expect(screen.getByTestId("contract-pause-error")).toBeInTheDocument();
       });
-
-      expect(
-        screen.getByText(MOCK_CONTRACT_PAUSE_STATE.contractId),
-      ).toBeInTheDocument();
-      expect(screen.getAllByText("Frozen").length).toBeGreaterThan(0);
-      expect(screen.getByTestId("contract-pause-cell-reason")).toBeInTheDocument();
-      expect(
-        screen.getByTestId("contract-pause-cell-contract"),
-      ).toBeInTheDocument();
-      expect(screen.getByTestId("contract-pause-cell-updated")).toBeInTheDocument();
+      expect(screen.getByText(/Couldn't read pause status/i)).toBeInTheDocument();
+      expect(screen.getByTestId("contract-pause-toggle")).toBeDisabled();
+      vi.unstubAllGlobals();
     });
 
     it("shows placeholders while the freeze state resolves", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(() =>
+          Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, data: MOCK_CONTRACT_PAUSE_STATE }),
+          })
+        )
+      );
       render(<ContractPauseSwitch isLoading />);
 
       const loading = screen.getByTestId("contract-pause-loading");
@@ -311,20 +286,14 @@ describe("contract_pause_switch module", () => {
 
       // Flush the mock fetch so the pending update lands inside the test.
       await waitFor(() => {
-        expect(
-          screen.getByTestId("contract-pause-toggle"),
-        ).toHaveAttribute("aria-checked", "true");
+        expect(screen.getByTestId("contract-pause-toggle")).toHaveAttribute("aria-checked", "true");
       });
+      vi.unstubAllGlobals();
     });
 
     it("renders the toggle in the frozen state and reports the next state", () => {
       const onToggle = vi.fn();
-      render(
-        <ContractPauseSwitch
-          initialState={MOCK_CONTRACT_PAUSE_STATE}
-          onToggle={onToggle}
-        />,
-      );
+      render(<ContractPauseSwitch initialState={MOCK_CONTRACT_PAUSE_STATE} onToggle={onToggle} />);
 
       const toggle = screen.getByRole("switch", { name: /Emergency freeze/i });
       expect(toggle).toHaveAttribute("aria-checked", "true");
@@ -340,7 +309,7 @@ describe("contract_pause_switch module", () => {
         <ContractPauseSwitch
           initialState={{ ...MOCK_CONTRACT_PAUSE_STATE, paused: false }}
           onToggle={onToggle}
-        />,
+        />
       );
 
       const toggle = screen.getByRole("switch", { name: /Emergency freeze/i });
@@ -358,7 +327,7 @@ describe("contract_pause_switch module", () => {
           initialState={MOCK_CONTRACT_PAUSE_STATE}
           isPending
           onToggle={onToggle}
-        />,
+        />
       );
 
       const toggle = screen.getByRole("switch", { name: /Emergency freeze/i });
@@ -376,7 +345,7 @@ describe("contract_pause_switch module", () => {
           initialState={MOCK_CONTRACT_PAUSE_STATE}
           disabled
           onToggle={onToggle}
-        />,
+        />
       );
 
       const toggle = screen.getByRole("switch", { name: /Emergency freeze/i });
@@ -385,16 +354,12 @@ describe("contract_pause_switch module", () => {
     });
 
     it("honours the controlled paused prop over the resolved snapshot", () => {
-      render(
-        <ContractPauseSwitch
-          initialState={MOCK_CONTRACT_PAUSE_STATE}
-          paused={false}
-        />,
-      );
+      render(<ContractPauseSwitch initialState={MOCK_CONTRACT_PAUSE_STATE} paused={false} />);
 
-      expect(
-        screen.getByRole("switch", { name: /Emergency freeze/i }),
-      ).toHaveAttribute("aria-checked", "false");
+      expect(screen.getByRole("switch", { name: /Emergency freeze/i })).toHaveAttribute(
+        "aria-checked",
+        "false"
+      );
     });
 
     it("renders without a wallet, a backend, or an onToggle handler", () => {
@@ -402,7 +367,7 @@ describe("contract_pause_switch module", () => {
 
       expect(screen.getByTestId("contract-pause-switch")).toBeInTheDocument();
       expect(() =>
-        fireEvent.click(screen.getByRole("switch", { name: /Emergency freeze/i })),
+        fireEvent.click(screen.getByRole("switch", { name: /Emergency freeze/i }))
       ).not.toThrow();
     });
   });
@@ -425,7 +390,7 @@ describe("contract_pause_switch module", () => {
                 reason: "All clear.",
               },
             }),
-        }),
+        })
       );
       vi.stubGlobal("fetch", fetchMock);
 
@@ -436,7 +401,7 @@ describe("contract_pause_switch module", () => {
       // The URL must include the backend host and the is_paused query method.
       expect(calledUrl).toContain("/api/jobs/query");
       expect(calledUrl).toContain("method=is_paused");
-      expect(result.paused).toBe(false);
+      expect(result?.paused).toBe(false);
     });
 
     it("uses the apiUrl override when provided", async () => {
@@ -445,7 +410,7 @@ describe("contract_pause_switch module", () => {
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve(MOCK_CONTRACT_PAUSE_STATE),
-        }),
+        })
       );
       vi.stubGlobal("fetch", fetchMock);
 
@@ -454,20 +419,19 @@ describe("contract_pause_switch module", () => {
       expect((fetchMock.mock.calls as unknown[][])[0][0]).toBe(customUrl);
     });
 
-    it("falls back to mock when the backend returns a valid envelope with incomplete data", async () => {
+    it("returns null (no mock fallback) for a valid envelope with incomplete data (#629)", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn(() =>
           Promise.resolve({
             ok: true,
-            json: () =>
-              Promise.resolve({ success: true, data: { paused: true } }),
-          }),
-        ),
+            json: () => Promise.resolve({ success: true, data: { paused: true } }),
+          })
+        )
       );
 
       const result = await fetchContractPauseState();
-      expect(result).toEqual(MOCK_CONTRACT_PAUSE_STATE);
+      expect(result).toBeNull();
     });
   });
 
@@ -485,7 +449,9 @@ describe("contract_pause_switch module", () => {
 
     it("passes clean text through", () => {
       expect(containsCodeTags("Normal freeze reason")).toBe(false);
-      expect(containsCodeTags("CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH")).toBe(false);
+      expect(containsCodeTags("CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH")).toBe(
+        false
+      );
       expect(containsCodeTags("2026-09-24T18:42:00Z")).toBe(false);
     });
 
@@ -523,7 +489,7 @@ describe("contract_pause_switch module", () => {
             reason: "<script>alert(1)</script>",
             contractId: "<b>EVIL</b>",
           }}
-        />,
+        />
       );
 
       // The raw injected string must never appear in the DOM.
@@ -586,9 +552,7 @@ describe("contract_pause_switch module", () => {
 
     it("renders the active badge when the contract is live", () => {
       render(
-        <ContractPauseSwitch
-          initialState={{ ...MOCK_CONTRACT_PAUSE_STATE, paused: false }}
-        />,
+        <ContractPauseSwitch initialState={{ ...MOCK_CONTRACT_PAUSE_STATE, paused: false }} />
       );
 
       const badges = screen.getAllByTestId(/contract-pause-(status|state)-badge/);
@@ -599,9 +563,7 @@ describe("contract_pause_switch module", () => {
     });
 
     it("renders the pending badge while a transaction is in flight", () => {
-      render(
-        <ContractPauseSwitch initialState={MOCK_CONTRACT_PAUSE_STATE} isPending />,
-      );
+      render(<ContractPauseSwitch initialState={MOCK_CONTRACT_PAUSE_STATE} isPending />);
 
       const badges = screen.getAllByTestId(/contract-pause-(status|state)-badge/);
       for (const badge of badges) {
@@ -611,12 +573,7 @@ describe("contract_pause_switch module", () => {
     });
 
     it("controlled paused=false shows active badge regardless of initialState", () => {
-      render(
-        <ContractPauseSwitch
-          initialState={MOCK_CONTRACT_PAUSE_STATE}
-          paused={false}
-        />,
-      );
+      render(<ContractPauseSwitch initialState={MOCK_CONTRACT_PAUSE_STATE} paused={false} />);
 
       const badges = screen.getAllByTestId(/contract-pause-(status|state)-badge/);
       for (const badge of badges) {
@@ -655,8 +612,80 @@ describe("contract_pause_switch module", () => {
 
     it("freeze and unfreeze produce distinct messages", () => {
       expect(contractPauseSuccessToast(true).message).not.toBe(
-        contractPauseSuccessToast(false).message,
+        contractPauseSuccessToast(false).message
       );
+    });
+  });
+
+  // =========================================================================
+  // #629 — no mock fallback in production: error state + disabled toggle
+  // =========================================================================
+
+  describe("#629 — backend failure renders an error state and disables the toggle", () => {
+    beforeEach(() => {
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("renders an explicit error and disables the toggle when the read fails", async () => {
+      render(<ContractPauseSwitch />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("contract-pause-error")).toBeInTheDocument();
+      });
+      expect(screen.getByText(/Couldn't read pause status/i)).toBeInTheDocument();
+      expect(screen.getByText(/toggle is disabled/i)).toBeInTheDocument();
+
+      const toggle = screen.getByTestId("contract-pause-toggle");
+      expect(toggle).toBeDisabled();
+      expect(toggle).toHaveClass("cursor-not-allowed");
+      expect(toggle).toHaveClass("opacity-50");
+    });
+
+    it("does not fabricate a contract ID, state, or transition log on failure", async () => {
+      render(<ContractPauseSwitch />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("contract-pause-error")).toBeInTheDocument();
+      });
+      // The mock contract ID must never leak into the UI on a failed read.
+      expect(
+        screen.queryByText(/CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH/)
+      ).not.toBeInTheDocument();
+    });
+
+    it("re-enables after a successful re-read", async () => {
+      let callCount = 0;
+      const fetchMock = vi.fn().mockImplementation(() => {
+        callCount += 1;
+        if (callCount === 1) {
+          return Promise.reject(new Error("network down"));
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: { ...MOCK_CONTRACT_PAUSE_STATE, paused: false },
+          }),
+        });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      const { unmount } = render(<ContractPauseSwitch />);
+      await waitFor(() => {
+        expect(screen.getByTestId("contract-pause-error")).toBeInTheDocument();
+      });
+
+      // Re-mount to trigger a fresh read.
+      unmount();
+      render(<ContractPauseSwitch />);
+      await waitFor(() => {
+        expect(screen.queryByTestId("contract-pause-error")).not.toBeInTheDocument();
+      });
+      expect(screen.getByTestId("contract-pause-toggle")).not.toBeDisabled();
     });
   });
 });

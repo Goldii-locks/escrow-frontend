@@ -11,9 +11,7 @@ describe("client_refund_panel sanitization (#502)", () => {
     it("detects HTML code tags and script injections", () => {
       expect(refundContainsCodeTags("<script>alert(1)</script>")).toBe(true);
       expect(refundContainsCodeTags("<img src=x onerror=alert(1)>")).toBe(true);
-      expect(refundContainsCodeTags("<iframe src='evil.com'></iframe>")).toBe(
-        true,
-      );
+      expect(refundContainsCodeTags("<iframe src='evil.com'></iframe>")).toBe(true);
       expect(refundContainsCodeTags("javascript:alert(1)")).toBe(true);
       expect(refundContainsCodeTags("<div>plain text</div>")).toBe(true);
       expect(refundContainsCodeTags("normal dispute reason text")).toBe(false);
@@ -24,18 +22,16 @@ describe("client_refund_panel sanitization (#502)", () => {
   describe("sanitizeRefundReason", () => {
     it("ignores input containing code tags outright (#502 validation requirement)", () => {
       expect(sanitizeRefundReason("<script>evil()</script>")).toBe("");
-      expect(sanitizeRefundReason("Hello <img src=x onerror=alert(1)>")).toBe(
-        "",
-      );
+      expect(sanitizeRefundReason("Hello <img src=x onerror=alert(1)>")).toBe("");
       expect(sanitizeRefundReason("javascript:void(0)")).toBe("");
     });
 
     it("allows valid safe reason strings", () => {
-      expect(
-        sanitizeRefundReason("Milestone not delivered within deadline"),
-      ).toBe("Milestone not delivered within deadline");
+      expect(sanitizeRefundReason("Milestone not delivered within deadline")).toBe(
+        "Milestone not delivered within deadline"
+      );
       expect(sanitizeRefundReason("  Work scope altered without consent.  ")).toBe(
-        "Work scope altered without consent.",
+        "Work scope altered without consent."
       );
     });
 
@@ -63,9 +59,9 @@ describe("client_refund_panel sanitization (#502)", () => {
   describe("sanitizeClientAddress", () => {
     it("ignores code tags and extracts alphanumeric characters", () => {
       expect(sanitizeClientAddress("<script>addr</script>")).toBe("");
-      expect(
-        sanitizeClientAddress("  GCLIENT123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ  "),
-      ).toBe("GCLIENT123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+      expect(sanitizeClientAddress("  GCLIENT123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ  ")).toBe(
+        "GCLIENT123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      );
     });
   });
 });

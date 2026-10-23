@@ -9,6 +9,7 @@ import DisputeRaiseModal from "@/app/components/DisputeRaiseModal";
 import ArbiterActionPanel from "@/app/components/ArbiterActionPanel";
 import { formatBaseUnits } from "@/app/lib/amounts";
 import { getClaimEligibility, CLAIM_UNKNOWN_DEADLINE_NOTE } from "@/app/lib/claimEligibility";
+import ReleaseConfirmModal from "@/app/components/ReleaseConfirmModal";
 
 interface Milestone {
   index: number;
@@ -75,6 +76,8 @@ interface Props {
   onMarkDelivered?: (i: number) => void;
   onApprove?: (i: number) => void;
   onDispute?: (i: number) => void;
+  /** Full address of the freelancer (recipient of approve/partial releases), shown shortened in the confirmation modal. */
+  freelancerAddress?: string | null;
 }
 
 const statusColor: Record<string, string> = {
@@ -107,10 +110,7 @@ export function resolveDeadlineWarningThresholdMs(
     return overrideMs;
   }
   if (typeof windowMs === "number" && windowMs > 0) {
-    return Math.max(
-      DEADLINE_WARNING_FLOOR_MS,
-      Math.floor(windowMs * DEADLINE_WARNING_RATIO)
-    );
+    return Math.max(DEADLINE_WARNING_FLOOR_MS, Math.floor(windowMs * DEADLINE_WARNING_RATIO));
   }
   return DEADLINE_WARNING_FLOOR_MS;
 }
@@ -119,10 +119,7 @@ export function resolveDeadlineWarningThresholdMs(
  * Compute the release percentage (0–100) for PartiallyReleased milestones.
  * Returns null if either value is missing, zero, or non-numeric.
  */
-function getReleasePercent(
-  releasedAmount: string | undefined,
-  totalAmount: string
-): number | null {
+function getReleasePercent(releasedAmount: string | undefined, totalAmount: string): number | null {
   const released = Number(releasedAmount);
   const total = Number(totalAmount);
   if (!releasedAmount || isNaN(released) || isNaN(total) || total <= 0) {
@@ -167,6 +164,7 @@ export default function MilestoneCard({
   partialReleaseState,
   isPartialReleasePending,
   onPartialRelease,
+  freelancerAddress,
   ...unusedProps
 }: Props) {
   void unusedProps;
@@ -179,6 +177,17 @@ export default function MilestoneCard({
   const [partialAmount, setPartialAmount] = useState("");
   const [partialAmtError, setPartialAmtError] = useState<string | null>(null);
 
+  // Confirmation modal for irreversible payout actions (approve / partial
+  // release). The action and its validated args are staged here so the user
+  // can review the amount in token units, the recipient and the remaining
+  // balance before anything is submitted to the contract.
+  const [isReleaseConfirmOpen, setIsReleaseConfirmOpen] = useState(false);
+  const [pendingRelease, setPendingRelease] = useState<{
+    kind: "approve" | "partial";
+    index: number;
+    amount?: string;
+  } | null>(null);
+
   // Whether the auto-release deadline has passed. `mountedAt` is captured
   // once via a lazy initializer (mirrors CountdownTimer's own pattern) so
   // the render body never calls Date.now() directly; `liveElapsed` catches
@@ -187,8 +196,7 @@ export default function MilestoneCard({
   const [mountedAt] = useState<number>(() => Date.now());
   const [liveElapsed, setLiveElapsed] = useState(false);
   const isDeadlineElapsed =
-    liveElapsed ||
-    (typeof autoReleaseDeadline === "number" && autoReleaseDeadline <= mountedAt);
+    liveElapsed || (typeof autoReleaseDeadline === "number" && autoReleaseDeadline <= mountedAt);
 
   // Claim eligibility comes from on-chain job data; the backend deadline only
   // refines it, and an unknown deadline still shows the button.
@@ -247,18 +255,33 @@ export default function MilestoneCard({
       return;
     }
 
-    onPartialRelease?.(milestone.index, trimmed);
+    // Stage the partial release for confirmation instead of submitting
+    // straight to the contract.
+    setPendingRelease({ kind: "partial", index: milestone.index, amount: trimmed });
+    setIsReleaseConfirmOpen(true);
+  }
+
+  /** Confirm a staged approve or partial release and invoke its handler. */
+  function handleConfirmRelease() {
+    if (!pendingRelease) return;
+    if (pendingRelease.kind === "approve") {
+      onApprove?.(pendingRelease.index);
+    } else if (pendingRelease.kind === "partial" && pendingRelease.amount != null) {
+      onPartialRelease?.(pendingRelease.index, pendingRelease.amount);
+    }
+    setPendingRelease(null);
+    setIsReleaseConfirmOpen(false);
   }
 
   if (
-  !milestone ||
-  milestone.index === undefined ||
-  milestone.amount === undefined ||
-  milestone.status === undefined ||
-  typeof milestone.index !== "number" ||
-  typeof milestone.amount !== "string" ||
-  typeof milestone.status !== "string"
-) {
+    !milestone ||
+    milestone.index === undefined ||
+    milestone.amount === undefined ||
+    milestone.status === undefined ||
+    typeof milestone.index !== "number" ||
+    typeof milestone.amount !== "string" ||
+    typeof milestone.status !== "string"
+  ) {
     return (
       <div
         data-testid="milestone-empty-state"
@@ -269,8 +292,8 @@ export default function MilestoneCard({
         <div className="min-w-0 space-y-1">
           <p className="text-sm font-semibold text-text-secondary">No milestones available</p>
           <p className="text-xs text-text-muted">
-            This job has no milestone data yet. Add milestones in the create job form to
-            track delivery and releases.
+            This job has no milestone data yet. Add milestones in the create job form to track
+            delivery and releases.
           </p>
         </div>
         <span
@@ -397,34 +420,34 @@ export default function MilestoneCard({
               aria-label={`${milestoneLabel} status: ${milestone.status}`}
               data-testid="milestone-status-badge"
               className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap transition-colors ${
-                statusColor[milestone.status] ?? "bg-surface-field text-text-muted border-border-subtle"
+                statusColor[milestone.status] ??
+                "bg-surface-field text-text-muted border-border-subtle"
               }`}
             >
               {isPartiallyReleased ? "Partially Released" : milestone.status}
             </span>
             {/* Auto-release countdown for delivered milestones */}
-            {milestone.status === "Delivered" &&
-              typeof autoReleaseDeadline === "number" && (
-                <>
-                  <CountdownTimer
-                    deadline={autoReleaseDeadline}
-                    onElapsed={() => setLiveElapsed(true)}
-                    warningThresholdMs={warningThresholdMs}
-                    onWarningThreshold={() => setLiveWarning(true)}
-                  />
-                  {isWithinDeadlineWarning && (
-                    <span
-                      role="status"
-                      aria-live="polite"
-                      data-testid="milestone-deadline-warning"
-                      aria-label={`${milestoneLabel} auto-release deadline approaching`}
-                      className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-warning-soft/10 text-warning-soft border-warning-soft/30"
-                    >
-                      <span aria-hidden="true">!</span> Deadline approaching
-                    </span>
-                  )}
-                </>
-              )}
+            {milestone.status === "Delivered" && typeof autoReleaseDeadline === "number" && (
+              <>
+                <CountdownTimer
+                  deadline={autoReleaseDeadline}
+                  onElapsed={() => setLiveElapsed(true)}
+                  warningThresholdMs={warningThresholdMs}
+                  onWarningThreshold={() => setLiveWarning(true)}
+                />
+                {isWithinDeadlineWarning && (
+                  <span
+                    role="status"
+                    aria-live="polite"
+                    data-testid="milestone-deadline-warning"
+                    aria-label={`${milestoneLabel} auto-release deadline approaching`}
+                    className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-warning-soft/10 text-warning-soft border-warning-soft/30"
+                  >
+                    <span aria-hidden="true">!</span> Deadline approaching
+                  </span>
+                )}
+              </>
+            )}
             {/* Status field error */}
             {errors?.status && (
               <p
@@ -452,7 +475,10 @@ export default function MilestoneCard({
 
           {isClient && milestone.status === "Delivered" && (
             <button
-              onClick={() => onApprove?.(milestone.index)}
+              onClick={() => {
+                setPendingRelease({ kind: "approve", index: milestone.index });
+                setIsReleaseConfirmOpen(true);
+              }}
               disabled={!onApprove}
               aria-disabled={!onApprove}
               aria-label={`Approve ${milestoneLabel}`}
@@ -462,29 +488,29 @@ export default function MilestoneCard({
             </button>
           )}
 
-          {isFreelancer && milestone.status === "Delivered" && (isDeadlineElapsed || claimEligibility.show) && (
-            <button
-              onClick={() => onClaimAutoRelease?.(milestone.index)}
-              disabled={!onClaimAutoRelease || isClaimAutoReleasePending}
-              aria-disabled={!onClaimAutoRelease || isClaimAutoReleasePending}
-              aria-label={`Claim auto-release for ${milestoneLabel}`}
-              className={`${baseBtn} bg-success-soft text-surface-page font-medium hover:bg-success-soft/80 active:scale-[0.97] focus-visible:ring-success-soft disabled:hover:bg-success-soft disabled:active:scale-100`}
-            >
-              {isClaimAutoReleasePending ? "Claiming..." : "Claim Auto-Release"}
-            </button>
-          )}
+          {isFreelancer &&
+            milestone.status === "Delivered" &&
+            (isDeadlineElapsed || claimEligibility.show) && (
+              <button
+                onClick={() => onClaimAutoRelease?.(milestone.index)}
+                disabled={!onClaimAutoRelease || isClaimAutoReleasePending}
+                aria-disabled={!onClaimAutoRelease || isClaimAutoReleasePending}
+                aria-label={`Claim auto-release for ${milestoneLabel}`}
+                className={`${baseBtn} bg-success-soft text-surface-page font-medium hover:bg-success-soft/80 active:scale-[0.97] focus-visible:ring-success-soft disabled:hover:bg-success-soft disabled:active:scale-100`}
+              >
+                {isClaimAutoReleasePending ? "Claiming..." : "Claim Auto-Release"}
+              </button>
+            )}
           {isFreelancer &&
             milestone.status === "Delivered" &&
             !isDeadlineElapsed &&
             claimEligibility.show &&
             claimEligibility.deadlineUnknown && (
-              <span className="text-xs text-text-muted">
-                {CLAIM_UNKNOWN_DEADLINE_NOTE}
-              </span>
+              <span className="text-xs text-text-muted">{CLAIM_UNKNOWN_DEADLINE_NOTE}</span>
             )}
 
           {(isClient || isFreelancer) &&
-            ["Pending", "Delivered"].includes(milestone.status) && (
+            ["Pending", "Delivered", "PartiallyReleased"].includes(milestone.status) && (
               <button
                 onClick={() => setIsDisputeModalOpen(true)}
                 disabled={!onDispute}
@@ -519,8 +545,7 @@ export default function MilestoneCard({
           {/* Remaining balance hint */}
           {milestone.releasedAmount && (
             <p className="text-xs text-text-muted">
-              Released so far:{" "}
-              <span className="font-mono">{milestone.releasedAmount} stroops</span>
+              Released so far: <span className="font-mono">{milestone.releasedAmount} stroops</span>
               {unreleasedBalance(milestone) !== null && (
                 <>
                   {" · "}Remaining:{" "}
@@ -608,6 +633,40 @@ export default function MilestoneCard({
           onDispute?.(milestone.index);
         }}
       />
+
+      {/* Confirmation modal for the irreversible approve / partial release actions */}
+      {isReleaseConfirmOpen && pendingRelease && (
+        <ReleaseConfirmModal
+          isOpen
+          onClose={() => {
+            setIsReleaseConfirmOpen(false);
+            setPendingRelease(null);
+          }}
+          onConfirm={handleConfirmRelease}
+          action={pendingRelease.kind === "approve" ? "approve" : "partial-release"}
+          amountStroops={
+            pendingRelease.kind === "approve"
+              ? (unreleasedBalance(milestone)?.toString() ?? "0")
+              : (pendingRelease.amount ?? "")
+          }
+          decimals={amountDecimals}
+          symbol={amountSymbol}
+          recipientAddress={freelancerAddress ?? null}
+          remainingBalanceStroops={
+            pendingRelease.kind === "approve"
+              ? "0"
+              : pendingRelease.amount != null
+                ? (() => {
+                    const remaining = unreleasedBalance(milestone);
+                    return remaining !== null && pendingRelease.amount != null
+                      ? (remaining - BigInt(pendingRelease.amount)).toString()
+                      : null;
+                  })()
+                : null
+          }
+          isConfirming={false}
+        />
+      )}
     </div>
   );
 }

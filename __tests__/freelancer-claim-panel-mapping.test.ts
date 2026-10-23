@@ -9,13 +9,24 @@ import {
 describe("mapClaimEntry", () => {
   it("maps snake_case fields", () => {
     expect(mapClaimEntry(MOCK_CLAIM_PAYLOAD[1])).toEqual({
-      id: "c-2", jobTitle: "API integration", amount: "900", token: "XLM",
-      status: "claimed", claimedAt: "2026-01-05T10:00:00Z",
+      id: "c-2",
+      jobTitle: "API integration",
+      amount: "900",
+      token: "XLM",
+      status: "claimed",
+      claimedAt: "2026-01-05T10:00:00Z",
     });
   });
   it("defaults unknown status and missing fields", () => {
     const e = mapClaimEntry({ id: 7, status: "weird" });
-    expect(e).toMatchObject({ id: "7", status: "pending", jobTitle: "Untitled job", amount: "0", token: "XLM", claimedAt: null });
+    expect(e).toMatchObject({
+      id: "7",
+      status: "pending",
+      jobTitle: "Untitled job",
+      amount: "0",
+      token: "XLM",
+      claimedAt: null,
+    });
   });
   it("rejects invalid records", () => {
     expect(mapClaimEntry(null)).toBeNull();
@@ -34,11 +45,17 @@ describe("mapClaimPayload", () => {
 describe("fetchClaimEntries", () => {
   afterEach(() => vi.unstubAllGlobals());
   it("loads and maps backend data", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => MOCK_CLAIM_PAYLOAD }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => MOCK_CLAIM_PAYLOAD })
+    );
     expect((await fetchClaimEntries()).map((e) => e.id)).toEqual(["c-1", "c-2", "c-3"]);
   });
   it("throws on failure", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) })
+    );
     await expect(fetchClaimEntries()).rejects.toThrow("500");
   });
 });

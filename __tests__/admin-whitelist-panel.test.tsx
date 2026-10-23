@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import AdminPage from "@/app/admin/page";
+import AdminPage from "@/app/(app)/admin/page";
 import {
   containsCodeTags,
   getAddStatusBadge,
@@ -36,10 +36,7 @@ const MOCK_DATASET = {
 };
 
 function stubFetch(body: unknown, ok = true) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({ ok, json: async () => body }),
-  );
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok, json: async () => body }));
 }
 
 describe("sanitization (#432)", () => {
@@ -64,9 +61,7 @@ describe("sanitization (#432)", () => {
       fireEvent.change(input, { target: { value: "CABC" } });
       fireEvent.change(input, { target: { value: "CABC<script>x</script>" } });
       expect(input).toHaveValue("CABC");
-      expect(
-        screen.getByRole("button", { name: /add to whitelist/i }),
-      ).toBeEnabled();
+      expect(screen.getByRole("button", { name: /add to whitelist/i })).toBeEnabled();
     });
   });
 });
@@ -81,9 +76,7 @@ describe("backend data mapping (#433)", () => {
       { address: "CXLM", name: "Lumens" },
       { address: "CPLAIN" },
     ]);
-    expect(mapWhitelistResponse({ tokens: ["CA", "CA", "<b>", 5] })).toEqual([
-      { address: "CA" },
-    ]);
+    expect(mapWhitelistResponse({ tokens: ["CA", "CA", "<b>", 5] })).toEqual([{ address: "CA" }]);
     expect(mapWhitelistResponse({ error: "nope" })).toBeNull();
   });
 
@@ -128,10 +121,7 @@ describe("status badges (#434)", () => {
     fireEvent.click(screen.getByRole("button", { name: /confirm & sign/i }));
 
     await waitFor(() =>
-      expect(screen.getByTestId("status-badge-CTOKEN1")).toHaveAttribute(
-        "data-status",
-        "failed",
-      ),
+      expect(screen.getByTestId("status-badge-CTOKEN1")).toHaveAttribute("data-status", "failed")
     );
   });
 });
@@ -151,9 +141,7 @@ describe("confirmation modal (#435)", () => {
     fireEvent.click(screen.getByRole("button", { name: /add to whitelist/i }));
 
     expect(screen.getByTestId("whitelist-confirm-modal")).toBeInTheDocument();
-    expect(screen.getByTestId("whitelist-confirm-token")).toHaveTextContent(
-      "CNEWTOKEN",
-    );
+    expect(screen.getByTestId("whitelist-confirm-token")).toHaveTextContent("CNEWTOKEN");
     expect(mockSubmit).not.toHaveBeenCalled();
 
     const confirm = screen.getByRole("button", { name: /confirm & sign/i });

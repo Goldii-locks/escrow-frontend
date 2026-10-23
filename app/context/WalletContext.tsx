@@ -11,55 +11,60 @@ import {
 } from "react";
 import { Networks, StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
 import { defaultModules } from "@creit.tech/stellar-wallets-kit/modules/utils";
-import { NETWORK_PASSPHRASE } from "@/app/lib/contract";
+import { NETWORK_PASSPHRASE } from "@/app/lib/config";
+import { assertWalletNetwork } from "@/app/lib/network";
 import { useToast } from "./ToastContext";
 import {
-  ledgerActiveAddresses,
   checkSimulationFeeWarning,
-  type LedgerSimulationResult,
-  type LedgerGasWarningState,
-} from "@/app/lib/ledger_usb_bridge";
-import { freighterActiveAddress, verifyAndRehydrateFreighterAddress } from "@/app/lib/freighter_connector";
+  freighterActiveAddress,
+  verifyAndRehydrateFreighterAddress,
+  type WalletSimulationResult,
+  type WalletGasWarningState,
+} from "@/app/lib/wallet_session";
 import {
   logWalletWarning,
   validateMultiSigAssembly,
   withWalletLoader,
   WalletTransactionTracker,
   signWalletWithTimeout,
+  DEFAULT_WALLET_SIGNATURE_TIMEOUT_MS,
   type WalletMultiSigAssemblyOptions,
   type WalletMultiSigAssemblyResult,
   type WalletMultiSigSplit,
   WalletSignatureTimeoutError,
+  readTransactionMaxTimeSecs,
 } from "@/app/lib/wallet_state_context";
 import { walletStateStore } from "@/app/lib/wallet_state_store";
-import { WalletRejectedError, isWalletRejectedError } from "@/app/lib/errors";
+import {
+  WalletRejectedError,
+  WalletUnavailableError,
+  isWalletAvailabilityError,
+  isWalletRejectedError,
+} from "@/app/lib/errors";
+import { submitContractTransaction, type ContractArg } from "@/app/lib/transactions";
 
 const LEGACY_STORAGE_KEY = "milesto_wallet_connected";
 const STORAGE_KEY = LEGACY_STORAGE_KEY;
-
-const APP_NETWORK_DISPLAY = "Testnet";
-
-function buildMismatchMessage(walletId: string, walletNetwork: string): string {
-  const walletDisplay =
-    walletId === "freighter" ? "Freighter" :
-    walletId === "albedo"   ? "Albedo"   :
-    walletId === "xbull"    ? "xBull"    :
-    walletId === "hana"     ? "Hana"     : "your wallet";
-
-  return `Network mismatch: your ${walletDisplay} is on ${walletNetwork} but this app expects Stellar ${APP_NETWORK_DISPLAY}. Please switch networks.`;
-}
 
 export const SUPPORTED_WALLETS = [
   { id: "freighter", label: "Freighter" },
   { id: "albedo", label: "Albedo" },
   { id: "xbull", label: "xBull" },
   { id: "hana", label: "Hana" },
+  { id: "lobstr", label: "LOBSTR" },
+  { id: "wallet_connect", label: "WalletConnect" },
 ] as const;
 
 export type SupportedWalletId = (typeof SUPPORTED_WALLETS)[number]["id"];
 
 interface KitSignResult {
   signedTxXdr?: string;
+}
+
+interface PendingContractAction {
+  method: string;
+  args: ContractArg[];
+  sourceAddress: string;
 }
 
 interface WalletContextType {
@@ -82,12 +87,18 @@ interface WalletContextType {
   signatureTimeoutError: WalletSignatureTimeoutError | null;
   signatureTimeoutXdr: string | null;
   clearSignatureTimeout: () => void;
+  /** Last contract action submitted, kept so a timed-out signature can be retried with a fresh XDR. */
+  lastPendingAction: PendingContractAction | null;
+  /** Stage an action so {@link retryLastAction} can rebuild and re-sign it after a timeout. */
+  registerPendingAction: (action: PendingContractAction) => void;
+  /** Rebuild the last pending transaction (fresh XDR) and request a signature again. */
+  retryLastAction: () => Promise<string | null>;
   /** Current simulation result used to derive gas/fee warning state. */
-  simulationResult: LedgerSimulationResult | null;
+  simulationResult: WalletSimulationResult | null;
   /** Set after a Soroban simulation completes; triggers fee warning evaluation. */
-  setSimulationResult: (result: LedgerSimulationResult | null) => void;
+  setSimulationResult: (result: WalletSimulationResult | null) => void;
   /** Derived gas/fee warning state from the latest simulation result. */
-  gasWarning: LedgerGasWarningState | null;
+  gasWarning: WalletGasWarningState | null;
 }
 
 const WalletContext = createContext<WalletContextType>({
@@ -103,6 +114,9 @@ const WalletContext = createContext<WalletContextType>({
   signatureTimeoutError: null,
   signatureTimeoutXdr: null,
   clearSignatureTimeout: () => {},
+  lastPendingAction: null,
+  registerPendingAction: () => {},
+  retryLastAction: async () => null,
   simulationResult: null,
   setSimulationResult: () => {},
   gasWarning: null,
@@ -114,24 +128,35 @@ const walletTracker = new WalletTransactionTracker();
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [selectedWalletId, setSelectedWalletId] = useState<SupportedWalletId>(() => {
-    const persisted = walletStateStore.getActiveState();
-    return persisted?.selectedWalletId as SupportedWalletId ?? SUPPORTED_WALLETS[0].id;
-  });
-  const [networkMismatchMessage, setNetworkMismatchMessage] = useState<
-    string | null
-  >(null);
+  // Start from the static default so prerendered markup and the first client
+  // render match; the persisted choice is restored after mount below.
+  const [selectedWalletId, setSelectedWalletId] = useState<SupportedWalletId>(
+    SUPPORTED_WALLETS[0].id
+  );
+
+  useEffect(() => {
+    let active = true;
+    Promise.resolve().then(() => {
+      const persisted = walletStateStore.getActiveState();
+      if (active && persisted?.selectedWalletId) {
+        setSelectedWalletId(persisted.selectedWalletId as SupportedWalletId);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+  const [networkMismatchMessage, setNetworkMismatchMessage] = useState<string | null>(null);
   const [signatureTimeoutError, setSignatureTimeoutError] =
     useState<WalletSignatureTimeoutError | null>(null);
-  const [signatureTimeoutXdr, setSignatureTimeoutXdr] = useState<string | null>(
-    null
-  );
-  const [simulationResult, setSimulationResult] =
-    useState<LedgerSimulationResult | null>(null);
-  const initializedRef = useRef(false);
+  const [signatureTimeoutXdr, setSignatureTimeoutXdr] = useState<string | null>(null);
+  /** Last contract action submitted, retained so a timed-out signature can be retried with a fresh XDR. */
+  const [lastPendingAction, setLastPendingAction] = useState<PendingContractAction | null>(null);
+  const [simulationResult, setSimulationResult] = useState<WalletSimulationResult | null>(null);
+  const kitInitRef = useRef<Promise<void> | null>(null);
   const { showToast } = useToast();
 
-  const gasWarning: LedgerGasWarningState | null = simulationResult
+  const gasWarning: WalletGasWarningState | null = simulationResult
     ? checkSimulationFeeWarning(simulationResult)
     : null;
 
@@ -152,10 +177,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         walletPassphrase = result.networkPassphrase;
       }
 
-      const mismatched = walletPassphrase !== NETWORK_PASSPHRASE;
-      setNetworkMismatchMessage(
-        mismatched ? buildMismatchMessage(selectedWalletId, walletPassphrase) : null
-      );
+      const walletLabel = SUPPORTED_WALLETS.find((w) => w.id === selectedWalletId)?.label;
+      setNetworkMismatchMessage(assertWalletNetwork(walletPassphrase, walletLabel));
     } catch (e) {
       logWalletWarning("NETWORK CHECK FAILED", "Failed to check network", {
         err: e,
@@ -165,23 +188,51 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [selectedWalletId]);
 
-  const ensureKitInitialized = useCallback(() => {
-    if (initializedRef.current) return;
+  const ensureKitInitialized = useCallback((): Promise<void> => {
+    if (kitInitRef.current) return kitInitRef.current;
 
-    const allowedIds = new Set<string>(SUPPORTED_WALLETS.map((wallet) => wallet.id));
+    kitInitRef.current = (async () => {
+      const allowedIds = new Set<string>(SUPPORTED_WALLETS.map((wallet) => wallet.id));
 
-    StellarWalletsKit.init({
-      modules: defaultModules({
-        filterBy: (module: { productId: string }) => allowedIds.has(module.productId),
-      }),
-      network: Networks.TESTNET,
-      authModal: {
-        showInstallLabel: true,
-        hideUnsupportedWallets: false,
-      },
-    });
+      // WalletConnect pulls in a large SDK, so it is only downloaded when a
+      // project ID was set at build time (NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID).
+      const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "";
+      const wcModules = [];
+      if (walletConnectProjectId) {
+        const { WalletConnectModule, WalletConnectTargetChain } = await import(
+          "@creit.tech/stellar-wallets-kit/modules/wallet-connect"
+        );
+        wcModules.push(
+          new WalletConnectModule({
+            projectId: walletConnectProjectId,
+            metadata: {
+              name: "Goldii Escrow",
+              description: "Soroban milestone escrow on Stellar",
+              url: window.location.origin,
+              icons: [`${window.location.origin}/favicon.ico`],
+            },
+            allowedChains: [WalletConnectTargetChain.TESTNET],
+          })
+        );
+      }
 
-    initializedRef.current = true;
+      // LobstrModule is included in defaultModules already; no extra config needed.
+      StellarWalletsKit.init({
+        modules: [
+          ...defaultModules({
+            filterBy: (module: { productId: string }) => allowedIds.has(module.productId),
+          }),
+          ...wcModules,
+        ],
+        network: Networks.TESTNET,
+        authModal: {
+          showInstallLabel: true,
+          hideUnsupportedWallets: false,
+        },
+      });
+    })();
+
+    return kitInitRef.current;
   }, []);
 
   const initialRehydrationDone = useRef(false);
@@ -197,11 +248,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     const walletId = persisted?.selectedWalletId ?? selectedWalletId;
 
-    ensureKitInitialized();
-
     let active = true;
 
     const rehydrate = async () => {
+      await ensureKitInitialized();
       if (walletId === "freighter") {
         try {
           const verifiedAddress = await verifyAndRehydrateFreighterAddress();
@@ -223,11 +273,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             return;
           }
         } catch (e) {
-          logWalletWarning(
-            "REHYDRATE FAILED",
-            "Failed to rehydrate freighter active address",
-            { err: e, phase: "error" }
-          );
+          logWalletWarning("REHYDRATE FAILED", "Failed to rehydrate freighter active address", {
+            err: e,
+            phase: "error",
+          });
         }
 
         if (!active) return;
@@ -275,39 +324,41 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     };
   }, [ensureKitInitialized, checkNetwork, selectedWalletId]);
 
-  const connect = useCallback(async (requestedWalletId?: SupportedWalletId) => {
-    // Guard against being wired straight to onClick, which passes an event.
-    const walletId =
-      typeof requestedWalletId === "string" ? requestedWalletId : selectedWalletId;
-    setIsConnecting(true);
-    walletTracker.track("connect", "connecting", "Opening wallet selector");
-    try {
-      await withWalletLoader(async () => {
-        ensureKitInitialized();
-        StellarWalletsKit.setWallet(walletId);
+  const connect = useCallback(
+    async (requestedWalletId?: SupportedWalletId) => {
+      // Guard against being wired straight to onClick, which passes an event.
+      const walletId = typeof requestedWalletId === "string" ? requestedWalletId : selectedWalletId;
+      setIsConnecting(true);
+      walletTracker.track("connect", "connecting", "Opening wallet selector");
+      try {
+        await withWalletLoader(async () => {
+          await ensureKitInitialized();
+          StellarWalletsKit.setWallet(walletId);
 
-        const result = (await StellarWalletsKit.authModal()) as { address?: string };
-        if (result.address) {
-          setAddress(result.address);
-          walletTracker.track("connect", "success", "Wallet connected");
-          await checkNetwork();
-          localStorage.setItem(STORAGE_KEY, "true");
-          if (walletId === "freighter") {
-            freighterActiveAddress.setActiveAddress({
-              address: result.address,
-              network: NETWORK_PASSPHRASE,
-              connectedAt: Date.now(),
-            });
+          const result = (await StellarWalletsKit.authModal()) as { address?: string };
+          if (result.address) {
+            setAddress(result.address);
+            walletTracker.track("connect", "success", "Wallet connected");
+            await checkNetwork();
+            localStorage.setItem(STORAGE_KEY, "true");
+            if (walletId === "freighter") {
+              freighterActiveAddress.setActiveAddress({
+                address: result.address,
+                network: NETWORK_PASSPHRASE,
+                connectedAt: Date.now(),
+              });
+            }
           }
-        }
-      });
-    } catch (e) {
-      walletTracker.track("connect", "error", "Wallet connection failed", e);
-      showToast("Failed to connect wallet.", "error");
-    } finally {
-      setIsConnecting(false);
-    }
-  }, [ensureKitInitialized, selectedWalletId, checkNetwork, showToast]);
+        });
+      } catch (e) {
+        walletTracker.track("connect", "error", "Wallet connection failed", e);
+        showToast("Failed to connect wallet.", "error");
+      } finally {
+        setIsConnecting(false);
+      }
+    },
+    [ensureKitInitialized, selectedWalletId, checkNetwork, showToast]
+  );
 
   const disconnect = useCallback(() => {
     void withWalletLoader(async () => {
@@ -319,70 +370,117 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     });
     walletStateStore.clear();
     localStorage.removeItem(LEGACY_STORAGE_KEY);
-    ledgerActiveAddresses.clear();
     freighterActiveAddress.clear();
     clearAllWalletSessionStorage();
     setNetworkMismatchMessage(null);
     setAddress(null);
   }, []);
 
-  const signTransaction = useCallback(async (xdr: string): Promise<string> => {
-    if (!address) throw new Error("Wallet not connected");
-    setSignatureTimeoutError(null);
-    setSignatureTimeoutXdr(null);
+  const signTransaction = useCallback(
+    async (xdr: string): Promise<string> => {
+      if (!address) throw new Error("Wallet not connected");
+      if (networkMismatchMessage) throw new Error(networkMismatchMessage);
+      setSignatureTimeoutError(null);
+      setSignatureTimeoutXdr(null);
 
-    return withWalletLoader(async () => {
-      try {
-        ensureKitInitialized();
-        StellarWalletsKit.setWallet(selectedWalletId);
+      return withWalletLoader(async () => {
+        try {
+          await ensureKitInitialized();
+          StellarWalletsKit.setWallet(selectedWalletId);
 
-        const result = await signWalletWithTimeout(
-          { xdr },
-          async (transactionXdr) =>
-            (await StellarWalletsKit.signTransaction(transactionXdr, {
-              address,
-              networkPassphrase: NETWORK_PASSPHRASE,
-            })) as KitSignResult
-        );
+          // Single timeout source (#628): derive the bound from the
+          // transaction's own maxTime when it advertises one, falling back to
+          // the default bound. The wallet context owns the timeout, the
+          // sensitive-memory cleanup, and the `signatureTimeoutError` alert
+          // state — `submitContractTransaction` no longer wraps the call.
+          const maxTimeSecs = readTransactionMaxTimeSecs(xdr);
+          const timeoutMs =
+            maxTimeSecs !== null
+              ? Math.min(maxTimeSecs * 1000, DEFAULT_WALLET_SIGNATURE_TIMEOUT_MS)
+              : DEFAULT_WALLET_SIGNATURE_TIMEOUT_MS;
 
-        return result.signedTxXdr ?? "";
-      } catch (e) {
-        const rejected = isWalletRejectedError(e);
-        walletTracker.track(
-          "sign",
-          "error",
-          rejected
-            ? "Wallet signTransaction rejected by user"
-            : "Wallet signTransaction failed",
-          e
-        );
-
-        if (e instanceof WalletSignatureTimeoutError) {
-          setSignatureTimeoutError(e);
-          setSignatureTimeoutXdr(xdr);
-        }
-
-        // A user declining in their wallet is an expected outcome, not a
-        // fault: surface it as a warning and normalise it to
-        // WalletRejectedError so callers can branch on it. Every other
-        // failure is rethrown untouched.
-        if (rejected) {
-          showToast(
-            "Signature cancelled - you rejected the request in your wallet.",
-            "warning"
+          const result = await signWalletWithTimeout(
+            { xdr },
+            async (transactionXdr) =>
+              (await StellarWalletsKit.signTransaction(transactionXdr, {
+                address,
+                networkPassphrase: NETWORK_PASSPHRASE,
+              })) as KitSignResult,
+            timeoutMs
           );
-          throw new WalletRejectedError();
-        }
 
-        throw e;
-      }
-    });
-  }, [address, ensureKitInitialized, selectedWalletId, showToast]);
+          return result.signedTxXdr ?? "";
+        } catch (e) {
+          const rejected = isWalletRejectedError(e);
+          walletTracker.track(
+            "sign",
+            "error",
+            rejected ? "Wallet signTransaction rejected by user" : "Wallet signTransaction failed",
+            e
+          );
+
+          if (e instanceof WalletSignatureTimeoutError) {
+            setSignatureTimeoutError(e);
+            setSignatureTimeoutXdr(xdr);
+          }
+
+          // A user declining in their wallet is an expected outcome, not a
+          // fault: surface it as a warning and normalise it to
+          // WalletRejectedError so callers can branch on it. Every other
+          // failure is rethrown untouched.
+          if (rejected) {
+            showToast("Signature cancelled - you rejected the request in your wallet.", "warning");
+            throw new WalletRejectedError();
+          }
+
+          // Name the wallet the user actually picked, so formatTxError links
+          // to its install page rather than Freighter's (#687).
+          if (isWalletAvailabilityError(e) && !(e instanceof WalletUnavailableError)) {
+            throw new WalletUnavailableError(selectedWalletId);
+          }
+
+          throw e;
+        }
+      });
+    },
+    [address, networkMismatchMessage, ensureKitInitialized, selectedWalletId, showToast]
+  );
 
   const clearSignatureTimeout = useCallback(() => {
     setSignatureTimeoutError(null);
     setSignatureTimeoutXdr(null);
   }, []);
+
+  /** Stage the last submitted contract action so it can be retried after a signature timeout. */
+  const registerPendingAction = useCallback((action: PendingContractAction) => {
+    setLastPendingAction(action);
+  }, []);
+
+  /**
+   * Rebuild the last pending transaction (fresh XDR from the backend) and
+   * request a wallet signature again. Called by the global
+   * SignatureTimeoutAlert after a signing timeout.
+   */
+  const retryLastAction = useCallback(async (): Promise<string | null> => {
+    const action = lastPendingAction;
+    if (!action) return null;
+    // Clear the staged action so a stale retry cannot re-submit it twice.
+    setLastPendingAction(null);
+    try {
+      return await submitContractTransaction({
+        method: action.method,
+        args: action.args,
+        sourceAddress: action.sourceAddress,
+        signTransaction,
+      });
+    } catch (err) {
+      logWalletWarning("RETRY LAST ACTION FAILED", "Retrying the last contract action failed", {
+        err: err instanceof Error ? err : new Error(String(err)),
+        phase: "error",
+      });
+      return null;
+    }
+  }, [lastPendingAction, signTransaction]);
 
   const assembleMultiSigTransaction = useCallback(
     async (
@@ -393,12 +491,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         try {
           return validateMultiSigAssembly(splits, options);
         } catch (e) {
-          walletTracker.track(
-            "multisig",
-            "error",
-            "Multi-sig transaction assembly failed",
-            e
-          );
+          walletTracker.track("multisig", "error", "Multi-sig transaction assembly failed", e);
           throw e;
         }
       });
@@ -421,6 +514,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         signatureTimeoutError,
         signatureTimeoutXdr,
         clearSignatureTimeout,
+        lastPendingAction,
+        registerPendingAction,
+        retryLastAction,
         simulationResult,
         setSimulationResult,
         gasWarning,

@@ -41,7 +41,7 @@ describe("freelancer_claim_panel access restrictions (#490)", () => {
 
     const unauthorized = resolveFreelancerClaimAccess(OTHER, "client");
     expect(getFreelancerClaimFallbackMessage(unauthorized)).toBe(
-      FREELANCER_CLAIM_UNAUTHORIZED_WARNING,
+      FREELANCER_CLAIM_UNAUTHORIZED_WARNING
     );
   });
 
@@ -50,7 +50,7 @@ describe("freelancer_claim_panel access restrictions (#490)", () => {
       guardFreelancerClaimPanel(
         resolveFreelancerClaimAccess(wallet, "freelancer", FREELANCER),
         () => "panel-content",
-        (warning) => `warning:${warning}`,
+        (warning) => `warning:${warning}`
       );
 
     expect(render(FREELANCER)).toBe("panel-content");

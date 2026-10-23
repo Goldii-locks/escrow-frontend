@@ -1,11 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchWhitelistedTokens, tokenLabel } from "@/app/lib/whitelist";
+import { ApiShapeError, fetchWhitelistedTokens, tokenLabel } from "@/app/lib/whitelist";
 
 function stubFetch(body: unknown, ok = true, status = 200) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({ ok, status, json: async () => body }),
-  );
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok, status, json: async () => body }));
 }
 
 describe("fetchWhitelistedTokens", () => {
@@ -18,10 +15,7 @@ describe("fetchWhitelistedTokens", () => {
 
   it("normalizes string addresses and drops blanks", async () => {
     stubFetch({ success: true, data: { tokens: ["CAAA", "  CBBB  ", ""] } });
-    expect(await fetchWhitelistedTokens("CID")).toEqual([
-      { address: "CAAA" },
-      { address: "CBBB" },
-    ]);
+    expect(await fetchWhitelistedTokens("CID")).toEqual([{ address: "CAAA" }, { address: "CBBB" }]);
   });
 
   it("normalizes object items with symbol/name and address aliases", async () => {
@@ -40,11 +34,12 @@ describe("fetchWhitelistedTokens", () => {
     ]);
   });
 
-  it("returns an empty list for unexpected shapes", async () => {
+  // An unexpected body is an error, not an empty whitelist (#678).
+  it("throws ApiShapeError for unexpected shapes instead of returning []", async () => {
     stubFetch(["CAAA"]);
-    expect(await fetchWhitelistedTokens("CID")).toEqual([]);
+    await expect(fetchWhitelistedTokens("CID")).rejects.toBeInstanceOf(ApiShapeError);
     stubFetch({ success: true, data: ["CAAA"] });
-    expect(await fetchWhitelistedTokens("CID")).toEqual([]);
+    await expect(fetchWhitelistedTokens("CID")).rejects.toBeInstanceOf(ApiShapeError);
   });
 
   it("throws on a non-ok response", async () => {

@@ -38,10 +38,7 @@ function isFiniteNumber(v: unknown): v is number {
 
 /** Deadline in epoch ms from on-chain fields, or null if they are incomplete. */
 export function computeAutoReleaseDeadlineMs(
-  input: Pick<
-    ClaimEligibilityInput,
-    "deliveredAt" | "autoReleaseSeconds" | "extensionSeconds"
-  >,
+  input: Pick<ClaimEligibilityInput, "deliveredAt" | "autoReleaseSeconds" | "extensionSeconds">
 ): number | null {
   const { deliveredAt, autoReleaseSeconds, extensionSeconds } = input;
   if (!isFiniteNumber(deliveredAt) || deliveredAt <= 0) return null;

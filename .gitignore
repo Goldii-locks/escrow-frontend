@@ -10,11 +10,13 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
+# testing — snapshots, coverage, result artefacts
 /coverage
-# vitest / jest snapshots
+.nyc_output/
 **/__snapshots__/
 *.snap
+test-results/
+vitest-results/
 
 # next.js
 /.next/
@@ -32,6 +34,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
 
 # env files (can opt-in for committing if needed)
 .env
@@ -44,37 +47,23 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-.env.local
 
 # editor / tool directories
 .agents/
 .kiro/
 .vscode/
+.idea/
+*.swp
+*.swo
 
-# storybook stories (generated/design artefacts, not shipped code)
+# storybook / design artefacts (not shipped code)
 **/*.stories.tsx
 **/*.stories.ts
 
 # misc project docs that don't belong in the repo root
 issue.md
+issues.md
 skills-lock.json
-
-# Test snapshots
-__snapshots__/
-**/__snapshots__/
-*.snap
-
-# Coverage
-.nyc_output/
-
-# Vitest
-test-results/
-vitest-results/
-
-# Editor
-.idea/
-*.swp
-*.swo
 
 # OS
 Thumbs.db
@@ -82,3 +71,9 @@ Thumbs.db
 # Logs
 *.log
 issues.md
+e2e/.nginx.generated.conf
+
+# playwright
+/test-results/
+/playwright-report/
+

@@ -104,7 +104,9 @@ export function containsUnsafeMarkup(input: unknown): boolean {
  */
 export function sanitizeBpsInput(input: unknown): string {
   if (typeof input !== "string" && typeof input !== "number") return "";
-  const digits = String(input).replace(/[^0-9]/g, "").slice(0, 5);
+  const digits = String(input)
+    .replace(/[^0-9]/g, "")
+    .slice(0, 5);
   if (digits === "") return "";
   return String(Math.min(Number(digits), RESOLUTION_BPS_SCALE));
 }
@@ -150,7 +152,12 @@ export const MOCK_RESOLUTION_DISPUTES: Record<string, ResolutionDisputeData> = {
     voteOptions: [
       { id: "full-refund", label: "Full refund to client", clientBps: 10_000, freelancerBps: 0 },
       { id: "even-split", label: "Even split", clientBps: 5_000, freelancerBps: 5_000 },
-      { id: "full-release", label: "Full release to freelancer", clientBps: 0, freelancerBps: 10_000 },
+      {
+        id: "full-release",
+        label: "Full release to freelancer",
+        clientBps: 0,
+        freelancerBps: 10_000,
+      },
     ],
   },
   "disp-102": {
@@ -163,7 +170,12 @@ export const MOCK_RESOLUTION_DISPUTES: Record<string, ResolutionDisputeData> = {
     resolved: false,
     voteOptions: [
       { id: "favor-client", label: "Favor client (70/30)", clientBps: 7_000, freelancerBps: 3_000 },
-      { id: "favor-freelancer", label: "Favor freelancer (30/70)", clientBps: 3_000, freelancerBps: 7_000 },
+      {
+        id: "favor-freelancer",
+        label: "Favor freelancer (30/70)",
+        clientBps: 3_000,
+        freelancerBps: 7_000,
+      },
     ],
   },
 };
@@ -233,7 +245,7 @@ export function normalizeResolutionDispute(raw: unknown): ResolutionDisputeData 
  */
 export async function fetchResolutionDispute(
   disputeId: string,
-  options?: { apiUrl?: string; signal?: AbortSignal },
+  options?: { apiUrl?: string; signal?: AbortSignal }
 ): Promise<ResolutionDisputeData | null> {
   const url = options?.apiUrl || `/api/disputes/${encodeURIComponent(disputeId)}/resolution`;
 
@@ -300,7 +312,7 @@ export const RESOLUTION_BADGE_STYLES: Record<ResolutionVoteStatus, ResolutionBad
 export function getResolutionVoteStatus(
   data: Pick<ResolutionDisputeData, "resolved" | "deadline" | "arbitratorStatus">,
   nowMs: number,
-  hasVotedLocally = false,
+  hasVotedLocally = false
 ): ResolutionVoteStatus {
   const deadlineMs = data.deadline ? Date.parse(data.deadline) : Number.NaN;
   const pastDeadline = !Number.isNaN(deadlineMs) && nowMs >= deadlineMs;
@@ -343,7 +355,7 @@ export const VOTE_RATIONALE_LENGTH_ERROR = `Rationale must be ${RESOLUTION_RATIO
  */
 export function buildVoteSubmission(
   data: ResolutionDisputeData,
-  draft: VoteDraft,
+  draft: VoteDraft
 ): VoteDraftResult {
   let clientBps: number;
   let freelancerBps: number;

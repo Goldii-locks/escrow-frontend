@@ -2,7 +2,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import GasEstimationWarningBanner from "@/app/components/GasEstimationWarningBanner";
-import { HIGH_FEE_THRESHOLD_STROOPS } from "@/app/lib/ledger_usb_bridge";
+import { HIGH_FEE_THRESHOLD_STROOPS } from "@/app/lib/wallet_session";
 
 // ---------------------------------------------------------------------------
 // Mock useWallet so we can inject different gasWarning states without
@@ -102,7 +102,8 @@ describe("GasEstimationWarningBanner", () => {
         hasWarning: true,
         highFee: true,
         simulationError: false,
-        warningMessage: "Estimated fee is unusually high (1000001 stroops / 0.1000001 XLM). Review before signing.",
+        warningMessage:
+          "Estimated fee is unusually high (1000001 stroops / 0.1000001 XLM). Review before signing.",
       },
     });
 

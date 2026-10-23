@@ -11,10 +11,7 @@
  * opened on its own.
  */
 
-import type {
-  ContractPauseState,
-  ContractPauseTransition,
-} from "@/app/lib/contract_pause_switch";
+import type { ContractPauseState, ContractPauseTransition } from "@/app/lib/contract_pause_switch";
 
 /** One row of the freeze history spreadsheet. */
 export interface ContractPauseExportRow {
@@ -30,13 +27,7 @@ export interface ContractPauseExportRow {
   reason: string;
 }
 
-export const CONTRACT_PAUSE_EXPORT_HEADERS = [
-  "Transition ID",
-  "At",
-  "By",
-  "To",
-  "Reason",
-];
+export const CONTRACT_PAUSE_EXPORT_HEADERS = ["Transition ID", "At", "By", "To", "Reason"];
 
 /**
  * Escape one CSV cell (RFC 4180) and neutralise spreadsheet formula injection.
@@ -46,9 +37,7 @@ export const CONTRACT_PAUSE_EXPORT_HEADERS = [
  * freeze reason is operator-supplied free text, so this is the one field that
  * can actually carry a payload.
  */
-export function escapeContractPauseCsvCell(
-  value: string | number | undefined | null,
-): string {
+export function escapeContractPauseCsvCell(value: string | number | undefined | null): string {
   let cell = value === undefined || value === null ? "" : String(value);
   if (/^[=+\-@\t\r]/.test(cell)) cell = `'${cell}`;
   return /[",\r\n]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell;
@@ -56,7 +45,7 @@ export function escapeContractPauseCsvCell(
 
 /** Project a transition onto an export row. */
 export function toContractPauseExportRow(
-  transition: ContractPauseTransition,
+  transition: ContractPauseTransition
 ): ContractPauseExportRow {
   return {
     id: transition.id,
@@ -74,7 +63,7 @@ export function toContractPauseExportRow(
  * supplied so the export button still produces a file against the mock state.
  */
 export function toContractPauseExportRows(
-  transitions: readonly ContractPauseTransition[],
+  transitions: readonly ContractPauseTransition[]
 ): ContractPauseExportRow[] {
   return transitions.map(toContractPauseExportRow);
 }
@@ -83,7 +72,7 @@ export function toContractPauseExportRows(
 export function buildContractPauseCsv(rows: ContractPauseExportRow[]): string {
   const header = CONTRACT_PAUSE_EXPORT_HEADERS.map(escapeContractPauseCsvCell).join(",");
   const body = rows.map((r) =>
-    [r.id, r.at, r.by, r.to, r.reason].map(escapeContractPauseCsvCell).join(","),
+    [r.id, r.at, r.by, r.to, r.reason].map(escapeContractPauseCsvCell).join(",")
   );
   return [header, ...body].join("\r\n");
 }
@@ -102,7 +91,7 @@ export function contractPauseExportFilename(now: Date = new Date()): string {
  */
 export function handleContractPauseExport(
   rows: ContractPauseExportRow[],
-  filename: string = contractPauseExportFilename(),
+  filename: string = contractPauseExportFilename()
 ): boolean {
   if (rows.length === 0) return false;
   const blob = new Blob([`\uFEFF${buildContractPauseCsv(rows)}`], {
@@ -127,11 +116,11 @@ export function handleContractPauseExport(
  */
 export function exportContractPauseHistory(
   transitions: readonly ContractPauseTransition[],
-  filename?: string,
+  filename?: string
 ): boolean {
   return handleContractPauseExport(
     toContractPauseExportRows(transitions),
-    filename ?? contractPauseExportFilename(),
+    filename ?? contractPauseExportFilename()
   );
 }
 
@@ -140,9 +129,7 @@ export function exportContractPauseHistory(
  * as a single leading comment-free row so the downloaded file carries the
  * headline the panel is showing.
  */
-export function buildContractPauseSummaryRow(
-  state: ContractPauseState,
-): ContractPauseExportRow {
+export function buildContractPauseSummaryRow(state: ContractPauseState): ContractPauseExportRow {
   return {
     id: state.contractId,
     at: state.updatedAt,

@@ -9,7 +9,7 @@
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import Dashboard from "@/app/dashboard/page";
+import Dashboard from "@/app/(app)/dashboard/page";
 
 const mockUseWallet = vi.fn();
 
@@ -89,9 +89,7 @@ describe("Dashboard job list micro-animations", () => {
     await waitFor(() => {
       expect(screen.getByTestId("dashboard-expanded-panel")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("dashboard-expanded-panel").className).toContain(
-      "animate-fade-in"
-    );
+    expect(screen.getByTestId("dashboard-expanded-panel").className).toContain("animate-fade-in");
   });
 
   it("shakes the error alert when the job fetch fails", async () => {
@@ -102,8 +100,6 @@ describe("Dashboard job list micro-animations", () => {
     await waitFor(() => {
       expect(screen.getByTestId("dashboard-error-alert")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("dashboard-error-alert").className).toContain(
-      "animate-shake"
-    );
+    expect(screen.getByTestId("dashboard-error-alert").className).toContain("animate-shake");
   });
 });

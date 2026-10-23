@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import Dashboard from "@/app/dashboard/page";
+import Dashboard from "@/app/(app)/dashboard/page";
 
 const mockUseWallet = vi.fn();
 const mockUseToast = vi.fn();
@@ -364,9 +364,7 @@ describe("Dashboard — empty state placeholder UI", () => {
 
       render(<Dashboard />);
 
-      expect(
-        screen.getByText(/Connect your wallet to view your jobs/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Connect your wallet to view your jobs/)).toBeInTheDocument();
     });
   });
 

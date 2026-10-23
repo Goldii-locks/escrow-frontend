@@ -52,7 +52,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 function renderForm(
   data: ResolutionDisputeData | null = makeDispute(),
-  onSubmitVote: (s: unknown) => void | Promise<void> = vi.fn(),
+  onSubmitVote: (s: unknown) => void | Promise<void> = vi.fn()
 ) {
   const utils = render(
     <ResolutionVoteForm
@@ -60,7 +60,7 @@ function renderForm(
       initialData={data}
       onSubmitVote={onSubmitVote}
       nowMs={NOW}
-    />,
+    />
   );
   return { ...utils, onSubmitVote };
 }
@@ -217,21 +217,18 @@ describe("resolution_vote_form data bindings (Issue #453)", () => {
 
     render(<ResolutionVoteForm disputeId="disp-777" nowMs={NOW} />);
 
-    expect(screen.getByTestId("resolution-vote-form-loading")).toHaveAttribute(
-      "aria-busy",
-      "true",
-    );
+    expect(screen.getByTestId("resolution-vote-form-loading")).toHaveAttribute("aria-busy", "true");
 
     expect(await screen.findByTestId("resolution-vote-dispute-id")).toHaveTextContent(
-      "Dispute #disp-777 · Job job-88",
+      "Dispute #disp-777 · Job job-88"
     );
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/disputes/disp-777/resolution",
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
     expect(screen.getByTestId("resolution-vote-amount")).toHaveTextContent("3,250 XLM");
     expect(screen.getByTestId("resolution-vote-current-split")).toHaveTextContent(
-      "Client 25% / Freelancer 75%",
+      "Client 25% / Freelancer 75%"
     );
 
     // Options come from the payload; the one matching the current split is
@@ -245,7 +242,9 @@ describe("resolution_vote_form data bindings (Issue #453)", () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(apiPayload));
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<ResolutionVoteForm disputeId="disp-777" apiEndpoint="/custom/resolution" nowMs={NOW} />);
+    render(
+      <ResolutionVoteForm disputeId="disp-777" apiEndpoint="/custom/resolution" nowMs={NOW} />
+    );
 
     await screen.findByTestId("resolution-vote-form");
     expect(fetchMock).toHaveBeenCalledWith("/custom/resolution", expect.anything());
@@ -268,7 +267,7 @@ describe("resolution_vote_form data bindings (Issue #453)", () => {
         clientBps: 10_000,
         freelancerBps: 0,
         rationale: "",
-      }),
+      })
     );
   });
 
@@ -278,7 +277,7 @@ describe("resolution_vote_form data bindings (Issue #453)", () => {
     render(<ResolutionVoteForm disputeId="disp-404" nowMs={NOW} />);
 
     expect(await screen.findByTestId("resolution-vote-form-empty")).toHaveTextContent(
-      "No open resolution vote was found for dispute #disp-404.",
+      "No open resolution vote was found for dispute #disp-404."
     );
   });
 
@@ -306,7 +305,7 @@ describe("resolution_vote_form data bindings (Issue #453)", () => {
     render(<ResolutionVoteForm disputeId="disp-101" nowMs={NOW} />);
 
     expect(await screen.findByTestId("resolution-vote-amount")).toHaveTextContent(
-      MOCK_RESOLUTION_DISPUTES["disp-101"].amount,
+      MOCK_RESOLUTION_DISPUTES["disp-101"].amount
     );
     expect(screen.getByRole("radio", { name: /Even split/ })).toBeChecked();
   });
@@ -336,17 +335,17 @@ describe("resolution_vote_form status badges (Issue #454)", () => {
     const base = makeDispute();
     expect(getResolutionVoteStatus(base, NOW)).toBe("pending_vote");
     expect(getResolutionVoteStatus({ ...base, deadline: "2026-09-01T12:00:00Z" }, NOW)).toBe(
-      "action_required",
+      "action_required"
     );
     expect(getResolutionVoteStatus({ ...base, arbitratorStatus: "voted" }, NOW)).toBe("voted");
     expect(getResolutionVoteStatus(base, NOW, true)).toBe("voted");
     expect(getResolutionVoteStatus({ ...base, resolved: true }, NOW)).toBe("closed");
     expect(getResolutionVoteStatus({ ...base, deadline: "2026-08-31T00:00:00Z" }, NOW)).toBe(
-      "closed",
+      "closed"
     );
     // Closed wins over voted.
     expect(
-      getResolutionVoteStatus({ ...base, arbitratorStatus: "voted", resolved: true }, NOW),
+      getResolutionVoteStatus({ ...base, arbitratorStatus: "voted", resolved: true }, NOW)
     ).toBe("closed");
   });
 
@@ -381,21 +380,21 @@ describe("resolution_vote_form status badges (Issue #454)", () => {
     const { unmount } = renderForm(makeDispute({ resolved: true }));
     expect(submitButton()).toBeDisabled();
     expect(screen.getByTestId("resolution-vote-locked-note")).toHaveTextContent(
-      "Voting on this dispute has closed.",
+      "Voting on this dispute has closed."
     );
     unmount();
 
     renderForm(makeDispute({ arbitratorStatus: "voted" }));
     expect(submitButton()).toBeDisabled();
     expect(screen.getByTestId("resolution-vote-locked-note")).toHaveTextContent(
-      "You have already voted on this dispute.",
+      "You have already voted on this dispute."
     );
   });
 
   it("shows a Not Eligible badge for ineligible arbitrators", () => {
     renderForm(makeDispute({ arbitratorStatus: "ineligible" }));
     expect(screen.getByTestId("resolution-vote-eligibility-badge")).toHaveTextContent(
-      "Not Eligible",
+      "Not Eligible"
     );
     expect(submitButton()).toBeDisabled();
   });
@@ -411,10 +410,12 @@ describe("resolution_vote_form status badges (Issue #454)", () => {
     await waitFor(() =>
       expect(screen.getByTestId("resolution-vote-status-badge")).toHaveAttribute(
         "data-status",
-        "voted",
-      ),
+        "voted"
+      )
     );
-    expect(screen.getByRole("status")).toHaveTextContent("Your vote has been signed and submitted.");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Your vote has been signed and submitted."
+    );
   });
 });
 
@@ -435,7 +436,7 @@ describe("resolution_vote_form confirmation modal (Issue #455)", () => {
     expect(screen.getByTestId("resolution-vote-confirm-client")).toHaveTextContent("25%");
     expect(screen.getByTestId("resolution-vote-confirm-freelancer")).toHaveTextContent("75%");
     expect(screen.getByTestId("resolution-vote-confirm-rationale")).toHaveTextContent(
-      "Most milestones shipped",
+      "Most milestones shipped"
     );
     expect(onSubmitVote).not.toHaveBeenCalled();
   });
@@ -485,7 +486,7 @@ describe("resolution_vote_form confirmation modal (Issue #455)", () => {
     fireEvent.click(screen.getByRole("radio", { name: /Custom split/ }));
     fireEvent.change(screen.getByLabelText("Client share (bps)"), { target: { value: "7500" } });
     expect(screen.getByTestId("resolution-vote-custom-preview")).toHaveTextContent(
-      "Freelancer receives 25%",
+      "Freelancer receives 25%"
     );
     fireEvent.click(submitButton());
 
@@ -516,7 +517,7 @@ describe("resolution_vote_form confirmation modal (Issue #455)", () => {
     expect(await within(modal).findByRole("alert")).toHaveTextContent("User rejected the request");
     expect(screen.getByTestId("resolution-vote-status-badge")).toHaveAttribute(
       "data-status",
-      "pending_vote",
+      "pending_vote"
     );
   });
 
@@ -526,7 +527,7 @@ describe("resolution_vote_form confirmation modal (Issue #455)", () => {
       () =>
         new Promise<void>((resolve) => {
           resolveSign = resolve;
-        }),
+        })
     );
     renderForm(makeDispute(), onSubmitVote);
 
@@ -568,12 +569,7 @@ describe("ResolutionVoteForm access restriction and loading (#450, #451)", () =>
   const renderGated = (props: { isAuthorizedArbiter?: boolean; isLoading?: boolean }) => {
     const data = makeDispute();
     return render(
-      <ResolutionVoteForm
-        disputeId={data.disputeId}
-        initialData={data}
-        nowMs={NOW}
-        {...props}
-      />,
+      <ResolutionVoteForm disputeId={data.disputeId} initialData={data} nowMs={NOW} {...props} />
     );
   };
 

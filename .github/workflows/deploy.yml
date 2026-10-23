@@ -4,12 +4,15 @@
 # passed as build args — they're inlined into the bundle, so the image is
 # environment-specific and a contract change requires a rebuild.
 #
-# Keep the existing ci.yml as-is. This runs alongside it, not instead.
+# Triggered only after the CI workflow completes successfully on main, so a
+# failing test or build never ships to production.
 
 name: Deploy frontend to AWS
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -32,14 +35,28 @@ concurrency:
 
 jobs:
   build:
+    # For workflow_run triggers, deploy only a successful CI run for a push to
+    # main in this repository. `branches: [main]` alone also matches a pull
+    # request from a fork whose branch is named main, which must never deploy.
+    # workflow_dispatch bypasses this gate (manual redeploy).
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.meta.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Pin to the exact commit that CI passed, not whatever HEAD is now.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - id: meta
-        run: echo "tag=${GITHUB_SHA::12}-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+        env:
+          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: echo "tag=${DEPLOY_SHA::12}-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -53,11 +70,27 @@ jobs:
 
       - name: Resolve contract ID
         id: contract
+        # Inputs go through env, not ${{ }} in the script, so a crafted
+        # contract_id cannot inject shell.
+        env:
+          INPUT_CID: ${{ inputs.contract_id }}
+          VAR_CID: ${{ vars.CONTRACT_ID }}
         run: |
-          CID="${{ inputs.contract_id }}"
-          [ -n "$CID" ] || CID="${{ vars.CONTRACT_ID }}"
+          CID="$INPUT_CID"
+          [ -n "$CID" ] || CID="$VAR_CID"
           [ -n "$CID" ] || { echo "::error::no CONTRACT_ID — set the repo variable"; exit 1; }
           echo "id=${CID}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate contract ID format
+        env:
+          CID: ${{ steps.contract.outputs.id }}
+        run: |
+          # Stellar contract addresses start with C followed by 55 base-32 chars (A-Z2-7)
+          if ! echo "$CID" | grep -qE '^C[A-Z2-7]{55}$'; then
+            echo "::error::Invalid contract ID '${CID}'. Expected a Stellar contract address matching ^C[A-Z2-7]{55}$ (56 characters, starts with C, base-32 alphabet)."
+            exit 1
+          fi
+          echo "Contract ID format is valid: ${CID}"
 
       - uses: docker/build-push-action@v6
         with:
@@ -81,6 +114,16 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Record deploy
+        run: |
+          echo "Deploying image ${{ needs.build.outputs.image_tag }} at commit ${{ github.event.workflow_run.head_sha || github.sha }}"
+          {
+            echo "### Production deploy"
+            echo "- Image tag: ${{ needs.build.outputs.image_tag }}"
+            echo "- Commit: ${{ github.event.workflow_run.head_sha || github.sha }}"
+            echo "- Record in CHANGELOG.md under a dated heading, using PR titles labelled user-facing."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - id: send
         run: |

@@ -17,9 +17,7 @@ export function escapeClaimCsvCell(value: string | number): string {
 /** Format claim rows as CSV text (CRLF rows, header included). */
 export function buildClaimCsv(rows: ClaimExportRow[]): string {
   const body = rows.map((r) => [r.escrowId, r.amount, r.token, r.status]);
-  return [HEADER, ...body]
-    .map((row) => row.map(escapeClaimCsvCell).join(","))
-    .join("\r\n");
+  return [HEADER, ...body].map((row) => row.map(escapeClaimCsvCell).join(",")).join("\r\n");
 }
 
 /** Timestamped filename, e.g. `freelancer-claims-2026-09-25.csv`. */
@@ -30,7 +28,7 @@ export function claimExportFilename(now: Date = new Date()): string {
 /** Export button handler: triggers a client-side CSV download. Returns false when empty. */
 export function handleClaimExport(
   rows: ClaimExportRow[],
-  filename: string = claimExportFilename(),
+  filename: string = claimExportFilename()
 ): boolean {
   if (rows.length === 0) return false;
   const blob = new Blob([`﻿${buildClaimCsv(rows)}`], {

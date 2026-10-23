@@ -2,10 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchAdminAddress, isAdmin } from "@/app/lib/admin";
 
 function stubFetch(body: unknown, ok = true, status = 200) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({ ok, status, json: async () => body })
-  );
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok, status, json: async () => body }));
 }
 
 describe("fetchAdminAddress", () => {
@@ -42,10 +39,7 @@ describe("fetchAdminAddress", () => {
   });
 
   it("returns null on network error", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new Error("Network error"))
-    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network error")));
     const result = await fetchAdminAddress("CONTRACT_ID");
     expect(result).toBeNull();
   });

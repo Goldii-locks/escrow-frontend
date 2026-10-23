@@ -25,16 +25,12 @@ export default function AdminAccessGate({
 }: AdminAccessGateProps) {
   if (!address) {
     return (
-      <p className="text-center text-gray-500">
-        Connect your wallet to manage the whitelist.
-      </p>
+      <p className="text-center text-gray-500">Connect your wallet to manage the whitelist.</p>
     );
   }
 
   if (loading) {
-    return (
-      <AdminWhitelistSkeleton label="Verifying admin access" rows={2} />
-    );
+    return <AdminWhitelistSkeleton label="Verifying admin access" rows={2} />;
   }
 
   if (!isAdmin) {
@@ -49,8 +45,8 @@ export default function AdminAccessGate({
         </div>
         <h2 className="text-lg font-semibold text-red-400">Access Denied</h2>
         <p className="text-sm text-gray-400">
-          This page is restricted to the contract admin. Your wallet address
-          does not have admin privileges.
+          This page is restricted to the contract admin. Your wallet address does not have admin
+          privileges.
         </p>
       </div>
     );

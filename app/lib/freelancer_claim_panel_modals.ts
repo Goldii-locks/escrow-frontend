@@ -36,7 +36,10 @@ export function openClaimConfirm(): ClaimConfirmState {
 }
 
 /** Advance one step; the second confirm returns `submit: true`. */
-export function confirmClaimStep(state: ClaimConfirmState): { state: ClaimConfirmState; submit: boolean } {
+export function confirmClaimStep(state: ClaimConfirmState): {
+  state: ClaimConfirmState;
+  submit: boolean;
+} {
   if (state.step === "review") return { state: { step: "final" }, submit: false };
   if (state.step === "final") return { state: { step: "closed" }, submit: true };
   return { state, submit: false };

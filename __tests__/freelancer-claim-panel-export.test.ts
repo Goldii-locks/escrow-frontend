@@ -24,7 +24,7 @@ describe("freelancer_claim_panel export", () => {
   it("escapes cells and names files by date", () => {
     expect(escapeClaimCsvCell("x,y")).toBe('"x,y"');
     expect(claimExportFilename(new Date("2026-09-25T10:00:00Z"))).toBe(
-      "freelancer-claims-2026-09-25.csv",
+      "freelancer-claims-2026-09-25.csv"
     );
   });
 

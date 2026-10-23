@@ -44,23 +44,15 @@ describe("getRefundBadge", () => {
 
 describe("deriveRefundBadgeState", () => {
   it("covers varying conditions", () => {
-    expect(
-      deriveRefundBadgeState({ approved: false, rejected: false }),
-    ).toBe("pending_refund");
-    expect(
-      deriveRefundBadgeState({ approved: true, rejected: false }),
-    ).toBe("refund_approved");
-    expect(
-      deriveRefundBadgeState({ approved: false, rejected: true }),
-    ).toBe("refund_rejected");
-    expect(
-      deriveRefundBadgeState({ approved: true, rejected: false, processing: true }),
-    ).toBe("refund_processing");
+    expect(deriveRefundBadgeState({ approved: false, rejected: false })).toBe("pending_refund");
+    expect(deriveRefundBadgeState({ approved: true, rejected: false })).toBe("refund_approved");
+    expect(deriveRefundBadgeState({ approved: false, rejected: true })).toBe("refund_rejected");
+    expect(deriveRefundBadgeState({ approved: true, rejected: false, processing: true })).toBe(
+      "refund_processing"
+    );
   });
 
   it("rejected always wins regardless of approved flag", () => {
-    expect(
-      deriveRefundBadgeState({ approved: true, rejected: true }),
-    ).toBe("refund_rejected");
+    expect(deriveRefundBadgeState({ approved: true, rejected: true })).toBe("refund_rejected");
   });
 });

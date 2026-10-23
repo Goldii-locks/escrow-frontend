@@ -21,8 +21,6 @@ describe("client_refund_panel loading skeletons (#501)", () => {
   it("defines standard accessibility ARIA attributes for the placeholder loader", () => {
     expect(CLIENT_REFUND_SKELETON_ARIA.role).toBe("status");
     expect(CLIENT_REFUND_SKELETON_ARIA["aria-busy"]).toBe(true);
-    expect(CLIENT_REFUND_SKELETON_ARIA["aria-label"]).toBe(
-      "Loading client refund panel",
-    );
+    expect(CLIENT_REFUND_SKELETON_ARIA["aria-label"]).toBe("Loading client refund panel");
   });
 });

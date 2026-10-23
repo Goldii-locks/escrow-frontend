@@ -52,23 +52,46 @@ body {
 
 /* Fade in – used on success screen */
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0);   }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Slide in – used when a new milestone row is added */
 @keyframes slide-in {
-  from { opacity: 0; transform: translateX(-6px); }
-  to   { opacity: 1; transform: translateX(0);    }
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* Shake – used on error alert to draw attention */
 @keyframes shake {
-  0%, 100% { transform: translateX(0);   }
-  20%       { transform: translateX(-4px); }
-  40%       { transform: translateX(4px);  }
-  60%       { transform: translateX(-4px); }
-  80%       { transform: translateX(4px);  }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-4px);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
 }
 
 /*
@@ -77,21 +100,34 @@ body {
  * WCAG AA contrast against its background throughout the cycle.
  */
 @keyframes pulse-soft {
-  0%, 100% { opacity: 1;    }
-  50%       { opacity: 0.85; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
 }
 
 @theme inline {
-  --animate-fade-in:    fade-in    0.25s ease both;
-  --animate-slide-in:   slide-in   0.2s  ease both;
-  --animate-shake:      shake      0.35s ease both;
-  --animate-pulse-soft: pulse-soft 2s    cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-fade-in: fade-in 0.25s ease both;
+  --animate-slide-in: slide-in 0.2s ease both;
+  --animate-shake: shake 0.35s ease both;
+  --animate-pulse-soft: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-.animate-fade-in    { animation: var(--animate-fade-in);    }
-.animate-slide-in   { animation: var(--animate-slide-in);   }
-.animate-shake      { animation: var(--animate-shake);      }
-.animate-pulse-soft { animation: var(--animate-pulse-soft); }
+.animate-fade-in {
+  animation: var(--animate-fade-in);
+}
+.animate-slide-in {
+  animation: var(--animate-slide-in);
+}
+.animate-shake {
+  animation: var(--animate-shake);
+}
+.animate-pulse-soft {
+  animation: var(--animate-pulse-soft);
+}
 
 /*
  * The rules above are unlayered, so they outrank Tailwind's layered

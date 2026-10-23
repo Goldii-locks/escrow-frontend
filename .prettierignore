@@ -1,0 +1,17 @@
+# Build outputs
+out
+.next
+coverage
+
+# Package manager
+node_modules
+package-lock.json
+
+# Auto-generated
+tsconfig.tsbuildinfo
+next-env.d.ts
+
+# Test artefacts
+test-results
+playwright-report
+e2e/.nginx.generated.conf

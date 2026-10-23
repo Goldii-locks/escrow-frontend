@@ -15,18 +15,12 @@ describe("WalletBadge", () => {
 
     it("sets data-status to disconnected", () => {
       render(<WalletBadge status="disconnected" />);
-      expect(screen.getByTestId("wallet-badge")).toHaveAttribute(
-        "data-status",
-        "disconnected"
-      );
+      expect(screen.getByTestId("wallet-badge")).toHaveAttribute("data-status", "disconnected");
     });
 
     it("renders disconnected status when no address provided", () => {
       render(<WalletBadge />);
-      expect(screen.getByTestId("wallet-badge")).toHaveAttribute(
-        "data-status",
-        "disconnected"
-      );
+      expect(screen.getByTestId("wallet-badge")).toHaveAttribute("data-status", "disconnected");
     });
   });
 
@@ -38,10 +32,7 @@ describe("WalletBadge", () => {
 
     it("sets data-status to connected", () => {
       render(<WalletBadge address={SAMPLE_ADDRESS} status="connected" />);
-      expect(screen.getByTestId("wallet-badge")).toHaveAttribute(
-        "data-status",
-        "connected"
-      );
+      expect(screen.getByTestId("wallet-badge")).toHaveAttribute("data-status", "connected");
     });
 
     it("includes aria-label with full address", () => {
@@ -52,11 +43,7 @@ describe("WalletBadge", () => {
     it("renders disconnect button when onDisconnect is provided", () => {
       const onDisconnect = vi.fn();
       render(
-        <WalletBadge
-          address={SAMPLE_ADDRESS}
-          status="connected"
-          onDisconnect={onDisconnect}
-        />
+        <WalletBadge address={SAMPLE_ADDRESS} status="connected" onDisconnect={onDisconnect} />
       );
       expect(screen.getByRole("button", { name: "Disconnect wallet" })).toBeInTheDocument();
     });
@@ -70,11 +57,7 @@ describe("WalletBadge", () => {
       const user = userEvent.setup();
       const onDisconnect = vi.fn();
       render(
-        <WalletBadge
-          address={SAMPLE_ADDRESS}
-          status="connected"
-          onDisconnect={onDisconnect}
-        />
+        <WalletBadge address={SAMPLE_ADDRESS} status="connected" onDisconnect={onDisconnect} />
       );
       await user.click(screen.getByRole("button", { name: "Disconnect wallet" }));
       expect(onDisconnect).toHaveBeenCalledOnce();
@@ -89,10 +72,7 @@ describe("WalletBadge", () => {
 
     it("sets data-status to loading", () => {
       render(<WalletBadge status="loading" />);
-      expect(screen.getByTestId("wallet-badge")).toHaveAttribute(
-        "data-status",
-        "loading"
-      );
+      expect(screen.getByTestId("wallet-badge")).toHaveAttribute("data-status", "loading");
     });
 
     it("renders a spinner", () => {
@@ -103,9 +83,7 @@ describe("WalletBadge", () => {
 
   describe("error state", () => {
     it("renders error message when provided", () => {
-      render(
-        <WalletBadge status="error" errorMessage="Connection failed" />
-      );
+      render(<WalletBadge status="error" errorMessage="Connection failed" />);
       expect(screen.getByText("Connection failed")).toBeInTheDocument();
     });
 
@@ -116,20 +94,12 @@ describe("WalletBadge", () => {
 
     it("sets data-status to error", () => {
       render(<WalletBadge status="error" errorMessage="fail" />);
-      expect(screen.getByTestId("wallet-badge")).toHaveAttribute(
-        "data-status",
-        "error"
-      );
+      expect(screen.getByTestId("wallet-badge")).toHaveAttribute("data-status", "error");
     });
 
     it("sets title attribute for error tooltip", () => {
-      render(
-        <WalletBadge status="error" errorMessage="Network mismatch" />
-      );
-      expect(screen.getByTestId("wallet-badge")).toHaveAttribute(
-        "title",
-        "Network mismatch"
-      );
+      render(<WalletBadge status="error" errorMessage="Network mismatch" />);
+      expect(screen.getByTestId("wallet-badge")).toHaveAttribute("title", "Network mismatch");
     });
   });
 
@@ -167,5 +137,15 @@ describe("WalletBadge", () => {
       expect(badge.className).toContain("text-text-muted");
       expect(badge.className).toContain("bg-surface-field");
     });
+  });
+});
+
+describe("WalletBadge error announcement", () => {
+  it("renders the error text inside the status region without aria-invalid", () => {
+    render(<WalletBadge address={SAMPLE_ADDRESS} error="Network mismatch" />);
+    const status = screen.getByRole("status");
+    expect(status).not.toHaveAttribute("aria-invalid");
+    expect(status).toContainElement(screen.getByRole("alert"));
+    expect(screen.getByRole("alert")).toHaveTextContent("Network mismatch");
   });
 });

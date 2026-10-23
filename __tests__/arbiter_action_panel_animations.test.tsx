@@ -14,14 +14,11 @@ import { resolve } from "node:path";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import ArbiterActionPanel, {
-  ArbiterPanelPlaceholder,
-} from "@/app/components/ArbiterActionPanel";
+import ArbiterActionPanel, { ArbiterPanelPlaceholder } from "@/app/components/ArbiterActionPanel";
 import { ARBITER_PANEL_MOTION } from "@/app/lib/arbiter_action_panel";
 
-const renderPanel = (
-  props: Partial<Parameters<typeof ArbiterActionPanel>[0]> = {},
-) => render(<ArbiterActionPanel milestoneIndex={0} onResolve={vi.fn()} {...props} />);
+const renderPanel = (props: Partial<Parameters<typeof ArbiterActionPanel>[0]> = {}) =>
+  render(<ArbiterActionPanel milestoneIndex={0} onResolve={vi.fn()} {...props} />);
 
 describe("motion tokens", () => {
   const globalsCss = readFileSync(resolve(__dirname, "../app/globals.css"), "utf8");
@@ -31,7 +28,7 @@ describe("motion tokens", () => {
     (name) => {
       expect(globalsCss).toMatch(new RegExp(`@keyframes ${name}\\s*\\{`));
       expect(globalsCss).toContain(`.animate-${name}`);
-    },
+    }
   );
 
   it.each(Object.entries(ARBITER_PANEL_MOTION))(
@@ -42,7 +39,7 @@ describe("motion tokens", () => {
       if (usesAnimation) expect(classes).toContain("motion-reduce:animate-none");
       if (usesTransition) expect(classes).toContain("motion-reduce:transition-none");
       expect(usesAnimation || usesTransition).toBe(true);
-    },
+    }
   );
 
   it("keeps durations subtle (at most 300ms)", () => {
@@ -58,7 +55,7 @@ describe("mount and state-change animations", () => {
     renderPanel();
     expect(screen.getByTestId("arbiter-action-panel")).toHaveClass(
       "animate-fade-in",
-      "motion-reduce:animate-none",
+      "motion-reduce:animate-none"
     );
   });
 
@@ -90,7 +87,7 @@ describe("mount and state-change animations", () => {
     renderPanel({ onResolve: undefined });
     expect(screen.getByTestId("arbiter-panel-alert")).toHaveClass(
       "animate-shake",
-      "motion-reduce:animate-none",
+      "motion-reduce:animate-none"
     );
   });
 
@@ -134,7 +131,7 @@ describe("panel state transitions", () => {
       "transition-colors",
       "duration-300",
       "data-[state=invalid]:border-danger-soft/40",
-      "data-[state=ready]:border-accent-soft/50",
+      "data-[state=ready]:border-accent-soft/50"
     );
   });
 
@@ -156,15 +153,9 @@ describe("panel state transitions", () => {
 
   it("reports pending and blocked states", () => {
     const { rerender } = renderPanel({ isPending: true });
-    expect(screen.getByTestId("arbiter-action-panel")).toHaveAttribute(
-      "data-state",
-      "pending",
-    );
+    expect(screen.getByTestId("arbiter-action-panel")).toHaveAttribute("data-state", "pending");
     rerender(<ArbiterActionPanel milestoneIndex={0} />);
-    expect(screen.getByTestId("arbiter-action-panel")).toHaveAttribute(
-      "data-state",
-      "blocked",
-    );
+    expect(screen.getByTestId("arbiter-action-panel")).toHaveAttribute("data-state", "blocked");
   });
 
   it("marks the checked outcome for its tint transition", async () => {
@@ -174,10 +165,7 @@ describe("panel state transitions", () => {
     expect(release).toHaveAttribute("data-checked", "false");
     await user.click(release);
     expect(release).toHaveAttribute("data-checked", "true");
-    expect(screen.getByTestId("arbiter-outcome-refund")).toHaveAttribute(
-      "data-checked",
-      "false",
-    );
+    expect(screen.getByTestId("arbiter-outcome-refund")).toHaveAttribute("data-checked", "false");
   });
 });
 
@@ -190,14 +178,14 @@ describe("click feedback", () => {
       "ease-out",
       "active:scale-[0.98]",
       "motion-reduce:transition-none",
-      "motion-reduce:active:scale-100",
+      "motion-reduce:active:scale-100"
     );
   });
 
   it("drops the press scale on disabled options", () => {
     renderPanel({ isPending: true });
     expect(screen.getByTestId("arbiter-outcome-release")).toHaveClass(
-      "has-[:disabled]:active:scale-100",
+      "has-[:disabled]:active:scale-100"
     );
   });
 
@@ -210,7 +198,7 @@ describe("click feedback", () => {
       "active:scale-[0.97]",
       "disabled:active:scale-100",
       "motion-reduce:active:scale-100",
-      "motion-reduce:transition-none",
+      "motion-reduce:transition-none"
     );
   });
 
@@ -219,7 +207,7 @@ describe("click feedback", () => {
     expect(screen.getByRole("checkbox")).toHaveClass(
       "transition",
       "duration-200",
-      "motion-reduce:transition-none",
+      "motion-reduce:transition-none"
     );
   });
 });

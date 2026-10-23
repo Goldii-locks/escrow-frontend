@@ -5,17 +5,9 @@
  * for unauthorized wallets and display a fallback warning screen.
  */
 
-export type ClientRefundRole =
-  | "client"
-  | "freelancer"
-  | "arbiter"
-  | "admin"
-  | "other"
-  | "none";
+export type ClientRefundRole = "client" | "freelancer" | "arbiter" | "admin" | "other" | "none";
 
-export const CLIENT_REFUND_ALLOWED_ROLES: readonly ClientRefundRole[] = [
-  "client",
-];
+export const CLIENT_REFUND_ALLOWED_ROLES: readonly ClientRefundRole[] = ["client"];
 
 export type ClientRefundAccess =
   | { allowed: true; reason: null }
@@ -31,7 +23,7 @@ export const CLIENT_REFUND_UNAUTHORIZED_WARNING =
 export function resolveClientRefundAccess(
   wallet: string | null | undefined,
   role?: ClientRefundRole | string | null,
-  clientAddress?: string | null,
+  clientAddress?: string | null
 ): ClientRefundAccess {
   if (!wallet || !wallet.trim()) {
     return {
@@ -73,9 +65,7 @@ export function resolveClientRefundAccess(
 }
 
 /** Get fallback message for unauthorized access. */
-export function getClientRefundFallbackMessage(
-  access: ClientRefundAccess,
-): string | null {
+export function getClientRefundFallbackMessage(access: ClientRefundAccess): string | null {
   return access.allowed ? null : access.warning;
 }
 
@@ -83,7 +73,7 @@ export function getClientRefundFallbackMessage(
 export function guardClientRefundPanel<T, F>(
   access: ClientRefundAccess,
   renderContent: () => T,
-  renderFallback: (warning: string) => F,
+  renderFallback: (warning: string) => F
 ): T | F {
   return access.allowed ? renderContent() : renderFallback(access.warning);
 }

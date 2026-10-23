@@ -16,10 +16,7 @@ describe("LoadingSkeleton — root node rendering", () => {
 
   it("renders with aria-live='polite' for screen-reader announcements", () => {
     render(<LoadingSkeleton />);
-    expect(screen.getByRole("status")).toHaveAttribute(
-      "aria-live",
-      "polite"
-    );
+    expect(screen.getByRole("status")).toHaveAttribute("aria-live", "polite");
   });
 
   it("renders a screen-reader-only loading message", () => {
@@ -199,18 +196,14 @@ describe("LoadingSkeleton — milestone card placeholder nodes", () => {
   it("renders exactly 2 milestone card placeholders", () => {
     const { container } = render(<LoadingSkeleton />);
     const card = container.querySelector('[aria-hidden="true"]');
-    const milestoneCards = card?.querySelectorAll(
-      '[data-testid^="skeleton-milestone-card-"]'
-    );
+    const milestoneCards = card?.querySelectorAll('[data-testid^="skeleton-milestone-card-"]');
     expect(milestoneCards).toHaveLength(2);
   });
 
   it("each milestone card placeholder contains a label bar", () => {
     const { container } = render(<LoadingSkeleton />);
     const card = container.querySelector('[aria-hidden="true"]');
-    const milestoneCards = card?.querySelectorAll(
-      '[data-testid^="skeleton-milestone-card-"]'
-    );
+    const milestoneCards = card?.querySelectorAll('[data-testid^="skeleton-milestone-card-"]');
     milestoneCards?.forEach((mc) => {
       const label = mc.querySelector(".h-4.w-24");
       expect(label).toBeInTheDocument();
@@ -220,9 +213,7 @@ describe("LoadingSkeleton — milestone card placeholder nodes", () => {
   it("each milestone card placeholder contains a value bar", () => {
     const { container } = render(<LoadingSkeleton />);
     const card = container.querySelector('[aria-hidden="true"]');
-    const milestoneCards = card?.querySelectorAll(
-      '[data-testid^="skeleton-milestone-card-"]'
-    );
+    const milestoneCards = card?.querySelectorAll('[data-testid^="skeleton-milestone-card-"]');
     milestoneCards?.forEach((mc) => {
       const value = mc.querySelector(".h-4.w-32");
       expect(value).toBeInTheDocument();
@@ -232,9 +223,7 @@ describe("LoadingSkeleton — milestone card placeholder nodes", () => {
   it("milestone card label bars have 'bg-surface-field' class", () => {
     const { container } = render(<LoadingSkeleton />);
     const card = container.querySelector('[aria-hidden="true"]');
-    const milestoneCards = card?.querySelectorAll(
-      '[data-testid^="skeleton-milestone-card-"]'
-    );
+    const milestoneCards = card?.querySelectorAll('[data-testid^="skeleton-milestone-card-"]');
     milestoneCards?.forEach((mc) => {
       const label = mc.querySelector(".h-4.w-24");
       expect(label).toHaveClass("bg-surface-field");
@@ -244,9 +233,7 @@ describe("LoadingSkeleton — milestone card placeholder nodes", () => {
   it("milestone card value bars have 'bg-surface-field' class", () => {
     const { container } = render(<LoadingSkeleton />);
     const card = container.querySelector('[aria-hidden="true"]');
-    const milestoneCards = card?.querySelectorAll(
-      '[data-testid^="skeleton-milestone-card-"]'
-    );
+    const milestoneCards = card?.querySelectorAll('[data-testid^="skeleton-milestone-card-"]');
     milestoneCards?.forEach((mc) => {
       const value = mc.querySelector(".h-4.w-32");
       expect(value).toHaveClass("bg-surface-field");
@@ -261,9 +248,7 @@ describe("LoadingSkeleton — milestone card placeholder nodes", () => {
 describe("LoadingSkeleton — accessibility and structural invariants", () => {
   it("contains no interactive elements", () => {
     const { container } = render(<LoadingSkeleton />);
-    expect(container.querySelectorAll("button, input, a, select")).toHaveLength(
-      0
-    );
+    expect(container.querySelectorAll("button, input, a, select")).toHaveLength(0);
   });
 
   it("contains exactly one role='status' element", () => {
@@ -272,7 +257,7 @@ describe("LoadingSkeleton — accessibility and structural invariants", () => {
   });
 
   it("the single aria-hidden container wraps all skeleton content", () => {
-    const { container } = render(<LoadingSkeleton />);
+    render(<LoadingSkeleton />);
     const statusEl = screen.getByRole("status");
     const hiddenCard = statusEl.querySelector('[aria-hidden="true"]');
     expect(hiddenCard).toBeInTheDocument();
@@ -313,10 +298,7 @@ describe("ButtonSpinner — default rendering", () => {
   it("SVG has xmlns attribute", () => {
     const { container } = render(<ButtonSpinner />);
     const svg = container.querySelector("svg");
-    expect(svg).toHaveAttribute(
-      "xmlns",
-      "http://www.w3.org/2000/svg"
-    );
+    expect(svg).toHaveAttribute("xmlns", "http://www.w3.org/2000/svg");
   });
 
   it("SVG has fill='none'", () => {
@@ -421,18 +403,14 @@ describe("ButtonSpinner — custom className prop", () => {
   });
 
   it("custom className can include arbitrary Tailwind classes", () => {
-    const { container } = render(
-      <ButtonSpinner className="text-red-500 my-2" />
-    );
+    const { container } = render(<ButtonSpinner className="text-red-500 my-2" />);
     const svg = container.querySelector("svg");
     expect(svg).toHaveClass("text-red-500", "my-2");
     expect(svg).toHaveClass("animate-spin");
   });
 
   it("preserves aria-hidden='true' with custom className", () => {
-    const { container } = render(
-      <ButtonSpinner className="h-5 w-5" />
-    );
+    const { container } = render(<ButtonSpinner className="h-5 w-5" />);
     const svg = container.querySelector("svg");
     expect(svg).toHaveAttribute("aria-hidden", "true");
   });
@@ -445,9 +423,7 @@ describe("ButtonSpinner — custom className prop", () => {
 describe("ButtonSpinner — structural invariants", () => {
   it("contains no interactive elements", () => {
     const { container } = render(<ButtonSpinner />);
-    expect(container.querySelectorAll("button, input, a, select")).toHaveLength(
-      0
-    );
+    expect(container.querySelectorAll("button, input, a, select")).toHaveLength(0);
   });
 
   it("contains exactly one SVG element", () => {

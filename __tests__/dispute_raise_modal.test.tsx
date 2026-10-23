@@ -37,30 +37,22 @@ describe("DisputeRaiseModal", () => {
 
     it("renders close button", () => {
       render(<DisputeRaiseModal {...defaultProps} />);
-      expect(
-        screen.getByRole("button", { name: /close modal/i })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /close modal/i })).toBeInTheDocument();
     });
 
     it("renders textarea for dispute reason", () => {
       render(<DisputeRaiseModal {...defaultProps} />);
-      expect(
-        screen.getByRole("textbox", { name: /dispute reason/i })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: /dispute reason/i })).toBeInTheDocument();
     });
 
     it("renders cancel button", () => {
       render(<DisputeRaiseModal {...defaultProps} />);
-      expect(
-        screen.getByRole("button", { name: /cancel/i })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
     });
 
     it("renders submit button", () => {
       render(<DisputeRaiseModal {...defaultProps} />);
-      expect(
-        screen.getByRole("button", { name: /raise dispute/i })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /raise dispute/i })).toBeInTheDocument();
     });
 
     it("displays character count", () => {
@@ -81,9 +73,7 @@ describe("DisputeRaiseModal", () => {
 
     it("disables submit button when reason is empty", () => {
       render(<DisputeRaiseModal {...defaultProps} />);
-      expect(
-        screen.getByRole("button", { name: /raise dispute/i })
-      ).toBeDisabled();
+      expect(screen.getByRole("button", { name: /raise dispute/i })).toBeDisabled();
     });
   });
 
@@ -126,9 +116,7 @@ describe("DisputeRaiseModal", () => {
       fireEvent.change(textarea, { target: { value: "short" } });
       fireEvent.click(submitButton);
 
-      expect(
-        screen.getByText(/reason must be at least 10 characters/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/reason must be at least 10 characters/i)).toBeInTheDocument();
     });
 
     it("does not show error when reason is exactly 10 characters", () => {
@@ -139,9 +127,7 @@ describe("DisputeRaiseModal", () => {
       fireEvent.change(textarea, { target: { value: "1234567890" } });
       fireEvent.click(submitButton);
 
-      expect(
-        screen.queryByText(/reason must be at least 10 characters/i)
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/reason must be at least 10 characters/i)).not.toBeInTheDocument();
     });
   });
 
@@ -155,9 +141,7 @@ describe("DisputeRaiseModal", () => {
       fireEvent.change(textarea, { target: { value: longText } });
       fireEvent.click(submitButton);
 
-      expect(
-        screen.getByText(/reason must not exceed 500 characters/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/reason must not exceed 500 characters/i)).toBeInTheDocument();
     });
 
     it("does not show error when reason is exactly 500 characters", () => {
@@ -169,9 +153,7 @@ describe("DisputeRaiseModal", () => {
       fireEvent.change(textarea, { target: { value: maxLengthText } });
       fireEvent.click(submitButton);
 
-      expect(
-        screen.queryByText(/reason must not exceed 500 characters/i)
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/reason must not exceed 500 characters/i)).not.toBeInTheDocument();
     });
 
     it("enforces maxLength attribute on textarea", () => {
@@ -190,9 +172,7 @@ describe("DisputeRaiseModal", () => {
       fireEvent.change(textarea, { target: { value: "short" } });
       fireEvent.click(submitButton);
 
-      const errorElement = screen.getByText(
-        /reason must be at least 10 characters/i
-      );
+      const errorElement = screen.getByText(/reason must be at least 10 characters/i);
       expect(errorElement).toHaveAttribute("role", "alert");
     });
 
@@ -204,9 +184,7 @@ describe("DisputeRaiseModal", () => {
       fireEvent.change(textarea, { target: { value: "short" } });
       fireEvent.click(submitButton);
 
-      const errorElement = screen.getByText(
-        /reason must be at least 10 characters/i
-      );
+      const errorElement = screen.getByText(/reason must be at least 10 characters/i);
       expect(errorElement).toHaveAttribute("aria-live", "polite");
     });
 
@@ -218,47 +196,28 @@ describe("DisputeRaiseModal", () => {
       // Trigger error
       fireEvent.change(textarea, { target: { value: "short" } });
       fireEvent.click(submitButton);
-      expect(
-        screen.getByText(/reason must be at least 10 characters/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/reason must be at least 10 characters/i)).toBeInTheDocument();
 
       // Start typing valid input
       fireEvent.change(textarea, { target: { value: "valid reason text" } });
-      expect(
-        screen.queryByText(/reason must be at least 10 characters/i)
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/reason must be at least 10 characters/i)).not.toBeInTheDocument();
     });
 
     it("displays submission error from props", () => {
-      render(
-        <DisputeRaiseModal
-          {...defaultProps}
-          submissionError="Network error occurred"
-        />
-      );
+      render(<DisputeRaiseModal {...defaultProps} submissionError="Network error occurred" />);
 
       expect(screen.getByText(/network error occurred/i)).toBeInTheDocument();
     });
 
     it("displays general error with role='alert'", () => {
-      render(
-        <DisputeRaiseModal
-          {...defaultProps}
-          submissionError="Network error occurred"
-        />
-      );
+      render(<DisputeRaiseModal {...defaultProps} submissionError="Network error occurred" />);
 
       const errorElement = screen.getByText(/network error occurred/i);
       expect(errorElement).toHaveAttribute("role", "alert");
     });
 
     it("displays general error with aria-live='assertive'", () => {
-      render(
-        <DisputeRaiseModal
-          {...defaultProps}
-          submissionError="Network error occurred"
-        />
-      );
+      render(<DisputeRaiseModal {...defaultProps} submissionError="Network error occurred" />);
 
       const errorElement = screen.getByText(/network error occurred/i);
       expect(errorElement).toHaveAttribute("aria-live", "assertive");
@@ -371,10 +330,7 @@ describe("DisputeRaiseModal", () => {
     it("has proper aria-label on dialog", () => {
       render(<DisputeRaiseModal {...defaultProps} />);
       const dialog = screen.getByRole("dialog");
-      expect(dialog).toHaveAttribute(
-        "aria-label",
-        "Raise dispute for Milestone 1"
-      );
+      expect(dialog).toHaveAttribute("aria-label", "Raise dispute for Milestone 1");
     });
 
     it("disables close button when loading", () => {
@@ -425,9 +381,7 @@ describe("DisputeRaiseModal", () => {
 
       // Wait for async operation
       await vi.waitFor(() => {
-        expect(
-          screen.getByText(/failed to submit dispute/i)
-        ).toBeInTheDocument();
+        expect(screen.getByText(/failed to submit dispute/i)).toBeInTheDocument();
       });
     });
   });
@@ -436,28 +390,17 @@ describe("DisputeRaiseModal", () => {
   describe("Micro-animations", () => {
     it("fades the backdrop in on open", () => {
       render(<DisputeRaiseModal {...defaultProps} />);
-      expect(screen.getByTestId("dispute-raise-modal")).toHaveClass(
-        "animate-fade-in"
-      );
+      expect(screen.getByTestId("dispute-raise-modal")).toHaveClass("animate-fade-in");
     });
 
     it("slides the panel in on open", () => {
       render(<DisputeRaiseModal {...defaultProps} />);
-      expect(screen.getByTestId("dispute-raise-modal-panel")).toHaveClass(
-        "animate-slide-in"
-      );
+      expect(screen.getByTestId("dispute-raise-modal-panel")).toHaveClass("animate-slide-in");
     });
 
     it("shakes the error banner when a submission fails", () => {
-      render(
-        <DisputeRaiseModal
-          {...defaultProps}
-          errorMessage="Transaction rejected."
-        />
-      );
-      expect(screen.getByTestId("dispute-raise-modal-error")).toHaveClass(
-        "animate-shake"
-      );
+      render(<DisputeRaiseModal {...defaultProps} errorMessage="Transaction rejected." />);
+      expect(screen.getByTestId("dispute-raise-modal-error")).toHaveClass("animate-shake");
     });
 
     it("does not shake anything while there is no error", () => {
@@ -470,9 +413,7 @@ describe("DisputeRaiseModal", () => {
   describe("Transaction status banner", () => {
     it("is absent when no disputeState is supplied", () => {
       render(<DisputeRaiseModal {...defaultProps} />);
-      expect(
-        screen.queryByTestId("dispute-raise-modal-status-banner")
-      ).toBeNull();
+      expect(screen.queryByTestId("dispute-raise-modal-status-banner")).toBeNull();
     });
 
     it("stays absent while the transaction state is idle", () => {
@@ -482,9 +423,7 @@ describe("DisputeRaiseModal", () => {
           disputeState={{ phase: "idle", error: null, txHash: null }}
         />
       );
-      expect(
-        screen.queryByTestId("dispute-raise-modal-status-banner")
-      ).toBeNull();
+      expect(screen.queryByTestId("dispute-raise-modal-status-banner")).toBeNull();
     });
 
     it("appears once the transaction is in flight", () => {
@@ -494,9 +433,7 @@ describe("DisputeRaiseModal", () => {
           disputeState={{ phase: "submitting", error: null, txHash: null }}
         />
       );
-      expect(
-        screen.getByTestId("dispute-raise-modal-status-banner")
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("dispute-raise-modal-status-banner")).toBeInTheDocument();
     });
 
     it("reports the failure when the transaction errors", () => {
@@ -510,9 +447,9 @@ describe("DisputeRaiseModal", () => {
           }}
         />
       );
-      expect(
-        screen.getByTestId("dispute-raise-modal-status-banner")
-      ).toHaveTextContent(/transaction rejected by the network/i);
+      expect(screen.getByTestId("dispute-raise-modal-status-banner")).toHaveTextContent(
+        /transaction rejected by the network/i
+      );
     });
   });
 
@@ -520,8 +457,8 @@ describe("DisputeRaiseModal", () => {
   // test id keeps a future refactor from dropping it unnoticed.
   it("always shows the irreversibility warning", () => {
     render(<DisputeRaiseModal {...defaultProps} />);
-    expect(
-      screen.getByTestId("dispute-raise-modal-warning")
-    ).toHaveTextContent(/cannot be undone/i);
+    expect(screen.getByTestId("dispute-raise-modal-warning")).toHaveTextContent(
+      /cannot be undone/i
+    );
   });
 });

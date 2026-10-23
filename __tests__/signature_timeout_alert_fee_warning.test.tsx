@@ -16,6 +16,9 @@ vi.mock("@/app/context/WalletContext", () => ({
     signatureTimeoutError: null,
     signatureTimeoutXdr: null,
     clearSignatureTimeout: () => {},
+    lastPendingAction: null,
+    registerPendingAction: () => {},
+    retryLastAction: async () => null,
   }),
 }));
 
@@ -48,15 +51,11 @@ describe("signature_timeout_alert — simulation fee inspection", () => {
   // -------------------------------------------------------------------------
 
   it("reads minResourceFee from a Soroban simulation", () => {
-    expect(extractEstimatedFeeStroops({ minResourceFee: 2_500_000 })).toBe(
-      2_500_000
-    );
+    expect(extractEstimatedFeeStroops({ minResourceFee: 2_500_000 })).toBe(2_500_000);
   });
 
   it("reads a string minResourceFee", () => {
-    expect(extractEstimatedFeeStroops({ minResourceFee: "750000" })).toBe(
-      750_000
-    );
+    expect(extractEstimatedFeeStroops({ minResourceFee: "750000" })).toBe(750_000);
   });
 
   it("falls back to the classic fee field", () => {
@@ -64,9 +63,7 @@ describe("signature_timeout_alert — simulation fee inspection", () => {
   });
 
   it("prefers minResourceFee over fee when both are present", () => {
-    expect(
-      extractEstimatedFeeStroops({ minResourceFee: 900, fee: 100 })
-    ).toBe(900);
+    expect(extractEstimatedFeeStroops({ minResourceFee: 900, fee: 100 })).toBe(900);
   });
 
   it("returns 0 when the simulation carries no fee data", () => {
@@ -79,9 +76,7 @@ describe("signature_timeout_alert — simulation fee inspection", () => {
   });
 
   it("returns 0 for an unparseable fee value", () => {
-    expect(extractEstimatedFeeStroops({ minResourceFee: "not-a-number" })).toBe(
-      0
-    );
+    expect(extractEstimatedFeeStroops({ minResourceFee: "not-a-number" })).toBe(0);
   });
 
   it("returns 0 for a negative fee value", () => {
@@ -234,9 +229,9 @@ describe("signature_timeout_alert — simulation fee inspection", () => {
   // -------------------------------------------------------------------------
 
   it("throws SignatureFeeExceededError above the bound", () => {
-    expect(() =>
-      assertSignatureFeeWithinBounds({ minResourceFee: LIMIT + 1 })
-    ).toThrow(SignatureFeeExceededError);
+    expect(() => assertSignatureFeeWithinBounds({ minResourceFee: LIMIT + 1 })).toThrow(
+      SignatureFeeExceededError
+    );
   });
 
   it("throws SignatureSimulationError when the simulation failed", () => {
@@ -261,15 +256,9 @@ describe("signature_timeout_alert — simulation fee inspection", () => {
 
 describe("SignatureTimeoutFeeWarningBanner", () => {
   it("displays the banner when the fee exceeds standard bounds", () => {
-    render(
-      <SignatureTimeoutFeeWarningBanner
-        simulation={{ minResourceFee: LIMIT * 2 }}
-      />
-    );
+    render(<SignatureTimeoutFeeWarningBanner simulation={{ minResourceFee: LIMIT * 2 }} />);
     expect(screen.getByTestId(BANNER)).toBeInTheDocument();
-    expect(screen.getByRole("alert").textContent).toContain(
-      "High fee detected"
-    );
+    expect(screen.getByRole("alert").textContent).toContain("High fee detected");
   });
 
   it("renders nothing when the fee is within bounds", () => {
@@ -280,34 +269,18 @@ describe("SignatureTimeoutFeeWarningBanner", () => {
   });
 
   it("renders nothing without a simulation", () => {
-    const { container } = render(
-      <SignatureTimeoutFeeWarningBanner simulation={null} />
-    );
+    const { container } = render(<SignatureTimeoutFeeWarningBanner simulation={null} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it("marks the exceeded severity on the banner", () => {
-    render(
-      <SignatureTimeoutFeeWarningBanner
-        simulation={{ minResourceFee: LIMIT * 2 }}
-      />
-    );
-    expect(screen.getByTestId(BANNER)).toHaveAttribute(
-      "data-severity",
-      "exceeded"
-    );
+    render(<SignatureTimeoutFeeWarningBanner simulation={{ minResourceFee: LIMIT * 2 }} />);
+    expect(screen.getByTestId(BANNER)).toHaveAttribute("data-severity", "exceeded");
   });
 
   it("marks the elevated severity on the banner", () => {
-    render(
-      <SignatureTimeoutFeeWarningBanner
-        simulation={{ minResourceFee: LIMIT * 0.75 }}
-      />
-    );
-    expect(screen.getByTestId(BANNER)).toHaveAttribute(
-      "data-severity",
-      "elevated"
-    );
+    render(<SignatureTimeoutFeeWarningBanner simulation={{ minResourceFee: LIMIT * 0.75 }} />);
+    expect(screen.getByTestId(BANNER)).toHaveAttribute("data-severity", "elevated");
   });
 
   it("marks the error severity when the simulation failed", () => {
@@ -322,18 +295,11 @@ describe("SignatureTimeoutFeeWarningBanner", () => {
         feeLimitStroops={400}
       />
     );
-    expect(screen.getByTestId(BANNER)).toHaveAttribute(
-      "data-severity",
-      "exceeded"
-    );
+    expect(screen.getByTestId(BANNER)).toHaveAttribute("data-severity", "exceeded");
   });
 
   it("uses design token classes for the exceeded state", () => {
-    render(
-      <SignatureTimeoutFeeWarningBanner
-        simulation={{ minResourceFee: LIMIT * 2 }}
-      />
-    );
+    render(<SignatureTimeoutFeeWarningBanner simulation={{ minResourceFee: LIMIT * 2 }} />);
     const banner = screen.getByTestId(BANNER);
     expect(banner.className).toContain("border-warning");
     expect(banner.className).toContain("text-warning-soft");
@@ -361,50 +327,30 @@ describe("SignatureTimeoutFeeWarningBanner", () => {
 // tests cover only the fee-inspection behaviour wired into it.
 describe("SignatureTimeoutAlert — fee inspection", () => {
   it("renders nothing when there is no timeout and no fee warning", () => {
-    const { container } = render(
-      <SignatureTimeoutAlert simulation={{ minResourceFee: 100 }} />
-    );
+    const { container } = render(<SignatureTimeoutAlert simulation={{ minResourceFee: 100 }} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it("renders on a fee warning alone, with no timeout", () => {
-    render(
-      <SignatureTimeoutAlert simulation={{ minResourceFee: LIMIT * 2 }} />
-    );
+    render(<SignatureTimeoutAlert simulation={{ minResourceFee: LIMIT * 2 }} />);
     expect(screen.getByTestId("signature-timeout-alert")).toBeInTheDocument();
     expect(screen.getByTestId(BANNER)).toBeInTheDocument();
   });
 
   it("shows the fee banner alongside the timeout notice", () => {
-    render(
-      <SignatureTimeoutAlert
-        isOpen
-        simulation={{ minResourceFee: LIMIT * 5 }}
-      />
-    );
-    expect(
-      screen.getByText("Signature request timed out")
-    ).toBeInTheDocument();
+    render(<SignatureTimeoutAlert isOpen simulation={{ minResourceFee: LIMIT * 5 }} />);
+    expect(screen.getByText("Signature request timed out")).toBeInTheDocument();
     expect(screen.getByTestId(BANNER)).toBeInTheDocument();
   });
 
   it("shows the timeout notice with no banner when the fee is in bounds", () => {
-    render(
-      <SignatureTimeoutAlert isOpen simulation={{ minResourceFee: 100 }} />
-    );
-    expect(
-      screen.getByText("Signature request timed out")
-    ).toBeInTheDocument();
+    render(<SignatureTimeoutAlert isOpen simulation={{ minResourceFee: 100 }} />);
+    expect(screen.getByText("Signature request timed out")).toBeInTheDocument();
     expect(screen.queryByTestId(BANNER)).not.toBeInTheDocument();
   });
 
   it("exposes the fee severity on the alert wrapper", () => {
-    render(
-      <SignatureTimeoutAlert
-        isOpen
-        simulation={{ minResourceFee: LIMIT * 5 }}
-      />
-    );
+    render(<SignatureTimeoutAlert isOpen simulation={{ minResourceFee: LIMIT * 5 }} />);
     expect(screen.getByTestId("signature-timeout-alert")).toHaveAttribute(
       "data-fee-severity",
       "exceeded"
@@ -420,23 +366,12 @@ describe("SignatureTimeoutAlert — fee inspection", () => {
   });
 
   it("respects a custom fee limit", () => {
-    render(
-      <SignatureTimeoutAlert
-        simulation={{ minResourceFee: 500 }}
-        feeLimitStroops={400}
-      />
-    );
-    expect(screen.getByTestId(BANNER)).toHaveAttribute(
-      "data-severity",
-      "exceeded"
-    );
+    render(<SignatureTimeoutAlert simulation={{ minResourceFee: 500 }} feeLimitStroops={400} />);
+    expect(screen.getByTestId(BANNER)).toHaveAttribute("data-severity", "exceeded");
   });
 
   it("surfaces a failed simulation as an error banner", () => {
     render(<SignatureTimeoutAlert simulation={{ error: "trap" }} />);
-    expect(screen.getByTestId(BANNER)).toHaveAttribute(
-      "data-severity",
-      "error"
-    );
+    expect(screen.getByTestId(BANNER)).toHaveAttribute("data-severity", "error");
   });
 });

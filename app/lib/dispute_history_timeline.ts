@@ -53,7 +53,7 @@ export const TIMELINE_SKELETON_ROWS = 3;
  */
 export function isTimelineViewerAuthorized(
   walletAddress: string | null | undefined,
-  authorizedWallets?: string[],
+  authorizedWallets?: string[]
 ): boolean {
   if (!walletAddress || typeof walletAddress !== "string") return false;
   const trimmed = walletAddress.trim().toLowerCase();
@@ -118,11 +118,9 @@ export const MOCK_DISPUTE_HISTORY: DisputeHistoryEvent[] = [
  */
 export async function fetchDisputeHistory(
   disputeId: string,
-  options?: { apiUrl?: string; signal?: AbortSignal },
+  options?: { apiUrl?: string; signal?: AbortSignal }
 ): Promise<DisputeHistoryEvent[]> {
-  const url =
-    options?.apiUrl ||
-    `/api/disputes/${encodeURIComponent(disputeId)}/history`;
+  const url = options?.apiUrl || `/api/disputes/${encodeURIComponent(disputeId)}/history`;
 
   try {
     const res = await fetch(url, { signal: options?.signal });
@@ -241,8 +239,7 @@ export const DISPUTE_ACTIONS: Record<DisputeTimelineAction, DisputeActionConfig>
     action: "escalate",
     buttonLabel: "Escalate",
     confirmTitle: "Escalate this dispute?",
-    warning:
-      "Escalating hands the dispute to a senior arbiter and requires signing a transaction.",
+    warning: "Escalating hands the dispute to a senior arbiter and requires signing a transaction.",
     confirmLabel: "Sign & escalate",
   },
   withdraw: {
@@ -303,7 +300,7 @@ export interface ActionToast {
 export function getActionToast(
   action: DisputeTimelineAction,
   outcome: "success" | "failure",
-  error?: unknown,
+  error?: unknown
 ): ActionToast {
   const verb = action === "escalate" ? "escalated" : "withdrawn";
   if (outcome === "success") {
@@ -362,7 +359,7 @@ export function buildTimelineCsv(events: DisputeHistoryEvent[]): string {
       e.timestamp,
     ]
       .map(escapeCsvCell)
-      .join(","),
+      .join(",")
   );
   return [EXPORT_COLUMNS.map(escapeCsvCell).join(","), ...rows].join("\r\n");
 }

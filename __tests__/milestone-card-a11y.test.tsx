@@ -39,10 +39,7 @@ const renderCard = (
     amount: "500",
     status: "Pending",
   }
-) =>
-  render(
-    <MilestoneCard {...defaultProps} milestone={milestone} {...overrides} />
-  );
+) => render(<MilestoneCard {...defaultProps} milestone={milestone} {...overrides} />);
 
 // ===========================================================================
 // 1. Landmark roles — card and empty-state as named regions
@@ -83,7 +80,6 @@ describe("MilestoneCard — landmark region roles", () => {
   });
 });
 
-
 // ===========================================================================
 // 2. Button accessible names — aria-label context
 // ===========================================================================
@@ -111,9 +107,7 @@ describe("MilestoneCard — button accessible names", () => {
       { isClient: true, onApprove: vi.fn() },
       { index: 0, amount: "100", status: "Delivered" }
     );
-    expect(
-      screen.getByRole("button", { name: "Approve Milestone 1" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Approve Milestone 1" })).toBeInTheDocument();
   });
 
   it("'Approve' accessible name updates per milestone index", () => {
@@ -121,16 +115,12 @@ describe("MilestoneCard — button accessible names", () => {
       { isClient: true, onApprove: vi.fn() },
       { index: 4, amount: "100", status: "Delivered" }
     );
-    expect(
-      screen.getByRole("button", { name: "Approve Milestone 5" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Approve Milestone 5" })).toBeInTheDocument();
   });
 
   it("'Dispute' button accessible name includes milestone number", () => {
     renderCard({ isClient: true, onDispute: vi.fn() });
-    expect(
-      screen.getByRole("button", { name: "Dispute Milestone 1" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dispute Milestone 1" })).toBeInTheDocument();
   });
 
   it("'Dispute' accessible name updates per milestone index", () => {
@@ -138,9 +128,7 @@ describe("MilestoneCard — button accessible names", () => {
       { isClient: true, onDispute: vi.fn() },
       { index: 1, amount: "100", status: "Pending" }
     );
-    expect(
-      screen.getByRole("button", { name: "Dispute Milestone 2" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dispute Milestone 2" })).toBeInTheDocument();
   });
 
   it("buttons carry aria-label attribute matching their accessible name", () => {
@@ -150,7 +138,6 @@ describe("MilestoneCard — button accessible names", () => {
   });
 });
 
-
 // ===========================================================================
 // 3. Status badge — aria-label for screen readers
 // ===========================================================================
@@ -159,19 +146,13 @@ describe("MilestoneCard — status badge accessible label", () => {
   it("status badge has aria-label including milestone name and status", () => {
     renderCard({}, { index: 0, amount: "100", status: "Pending" });
     const badge = screen.getByText("Pending");
-    expect(badge).toHaveAttribute(
-      "aria-label",
-      "Milestone 1 status: Pending"
-    );
+    expect(badge).toHaveAttribute("aria-label", "Milestone 1 status: Pending");
   });
 
   it("status badge aria-label updates for different milestone index", () => {
     renderCard({}, { index: 2, amount: "100", status: "Released" });
     const badge = screen.getByText("Released");
-    expect(badge).toHaveAttribute(
-      "aria-label",
-      "Milestone 3 status: Released"
-    );
+    expect(badge).toHaveAttribute("aria-label", "Milestone 3 status: Released");
   });
 
   it("status badge aria-label reflects Disputed status", () => {
@@ -193,13 +174,9 @@ describe("MilestoneCard — status badge accessible label", () => {
   it("empty-state badge has aria-label 'Status: waiting for milestones'", () => {
     renderCard({}, null);
     const badge = screen.getByText("Waiting for milestones");
-    expect(badge).toHaveAttribute(
-      "aria-label",
-      "Status: waiting for milestones"
-    );
+    expect(badge).toHaveAttribute("aria-label", "Status: waiting for milestones");
   });
 });
-
 
 // ===========================================================================
 // 4. Amount text — aria-label for screen readers
@@ -208,23 +185,17 @@ describe("MilestoneCard — status badge accessible label", () => {
 describe("MilestoneCard — amount accessible label", () => {
   it("amount element has aria-label with milestone name and amount", () => {
     renderCard({}, { index: 0, amount: "500", status: "Pending" });
-    expect(
-      screen.getByLabelText("Milestone 1 amount: 0.00005 XLM")
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Milestone 1 amount: 0.00005 XLM")).toBeInTheDocument();
   });
 
   it("amount aria-label updates for a different milestone index", () => {
     renderCard({}, { index: 3, amount: "1000", status: "Released" });
-    expect(
-      screen.getByLabelText("Milestone 4 amount: 0.0001 XLM")
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Milestone 4 amount: 0.0001 XLM")).toBeInTheDocument();
   });
 
   it("amount aria-label reflects the correct amount value", () => {
     renderCard({}, { index: 0, amount: "250", status: "Pending" });
-    expect(
-      screen.getByLabelText("Milestone 1 amount: 0.000025 XLM")
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Milestone 1 amount: 0.000025 XLM")).toBeInTheDocument();
   });
 
   it("milestone label paragraph has aria-hidden='true' to avoid redundant announcement", () => {
@@ -241,26 +212,26 @@ describe("MilestoneCard — amount accessible label", () => {
 describe("MilestoneCard — aria-disabled state", () => {
   it("'Mark Delivered' has aria-disabled='true' when no handler is provided", () => {
     renderCard({ isFreelancer: true });
-    expect(
-      screen.getByRole("button", { name: "Mark Milestone 1 as delivered" })
-    ).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("button", { name: "Mark Milestone 1 as delivered" })).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
   });
 
   it("'Mark Delivered' has aria-disabled='false' when handler is provided", () => {
     renderCard({ isFreelancer: true, onMarkDelivered: vi.fn() });
-    expect(
-      screen.getByRole("button", { name: "Mark Milestone 1 as delivered" })
-    ).toHaveAttribute("aria-disabled", "false");
+    expect(screen.getByRole("button", { name: "Mark Milestone 1 as delivered" })).toHaveAttribute(
+      "aria-disabled",
+      "false"
+    );
   });
 
   it("'Approve' has aria-disabled='true' when no handler is provided", () => {
-    renderCard(
-      { isClient: true },
-      { index: 0, amount: "100", status: "Delivered" }
+    renderCard({ isClient: true }, { index: 0, amount: "100", status: "Delivered" });
+    expect(screen.getByRole("button", { name: "Approve Milestone 1" })).toHaveAttribute(
+      "aria-disabled",
+      "true"
     );
-    expect(
-      screen.getByRole("button", { name: "Approve Milestone 1" })
-    ).toHaveAttribute("aria-disabled", "true");
   });
 
   it("'Approve' has aria-disabled='false' when handler is provided", () => {
@@ -268,23 +239,26 @@ describe("MilestoneCard — aria-disabled state", () => {
       { isClient: true, onApprove: vi.fn() },
       { index: 0, amount: "100", status: "Delivered" }
     );
-    expect(
-      screen.getByRole("button", { name: "Approve Milestone 1" })
-    ).toHaveAttribute("aria-disabled", "false");
+    expect(screen.getByRole("button", { name: "Approve Milestone 1" })).toHaveAttribute(
+      "aria-disabled",
+      "false"
+    );
   });
 
   it("'Dispute' has aria-disabled='true' when no handler is provided", () => {
     renderCard({ isClient: true });
-    expect(
-      screen.getByRole("button", { name: "Dispute Milestone 1" })
-    ).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("button", { name: "Dispute Milestone 1" })).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
   });
 
   it("'Dispute' has aria-disabled='false' when handler is provided", () => {
     renderCard({ isClient: true, onDispute: vi.fn() });
-    expect(
-      screen.getByRole("button", { name: "Dispute Milestone 1" })
-    ).toHaveAttribute("aria-disabled", "false");
+    expect(screen.getByRole("button", { name: "Dispute Milestone 1" })).toHaveAttribute(
+      "aria-disabled",
+      "false"
+    );
   });
 
   it("aria-disabled and HTML disabled are consistent on 'Mark Delivered'", () => {
@@ -385,4 +359,3 @@ describe("MilestoneCard — aria-disabled state", () => {
     expect(btn).toHaveAttribute("aria-disabled", "true");
   });
 });
-

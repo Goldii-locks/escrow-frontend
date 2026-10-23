@@ -17,19 +17,13 @@ import {
 describe("NotificationBell Storybook stories — rendering validation", () => {
   it("renders Default story correctly", () => {
     render(<NotificationBell {...(Default.args as NotificationBellProps)} />);
-    expect(screen.getByTestId("notification-bell")).toHaveAttribute(
-      "data-status",
-      "read"
-    );
+    expect(screen.getByTestId("notification-bell")).toHaveAttribute("data-status", "read");
     expect(screen.queryByTestId("notification-badge")).not.toBeInTheDocument();
   });
 
   it("renders WithUnreadBadge story correctly", () => {
     render(<NotificationBell {...(WithUnreadBadge.args as NotificationBellProps)} />);
-    expect(screen.getByTestId("notification-bell")).toHaveAttribute(
-      "data-status",
-      "unread"
-    );
+    expect(screen.getByTestId("notification-bell")).toHaveAttribute("data-status", "unread");
     expect(screen.getByTestId("notification-badge")).toHaveTextContent("3");
   });
 
@@ -72,10 +66,7 @@ describe("NotificationBell Storybook stories — rendering validation", () => {
   it("renders Disabled story correctly", () => {
     render(<NotificationBell {...(Disabled.args as NotificationBellProps)} />);
     expect(screen.getByTestId("notification-bell")).toBeDisabled();
-    expect(screen.getByTestId("notification-bell")).toHaveAttribute(
-      "data-status",
-      "disabled"
-    );
+    expect(screen.getByTestId("notification-bell")).toHaveAttribute("data-status", "disabled");
     expect(screen.queryByTestId("notification-dropdown")).not.toBeInTheDocument();
   });
 

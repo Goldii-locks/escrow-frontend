@@ -5,12 +5,7 @@ import TransactionSignerNetworkWarningBar from "@/app/components/TransactionSign
 
 describe("TransactionSignerNetworkWarningBar (#216)", () => {
   it("renders a warning bar when the wallet network does not match the app network", () => {
-    render(
-      <TransactionSignerNetworkWarningBar
-        walletNetwork="mainnet"
-        appNetwork="testnet"
-      />
-    );
+    render(<TransactionSignerNetworkWarningBar walletNetwork="mainnet" appNetwork="testnet" />);
 
     const bar = screen.getByTestId("transaction-signer-network-warning-bar");
     expect(bar).toBeInTheDocument();
@@ -22,25 +17,15 @@ describe("TransactionSignerNetworkWarningBar (#216)", () => {
 
   it("does not render when the wallet network matches the app network", () => {
     const { container } = render(
-      <TransactionSignerNetworkWarningBar
-        walletNetwork="testnet"
-        appNetwork="testnet"
-      />
+      <TransactionSignerNetworkWarningBar walletNetwork="testnet" appNetwork="testnet" />
     );
 
-    expect(
-      screen.queryByTestId("transaction-signer-network-warning-bar")
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("transaction-signer-network-warning-bar")).not.toBeInTheDocument();
     expect(container).toBeEmptyDOMElement();
   });
 
   it("renders the reverse mismatch (testnet wallet, mainnet app)", () => {
-    render(
-      <TransactionSignerNetworkWarningBar
-        walletNetwork="testnet"
-        appNetwork="mainnet"
-      />
-    );
+    render(<TransactionSignerNetworkWarningBar walletNetwork="testnet" appNetwork="mainnet" />);
 
     const bar = screen.getByTestId("transaction-signer-network-warning-bar");
     expect(bar).toBeInTheDocument();
@@ -63,12 +48,7 @@ describe("TransactionSignerNetworkWarningBar (#216)", () => {
   });
 
   it("uses role=alert for accessibility", () => {
-    render(
-      <TransactionSignerNetworkWarningBar
-        walletNetwork="mainnet"
-        appNetwork="testnet"
-      />
-    );
+    render(<TransactionSignerNetworkWarningBar walletNetwork="mainnet" appNetwork="testnet" />);
 
     const bar = screen.getByRole("alert");
     expect(bar).toHaveTextContent(/Network mismatch/i);

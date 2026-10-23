@@ -37,13 +37,9 @@ afterEach(() => {
   });
 });
 
-const renderPanel = (
-  props: Partial<Parameters<typeof ArbiterActionPanel>[0]> = {},
-) => {
+const renderPanel = (props: Partial<Parameters<typeof ArbiterActionPanel>[0]> = {}) => {
   const onResolve = vi.fn();
-  const utils = render(
-    <ArbiterActionPanel milestoneIndex={0} onResolve={onResolve} {...props} />,
-  );
+  const utils = render(<ArbiterActionPanel milestoneIndex={0} onResolve={onResolve} {...props} />);
   return { onResolve, ...utils };
 };
 
@@ -56,7 +52,7 @@ describe("overlay wrapper structure", () => {
       "max-h-[75dvh]",
       "overflow-hidden",
       "sm:max-h-none",
-      "sm:overflow-visible",
+      "sm:overflow-visible"
     );
   });
 
@@ -67,7 +63,7 @@ describe("overlay wrapper structure", () => {
       "min-h-0",
       "overflow-y-auto",
       "overscroll-contain",
-      "sm:overflow-visible",
+      "sm:overflow-visible"
     );
   });
 
@@ -85,7 +81,7 @@ describe("overlay wrapper structure", () => {
       "shrink-0",
       "bg-surface-card",
       "sm:static",
-      "sm:bg-transparent",
+      "sm:bg-transparent"
     );
   });
 
@@ -109,10 +105,10 @@ describe("overlay wrapper structure", () => {
   it("exposes the class strings it renders with", () => {
     renderPanel();
     expect(screen.getByTestId("arbiter-panel-scroll").className).toBe(
-      ARBITER_PANEL_CLASSES.scrollableContent,
+      ARBITER_PANEL_CLASSES.scrollableContent
     );
     expect(screen.getByTestId("arbiter-panel-actions").className).toContain(
-      ARBITER_PANEL_CLASSES.stickyFooter,
+      ARBITER_PANEL_CLASSES.stickyFooter
     );
   });
 });
@@ -121,27 +117,15 @@ describe("overlay constraint per viewport", () => {
   it.each(MOBILE_WIDTHS)("constrains height at %ipx", (width) => {
     setViewportWidth(width);
     renderPanel();
-    expect(screen.getByTestId("arbiter-action-panel")).toHaveAttribute(
-      "data-constrained",
-      "true",
-    );
-    expect(screen.getByTestId("arbiter-panel-actions")).toHaveAttribute(
-      "data-sticky",
-      "true",
-    );
+    expect(screen.getByTestId("arbiter-action-panel")).toHaveAttribute("data-constrained", "true");
+    expect(screen.getByTestId("arbiter-panel-actions")).toHaveAttribute("data-sticky", "true");
   });
 
   it.each([640, 768, 1024, 1440])("does not constrain height at %ipx", (width) => {
     setViewportWidth(width);
     renderPanel();
-    expect(screen.getByTestId("arbiter-action-panel")).toHaveAttribute(
-      "data-constrained",
-      "false",
-    );
-    expect(screen.getByTestId("arbiter-panel-actions")).toHaveAttribute(
-      "data-sticky",
-      "false",
-    );
+    expect(screen.getByTestId("arbiter-action-panel")).toHaveAttribute("data-constrained", "false");
+    expect(screen.getByTestId("arbiter-panel-actions")).toHaveAttribute("data-sticky", "false");
   });
 
   it("toggles the constraint live across a rotation", () => {
@@ -213,11 +197,11 @@ describe("clickable on mobile viewports", () => {
     renderPanel();
     expect(screen.getByTestId("arbiter-outcome-release")).toHaveClass(
       "touch-manipulation",
-      "select-none",
+      "select-none"
     );
     expect(screen.getByRole("checkbox").closest("label")).toHaveClass(
       "touch-manipulation",
-      "select-none",
+      "select-none"
     );
     expect(screen.getByTestId("arbiter-submit")).toHaveClass("touch-manipulation");
   });

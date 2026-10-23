@@ -23,9 +23,11 @@ describe("network_sync_checker signature timeout bounds (#154)", () => {
       payload: new Uint8Array([1, 2, 3, 4]),
     };
 
-    const signFn = vi.fn(async (): Promise<NetworkSyncSignResult> => ({
-      signedXdr: "signed-xdr",
-    }));
+    const signFn = vi.fn(
+      async (): Promise<NetworkSyncSignResult> => ({
+        signedXdr: "signed-xdr",
+      })
+    );
 
     const promise = signWithTimeout(request, signFn, 5_000);
     await vi.runAllTimersAsync();
@@ -50,9 +52,7 @@ describe("network_sync_checker signature timeout bounds (#154)", () => {
     );
 
     const promise = signWithTimeout(request, signFn, 1_000);
-    const assertion = expect(promise).rejects.toBeInstanceOf(
-      NetworkSyncSignatureTimeoutError
-    );
+    const assertion = expect(promise).rejects.toBeInstanceOf(NetworkSyncSignatureTimeoutError);
 
     await vi.advanceTimersByTimeAsync(1_000);
     await assertion;

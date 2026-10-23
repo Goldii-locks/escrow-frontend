@@ -77,15 +77,11 @@ describe("dispute_raise_modal classifyDisputeViewport (#332)", () => {
   });
 
   it("classifies one pixel below the tablet breakpoint as mobile", () => {
-    expect(classifyDisputeViewport(DISPUTE_MODAL_TABLET_MIN_WIDTH - 1)).toBe(
-      "mobile",
-    );
+    expect(classifyDisputeViewport(DISPUTE_MODAL_TABLET_MIN_WIDTH - 1)).toBe("mobile");
   });
 
   it("classifies the tablet breakpoint itself as tablet", () => {
-    expect(classifyDisputeViewport(DISPUTE_MODAL_TABLET_MIN_WIDTH)).toBe(
-      "tablet",
-    );
+    expect(classifyDisputeViewport(DISPUTE_MODAL_TABLET_MIN_WIDTH)).toBe("tablet");
   });
 
   it("classifies a 768px tablet as tablet", () => {
@@ -93,15 +89,11 @@ describe("dispute_raise_modal classifyDisputeViewport (#332)", () => {
   });
 
   it("classifies one pixel below the desktop breakpoint as tablet", () => {
-    expect(classifyDisputeViewport(DISPUTE_MODAL_DESKTOP_MIN_WIDTH - 1)).toBe(
-      "tablet",
-    );
+    expect(classifyDisputeViewport(DISPUTE_MODAL_DESKTOP_MIN_WIDTH - 1)).toBe("tablet");
   });
 
   it("classifies the desktop breakpoint itself as desktop", () => {
-    expect(classifyDisputeViewport(DISPUTE_MODAL_DESKTOP_MIN_WIDTH)).toBe(
-      "desktop",
-    );
+    expect(classifyDisputeViewport(DISPUTE_MODAL_DESKTOP_MIN_WIDTH)).toBe("desktop");
   });
 
   it("classifies a 1920px monitor as desktop", () => {
@@ -236,12 +228,8 @@ describe("DisputeRaiseModal responsive classes (#332)", () => {
 
   it("meets the 44px minimum touch target on the action buttons", () => {
     render(<DisputeRaiseModal {...defaultProps} />);
-    expect(screen.getByTestId("dispute-raise-modal-confirm")).toHaveClass(
-      "min-h-[44px]",
-    );
-    expect(screen.getByTestId("dispute-raise-modal-cancel")).toHaveClass(
-      "min-h-[44px]",
-    );
+    expect(screen.getByTestId("dispute-raise-modal-confirm")).toHaveClass("min-h-[44px]");
+    expect(screen.getByTestId("dispute-raise-modal-cancel")).toHaveClass("min-h-[44px]");
   });
 
   it("meets the 44px minimum touch target on the close button", () => {
@@ -261,12 +249,8 @@ describe("DisputeRaiseModal responsive classes (#332)", () => {
 
   it("wraps long identifiers instead of forcing horizontal scroll", () => {
     render(<DisputeRaiseModal {...defaultProps} />);
-    expect(screen.getByTestId("dispute-raise-modal-job")).toHaveClass(
-      "break-all",
-    );
-    expect(screen.getByTestId("dispute-raise-modal-counterparty")).toHaveClass(
-      "break-all",
-    );
+    expect(screen.getByTestId("dispute-raise-modal-job")).toHaveClass("break-all");
+    expect(screen.getByTestId("dispute-raise-modal-counterparty")).toHaveClass("break-all");
   });
 
   it("keeps summary cells shrinkable so truncation can engage", () => {
@@ -317,10 +301,7 @@ describe("DisputeRaiseModal at varying viewport sizes (#332)", () => {
     render(<DisputeRaiseModal {...defaultProps} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId(MODAL)).toHaveAttribute(
-        "data-viewport",
-        "mobile",
-      );
+      expect(screen.getByTestId(MODAL)).toHaveAttribute("data-viewport", "mobile");
     });
     expect(screen.getByTestId(PANEL)).toHaveAttribute("data-full-width", "true");
     expect(screen.getByTestId(ACTIONS)).toHaveAttribute("data-stacked", "true");
@@ -332,10 +313,7 @@ describe("DisputeRaiseModal at varying viewport sizes (#332)", () => {
     render(<DisputeRaiseModal {...defaultProps} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId(MODAL)).toHaveAttribute(
-        "data-viewport",
-        "mobile",
-      );
+      expect(screen.getByTestId(MODAL)).toHaveAttribute("data-viewport", "mobile");
     });
   });
 
@@ -344,15 +322,9 @@ describe("DisputeRaiseModal at varying viewport sizes (#332)", () => {
     render(<DisputeRaiseModal {...defaultProps} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId(MODAL)).toHaveAttribute(
-        "data-viewport",
-        "tablet",
-      );
+      expect(screen.getByTestId(MODAL)).toHaveAttribute("data-viewport", "tablet");
     });
-    expect(screen.getByTestId(PANEL)).toHaveAttribute(
-      "data-full-width",
-      "false",
-    );
+    expect(screen.getByTestId(PANEL)).toHaveAttribute("data-full-width", "false");
     expect(screen.getByTestId(ACTIONS)).toHaveAttribute("data-stacked", "false");
     expect(screen.getByTestId(SUMMARY)).toHaveAttribute("data-columns", "2");
   });
@@ -362,15 +334,9 @@ describe("DisputeRaiseModal at varying viewport sizes (#332)", () => {
     render(<DisputeRaiseModal {...defaultProps} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId(MODAL)).toHaveAttribute(
-        "data-viewport",
-        "desktop",
-      );
+      expect(screen.getByTestId(MODAL)).toHaveAttribute("data-viewport", "desktop");
     });
-    expect(screen.getByTestId(PANEL)).toHaveAttribute(
-      "data-max-width",
-      "lg:max-w-2xl",
-    );
+    expect(screen.getByTestId(PANEL)).toHaveAttribute("data-max-width", "lg:max-w-2xl");
   });
 
   it("restacks when the viewport shrinks from desktop to mobile", async () => {
@@ -378,18 +344,12 @@ describe("DisputeRaiseModal at varying viewport sizes (#332)", () => {
     render(<DisputeRaiseModal {...defaultProps} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId(MODAL)).toHaveAttribute(
-        "data-viewport",
-        "desktop",
-      );
+      expect(screen.getByTestId(MODAL)).toHaveAttribute("data-viewport", "desktop");
     });
 
     setViewportWidth(WIDTHS.phone);
     await waitFor(() => {
-      expect(screen.getByTestId(MODAL)).toHaveAttribute(
-        "data-viewport",
-        "mobile",
-      );
+      expect(screen.getByTestId(MODAL)).toHaveAttribute("data-viewport", "mobile");
     });
     expect(screen.getByTestId(ACTIONS)).toHaveAttribute("data-stacked", "true");
   });
@@ -527,9 +487,7 @@ describe("DisputeRaiseModal at varying viewport sizes (#332)", () => {
 
 describe("DisputeRaiseModal behaviour (#332)", () => {
   it("renders nothing when closed", () => {
-    const { container } = render(
-      <DisputeRaiseModal {...defaultProps} isOpen={false} />,
-    );
+    const { container } = render(<DisputeRaiseModal {...defaultProps} isOpen={false} />);
     expect(screen.queryByTestId(MODAL)).not.toBeInTheDocument();
     expect(container).toBeEmptyDOMElement();
   });
@@ -540,27 +498,18 @@ describe("DisputeRaiseModal behaviour (#332)", () => {
     expect(modal).toHaveAttribute("role", "dialog");
     expect(modal).toHaveAttribute("aria-modal", "true");
     // #375 scopes the dialog label to the milestone under dispute.
-    expect(modal).toHaveAttribute(
-      "aria-label",
-      "Raise dispute for Milestone 2",
-    );
+    expect(modal).toHaveAttribute("aria-label", "Raise dispute for Milestone 2");
   });
 
   it("renders the dispute summary values", () => {
     render(<DisputeRaiseModal {...defaultProps} />);
-    expect(screen.getByTestId("dispute-raise-modal-amount")).toHaveTextContent(
-      "500 USDC",
-    );
-    expect(
-      screen.getByTestId("dispute-raise-modal-milestone"),
-    ).toHaveTextContent("#2");
+    expect(screen.getByTestId("dispute-raise-modal-amount")).toHaveTextContent("500 USDC");
+    expect(screen.getByTestId("dispute-raise-modal-milestone")).toHaveTextContent("#2");
   });
 
   it("labels a job-wide dispute when no milestone is given", () => {
     render(<DisputeRaiseModal {...defaultProps} milestoneIndex={null} />);
-    expect(
-      screen.getByTestId("dispute-raise-modal-milestone"),
-    ).toHaveTextContent("Whole job");
+    expect(screen.getByTestId("dispute-raise-modal-milestone")).toHaveTextContent("Whole job");
   });
 
   it("calls onClose from the cancel button", () => {
@@ -617,9 +566,7 @@ describe("DisputeRaiseModal behaviour (#332)", () => {
   });
 
   it("renders a provider error message", () => {
-    render(
-      <DisputeRaiseModal {...defaultProps} errorMessage="Contract reverted" />,
-    );
+    render(<DisputeRaiseModal {...defaultProps} errorMessage="Contract reverted" />);
     const error = screen.getByTestId("dispute-raise-modal-error");
     expect(error).toHaveTextContent("Contract reverted");
     expect(error).toHaveAttribute("role", "alert");

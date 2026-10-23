@@ -41,16 +41,8 @@ export default function FreelancerClaimPanel({
   claimableAmount = "0.00 USDC",
   className = "",
 }: FreelancerClaimPanelProps) {
-  if (
-    currentWalletAddress !== undefined ||
-    role !== undefined ||
-    freelancerAddress !== undefined
-  ) {
-    const access = resolveFreelancerClaimAccess(
-      currentWalletAddress,
-      role,
-      freelancerAddress,
-    );
+  if (currentWalletAddress !== undefined || role !== undefined || freelancerAddress !== undefined) {
+    const access = resolveFreelancerClaimAccess(currentWalletAddress, role, freelancerAddress);
     if (!access.allowed) {
       return (
         <div
@@ -59,9 +51,7 @@ export default function FreelancerClaimPanel({
           data-testid="freelancer-claim-panel-unauthorized"
           className={`rounded-xl border border-danger/40 bg-danger/10 p-6 text-center text-danger-soft ${className}`}
         >
-          <h3 className="text-base font-semibold text-text-primary">
-            Access Restricted
-          </h3>
+          <h3 className="text-base font-semibold text-text-primary">Access Restricted</h3>
           <p className="mt-2 text-sm text-danger-soft">{access.warning}</p>
         </div>
       );
@@ -88,22 +78,14 @@ export default function FreelancerClaimPanel({
     >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h3 className="text-base font-semibold text-text-primary">
-            Freelancer Payout Claim
-          </h3>
-          {jobId && (
-            <p className="text-xs text-text-secondary font-mono mt-1">
-              Job ID: {jobId}
-            </p>
-          )}
+          <h3 className="text-base font-semibold text-text-primary">Freelancer Payout Claim</h3>
+          {jobId && <p className="text-xs text-text-secondary font-mono mt-1">Job ID: {jobId}</p>}
         </div>
         <div className="text-right">
           <span className="text-xs uppercase tracking-wide text-text-secondary block">
             Available to Claim
           </span>
-          <span className="text-lg font-bold text-text-primary">
-            {claimableAmount}
-          </span>
+          <span className="text-lg font-bold text-text-primary">{claimableAmount}</span>
         </div>
       </div>
 

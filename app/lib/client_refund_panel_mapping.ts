@@ -19,12 +19,7 @@ export interface ClientRefundEntry {
   createdAt: string;
 }
 
-const STATUSES: readonly RefundStatus[] = [
-  "pending",
-  "approved",
-  "rejected",
-  "refunded",
-];
+const STATUSES: readonly RefundStatus[] = ["pending", "approved", "rejected", "refunded"];
 
 export const CLIENT_REFUND_ENDPOINT = "/api/client/refunds";
 
@@ -66,11 +61,7 @@ export const MOCK_REFUND_PAYLOAD: unknown[] = [
 ];
 
 function str(v: unknown): string {
-  return typeof v === "string"
-    ? v.trim()
-    : typeof v === "number"
-      ? String(v)
-      : "";
+  return typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "";
 }
 
 /** Map one raw backend record; returns null when it lacks an id or is not an object. */
@@ -110,14 +101,12 @@ export function mapRefundPayload(payload: unknown): ClientRefundEntry[] {
         ? (payload as { data: unknown[] }).data
         : [];
 
-  return list
-    .map(mapRefundEntry)
-    .filter((e): e is ClientRefundEntry => e !== null);
+  return list.map(mapRefundEntry).filter((e): e is ClientRefundEntry => e !== null);
 }
 
 /** Fetch refund entries from the backend API. Throws on non-ok response. */
 export async function fetchRefundEntries(
-  url = CLIENT_REFUND_ENDPOINT,
+  url = CLIENT_REFUND_ENDPOINT
 ): Promise<ClientRefundEntry[]> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Failed to load refunds (${res.status})`);

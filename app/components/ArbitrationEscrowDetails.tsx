@@ -27,10 +27,6 @@ import {
   ARBITRATION_SKELETON_ARIA,
   getArbitrationSkeleton,
 } from "@/app/lib/arbitration_escrow_details_skeleton";
-import {
-  arbitrationContainsCodeTags,
-  sanitizeArbitrationComment,
-} from "@/app/lib/arbitration_escrow_details_sanitize";
 
 export interface ArbitrationEscrowDetailsProps {
   /** Dispute whose locked escrow should be shown. */
@@ -67,7 +63,7 @@ export default function ArbitrationEscrowDetails({
   actionError = null,
 }: ArbitrationEscrowDetailsProps) {
   const [record, setRecord] = useState<ArbitrationEscrowDetailsRecord | null>(
-    initialRecord ?? null,
+    initialRecord ?? null
   );
   const [loading, setLoading] = useState<boolean>(!initialRecord);
   const [confirmingAction, setConfirmingAction] = useState<string | null>(null);
@@ -190,9 +186,7 @@ export default function ArbitrationEscrowDetails({
           </svg>
         </div>
         <h3 className="text-lg font-semibold text-text-primary">Access Denied</h3>
-        <p className="mt-2 text-sm text-danger-soft">
-          {UNAUTHORIZED_ARBITRATION_WARNING}
-        </p>
+        <p className="mt-2 text-sm text-danger-soft">{UNAUTHORIZED_ARBITRATION_WARNING}</p>
         <p className="mt-2 text-xs text-text-secondary">
           {denialReason === "disconnected"
             ? "Connect the wallet that is a party on this dispute to view its details."
@@ -218,9 +212,7 @@ export default function ArbitrationEscrowDetails({
     >
       <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold text-text-primary">
-            Locked Escrow Details
-          </h2>
+          <h2 className="text-base font-semibold text-text-primary">Locked Escrow Details</h2>
           {badge && (
             <span
               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.className}`}
@@ -251,10 +243,7 @@ export default function ArbitrationEscrowDetails({
         data-testid="arbitration-escrow-details-grid"
       >
         {readouts.map((readout) => (
-          <div
-            key={readout.label}
-            className="min-w-0 rounded-lg bg-surface-field px-3 py-2.5"
-          >
+          <div key={readout.label} className="min-w-0 rounded-lg bg-surface-field px-3 py-2.5">
             <span className="block text-[11px] font-medium uppercase tracking-wide text-text-secondary">
               {readout.label}
             </span>
@@ -292,7 +281,8 @@ export default function ArbitrationEscrowDetails({
               Confirm Action: {confirmingAction}
             </h2>
             <p className="text-sm text-gray-400">
-              Please double-confirm before signing the transaction for action &quot;{confirmingAction}&quot;.
+              Please double-confirm before signing the transaction for action &quot;
+              {confirmingAction}&quot;.
             </p>
             <label className="flex items-start gap-2 text-sm text-gray-300">
               <input
@@ -329,4 +319,3 @@ export default function ArbitrationEscrowDetails({
     </section>
   );
 }
-

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import AdminPage from "@/app/admin/page";
+import AdminPage from "@/app/(app)/admin/page";
 import {
   buildWhitelistCsv,
   downloadWhitelistCsv,
@@ -40,7 +40,7 @@ function stubFetch(data: string[]) {
     vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ success: true, data }),
-    }),
+    })
   );
 }
 
@@ -65,9 +65,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("admin_whitelist_panel CSV helpers", () => {
   it("builds rows with a header and correct cell values", () => {
-    expect(buildWhitelistCsv(["CAAA", "CBBB"])).toBe(
-      "#,Token Address\r\n1,CAAA\r\n2,CBBB",
-    );
+    expect(buildWhitelistCsv(["CAAA", "CBBB"])).toBe("#,Token Address\r\n1,CAAA\r\n2,CBBB");
     expect(buildWhitelistCsv([])).toBe("#,Token Address");
   });
 
@@ -79,7 +77,7 @@ describe("admin_whitelist_panel CSV helpers", () => {
 
   it("builds a dated filename", () => {
     expect(whitelistExportFilename(new Date("2026-09-25T10:00:00Z"))).toBe(
-      "whitelisted-tokens-2026-09-25.csv",
+      "whitelisted-tokens-2026-09-25.csv"
     );
   });
 
@@ -88,12 +86,12 @@ describe("admin_whitelist_panel CSV helpers", () => {
     const createUrl = vi.fn((b: Blob) => ((blob = b), "blob:x"));
     const revoke = vi.fn();
     vi.stubGlobal("URL", { createObjectURL: createUrl, revokeObjectURL: revoke });
-    const click = vi
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(function (this: HTMLAnchorElement) {
-        expect(this.download).toBe("tokens.csv");
-        expect(this.href).toContain("blob:x");
-      });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement
+    ) {
+      expect(this.download).toBe("tokens.csv");
+      expect(this.href).toContain("blob:x");
+    });
 
     downloadWhitelistCsv(["CAAA", "CBBB"], "tokens.csv");
 
@@ -116,9 +114,7 @@ describe("admin_whitelist_panel toast builders", () => {
       message: "Failed to remove token CTOKEN1: boom",
     });
     expect(whitelistExportEmptyToast().type).toBe("warning");
-    expect(whitelistExportSuccessToast(1).message).toBe(
-      "Exported 1 whitelisted token.",
-    );
+    expect(whitelistExportSuccessToast(1).message).toBe("Exported 1 whitelisted token.");
   });
 });
 
@@ -131,9 +127,7 @@ describe("AdminPage whitelist panel", () => {
     expect(screen.getByRole("main").className).toContain("max-w-5xl");
     // The address sits inside the truncating label column (#529 adds the
     // token symbol above it).
-    expect(screen.getByText("CTOKEN1").parentElement?.className).toContain(
-      "min-w-0",
-    );
+    expect(screen.getByText("CTOKEN1").parentElement?.className).toContain("min-w-0");
   });
 
   it("toasts success after adding a token", async () => {
@@ -146,10 +140,7 @@ describe("AdminPage whitelist panel", () => {
     confirmPendingAction();
 
     await waitFor(() =>
-      expect(mockShowToast).toHaveBeenCalledWith(
-        "Token CNEW added to the whitelist.",
-        "success",
-      ),
+      expect(mockShowToast).toHaveBeenCalledWith("Token CNEW added to the whitelist.", "success")
     );
   });
 
@@ -163,37 +154,29 @@ describe("AdminPage whitelist panel", () => {
     await waitFor(() =>
       expect(mockShowToast).toHaveBeenCalledWith(
         expect.stringContaining("Failed to remove token CTOKEN1"),
-        "error",
-      ),
+        "error"
+      )
     );
   });
 
   it("exports the CSV and toasts; warns when the list is empty", async () => {
     const createUrl = vi.fn(() => "blob:x");
     vi.stubGlobal("URL", { createObjectURL: createUrl, revokeObjectURL: vi.fn() });
-    const click = vi
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(() => {});
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 
     const { unmount } = renderAdmin();
     await screen.findByText("CTOKEN1");
     fireEvent.click(screen.getByRole("button", { name: /export csv/i }));
     expect(createUrl).toHaveBeenCalledOnce();
     expect(click).toHaveBeenCalledOnce();
-    expect(mockShowToast).toHaveBeenCalledWith(
-      "Exported 2 whitelisted tokens.",
-      "success",
-    );
+    expect(mockShowToast).toHaveBeenCalledWith("Exported 2 whitelisted tokens.", "success");
     unmount();
 
     renderAdmin([]);
     await screen.findByText(/no whitelisted tokens found/i);
     fireEvent.click(screen.getByRole("button", { name: /export csv/i }));
     expect(createUrl).toHaveBeenCalledOnce();
-    expect(mockShowToast).toHaveBeenLastCalledWith(
-      "No whitelisted tokens to export.",
-      "warning",
-    );
+    expect(mockShowToast).toHaveBeenLastCalledWith("No whitelisted tokens to export.", "warning");
     click.mockRestore();
   });
 
@@ -205,8 +188,8 @@ describe("AdminPage whitelist panel", () => {
     await waitFor(() =>
       expect(mockShowToast).toHaveBeenCalledWith(
         "Could not connect to backend to load whitelist.",
-        "error",
-      ),
+        "error"
+      )
     );
   });
 });

@@ -42,7 +42,7 @@ interface QueryResult {
  */
 export function useResolutionDispute(
   disputeId: string,
-  options: UseResolutionDisputeOptions = {},
+  options: UseResolutionDisputeOptions = {}
 ): ResolutionDisputeQuery {
   const { apiUrl, initialData } = options;
   const skip = initialData !== undefined;

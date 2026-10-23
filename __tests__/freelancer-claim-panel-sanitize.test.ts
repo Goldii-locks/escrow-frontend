@@ -8,27 +8,19 @@ import {
 
 describe("freelancer_claim_panel form input sanitization (#492)", () => {
   it("detects code tags and script injections", () => {
-    expect(freelancerClaimContainsCodeTags("<script>alert(1)</script>")).toBe(
-      true,
-    );
-    expect(freelancerClaimContainsCodeTags("<img src=x onerror=alert(1)>")).toBe(
-      true,
-    );
+    expect(freelancerClaimContainsCodeTags("<script>alert(1)</script>")).toBe(true);
+    expect(freelancerClaimContainsCodeTags("<img src=x onerror=alert(1)>")).toBe(true);
     expect(freelancerClaimContainsCodeTags("javascript:alert(1)")).toBe(true);
     expect(freelancerClaimContainsCodeTags("<svg onload=alert(1)>")).toBe(true);
-    expect(
-      freelancerClaimContainsCodeTags("Standard delivery invoice note"),
-    ).toBe(false);
+    expect(freelancerClaimContainsCodeTags("Standard delivery invoice note")).toBe(false);
   });
 
   it("asserts form ignores input containing code tags in claim notes (#492)", () => {
     expect(sanitizeClaimNote("<script>evil()</script>")).toBe("");
-    expect(sanitizeClaimNote("Deliverable completed <iframe src=evil>")).toBe(
-      "",
-    );
+    expect(sanitizeClaimNote("Deliverable completed <iframe src=evil>")).toBe("");
     expect(sanitizeClaimNote("javascript:void(0)")).toBe("");
     expect(sanitizeClaimNote("All tasks completed as agreed.")).toBe(
-      "All tasks completed as agreed.",
+      "All tasks completed as agreed."
     );
   });
 

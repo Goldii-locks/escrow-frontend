@@ -71,10 +71,7 @@ export interface ArbiterPanelPlaceholderProps {
  * handed to the panel, a job with no disputed milestones, or a job with no
  * milestones at all. Announced politely as a status, never as an error.
  */
-export function ArbiterPanelPlaceholder({
-  variant,
-  className = "",
-}: ArbiterPanelPlaceholderProps) {
+export function ArbiterPanelPlaceholder({ variant, className = "" }: ArbiterPanelPlaceholderProps) {
   const copy = ARBITER_EMPTY_COPY[variant];
   const titleId = `${useId()}-title`;
 
@@ -226,10 +223,7 @@ function ArbiterActionPanelBody({
       aria-busy={isPending}
       className={`${ARBITER_PANEL_CLASSES.container} ${ARBITER_PANEL_MOTION.enter} ${ARBITER_PANEL_MOTION.stateTint} ${className}`}
     >
-      <div
-        data-testid="arbiter-panel-scroll"
-        className={ARBITER_PANEL_CLASSES.scrollableContent}
-      >
+      <div data-testid="arbiter-panel-scroll" className={ARBITER_PANEL_CLASSES.scrollableContent}>
         <h3 id={ids.heading} className={ARBITER_PANEL_CLASSES.title}>
           Resolve dispute — Milestone {milestoneNumber}
         </h3>
@@ -261,9 +255,7 @@ function ArbiterActionPanelBody({
           disabled={controlsDisabled}
           className={ARBITER_PANEL_CLASSES.fieldset}
         >
-          <legend className={ARBITER_PANEL_CLASSES.legend}>
-            Outcome
-          </legend>
+          <legend className={ARBITER_PANEL_CLASSES.legend}>Outcome</legend>
           <div
             data-testid="arbiter-outcome-grid"
             data-columns={layout.outcomeColumns}
@@ -339,10 +331,7 @@ function ArbiterActionPanelBody({
         </div>
 
         {resolveState && resolveState.phase !== "idle" && (
-          <div
-            data-testid="arbiter-panel-status"
-            className={ARBITER_PANEL_MOTION.status}
-          >
+          <div data-testid="arbiter-panel-status" className={ARBITER_PANEL_MOTION.status}>
             <TxStatusBanner
               state={resolveState}
               successMessage="Dispute resolved successfully. Funds have been distributed."

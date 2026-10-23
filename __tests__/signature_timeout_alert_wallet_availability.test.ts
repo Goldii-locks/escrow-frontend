@@ -190,10 +190,7 @@ describe("signature_timeout_alert warnOnMissingSignatureAlertWallet (#243)", () 
 
     expect(state.available).toBe(false);
     expect(showToast).toHaveBeenCalledTimes(1);
-    expect(showToast).toHaveBeenCalledWith(
-      SIGNATURE_ALERT_SETUP_INSTRUCTION,
-      "warning"
-    );
+    expect(showToast).toHaveBeenCalledWith(SIGNATURE_ALERT_SETUP_INSTRUCTION, "warning");
   });
 
   it("does not call showToast when the wallet is available", () => {

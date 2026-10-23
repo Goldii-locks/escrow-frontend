@@ -18,11 +18,7 @@ describe("freelancer_claim_panel", () => {
 
   it("renders panel elements when loading is complete", () => {
     render(
-      <FreelancerClaimPanel
-        isLoading={false}
-        jobId="JOB-123"
-        claimableAmount="150.00 USDC"
-      />
+      <FreelancerClaimPanel isLoading={false} jobId="JOB-123" claimableAmount="150.00 USDC" />
     );
 
     expect(screen.getByTestId("freelancer-claim-panel")).toBeInTheDocument();

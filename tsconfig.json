@@ -30,10 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": [
-    "node_modules",
-    "**/*.stories.tsx",
-    "**/*.stories.ts"
-  ]
+  "exclude": ["node_modules", "**/*.stories.tsx", "**/*.stories.ts"]
 }
-

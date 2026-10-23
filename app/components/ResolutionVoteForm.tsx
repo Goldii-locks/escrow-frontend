@@ -183,7 +183,7 @@ function defaultOptionId(data: ResolutionDisputeData): string {
   const matching = data.voteOptions.find(
     (o) =>
       o.clientBps === data.currentSplit.clientBps &&
-      o.freelancerBps === data.currentSplit.freelancerBps,
+      o.freelancerBps === data.currentSplit.freelancerBps
   );
   return matching?.id ?? data.voteOptions[0]?.id ?? CUSTOM_VOTE_OPTION_ID;
 }
@@ -364,7 +364,10 @@ function VoteFormBody({ data, onSubmitVote, nowMs, className }: VoteFormBodyProp
         </div>
         <div className="min-w-0">
           <dt className="text-gray-500">Current split</dt>
-          <dd className="font-medium text-white truncate" data-testid="resolution-vote-current-split">
+          <dd
+            className="font-medium text-white truncate"
+            data-testid="resolution-vote-current-split"
+          >
             Client {formatBpsAsPercent(data.currentSplit.clientBps)} / Freelancer{" "}
             {formatBpsAsPercent(data.currentSplit.freelancerBps)}
           </dd>
@@ -452,7 +455,10 @@ function VoteFormBody({ data, onSubmitVote, nowMs, className }: VoteFormBodyProp
               placeholder="Explain the reasoning behind this split (plain text)"
             />
             {rationaleHasMarkup && (
-              <p className="mt-1 text-xs text-amber-300" data-testid="resolution-vote-markup-warning">
+              <p
+                className="mt-1 text-xs text-amber-300"
+                data-testid="resolution-vote-markup-warning"
+              >
                 HTML and scripts are not allowed and will be removed before submission.
               </p>
             )}

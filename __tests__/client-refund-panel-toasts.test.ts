@@ -33,8 +33,7 @@ describe("client_refund_panel toasts (#506)", () => {
   it("builds an error toast carrying the backend reason", () => {
     expect(refundErrorToast("ABCDEFGHIJKLMNOP", "escrow already refunded")).toEqual({
       type: "error",
-      message:
-        "Failed to request refund for escrow ABCD…MNOP: escrow already refunded",
+      message: "Failed to request refund for escrow ABCD…MNOP: escrow already refunded",
     });
   });
 
@@ -61,11 +60,9 @@ describe("client_refund_panel toasts (#506)", () => {
 
   it("surfaces the caller's reason in the amount and not-ready warnings", () => {
     expect(refundAmountInvalidToast("must be greater than zero").message).toContain(
-      "must be greater than zero",
+      "must be greater than zero"
     );
-    expect(refundNotReadyToast("milestone still open").message).toContain(
-      "milestone still open",
-    );
+    expect(refundNotReadyToast("milestone still open").message).toContain("milestone still open");
   });
 
   it("prompts the user to connect a wallet", () => {

@@ -5,12 +5,8 @@ import "./landing.css";
 import LandingNav from "@/app/components/LandingNav";
 import LandingLogo from "@/app/components/LandingLogo";
 import LandingArrow from "@/app/components/LandingArrow";
-import { CONTRACT_ID, NETWORK_PASSPHRASE } from "@/app/lib/contract";
-import {
-  networkProseName,
-  stellarExpertContractUrl,
-  truncateContractId,
-} from "@/app/lib/network";
+import { CONTRACT_ID, NETWORK_PASSPHRASE } from "@/app/lib/network_config";
+import { networkProseName, stellarExpertContractUrl, truncateContractId } from "@/app/lib/network";
 
 const CONTRACT_REPO = "https://github.com/Goldii-locks/escrow-contract";
 
@@ -112,9 +108,9 @@ export default function Home() {
             what it starts.
           </h1>
           <p className="landing-lede">
-            Funds lock into a Stellar smart contract the moment work begins, and release
-            the moment it&apos;s approved. No wire transfers, no chasing invoices, no
-            intermediary holding your money.
+            Funds lock into a Stellar smart contract the moment work begins, and release the moment
+            it&apos;s approved. No wire transfers, no chasing invoices, no intermediary holding your
+            money.
           </p>
           <div className="landing-hero-actions">
             <Link href="/dashboard" className="landing-cta landing-cta-gold landing-cta-lg">
@@ -337,8 +333,8 @@ export default function Home() {
             </h2>
           </div>
           <p className="landing-section-aside">
-            Each step emits an event to the Stellar ledger. Both sides read the same
-            record, and so can anyone auditing.
+            Each step emits an event to the Stellar ledger. Both sides read the same record, and so
+            can anyone auditing.
           </p>
         </div>
 
@@ -354,9 +350,9 @@ export default function Home() {
             </div>
             <h3 className="landing-step-title landing-serif">Create &amp; fund</h3>
             <p className="landing-step-body">
-              The contract records each milestone&apos;s amount, then takes
-              custody of the funds. They leave the client&apos;s wallet but never reach
-              the provider&apos;s. They sit in the contract.
+              The contract records each milestone&apos;s amount, then takes custody of the funds.
+              They leave the client&apos;s wallet but never reach the provider&apos;s. They sit in
+              the contract.
             </p>
             <div className="landing-step-emits landing-mono" style={{ color: "#F0B90A" }}>
               emits init &middot; fund
@@ -375,8 +371,8 @@ export default function Home() {
             <h3 className="landing-step-title landing-serif">Deliver work</h3>
             <p className="landing-step-body">
               The provider marks the milestone delivered. The ledger timestamps it and the
-              auto-release window opens. The client can extend it, and each extension is
-              recorded on-chain.
+              auto-release window opens. The client can extend it, and each extension is recorded
+              on-chain.
             </p>
             <div className="landing-step-emits landing-mono" style={{ color: "#1FBAA6" }}>
               emits deliver
@@ -394,9 +390,8 @@ export default function Home() {
             </div>
             <h3 className="landing-step-title landing-serif">Approve &amp; release</h3>
             <p className="landing-step-body">
-              Approval moves the funds in the same transaction. Partial approval is
-              supported, so a milestone can settle proportionally instead of
-              all-or-nothing.
+              Approval moves the funds in the same transaction. Partial approval is supported, so a
+              milestone can settle proportionally instead of all-or-nothing.
             </p>
             <div className="landing-step-emits landing-mono" style={{ color: "#B9A7E6" }}>
               emits approve
@@ -415,8 +410,8 @@ export default function Home() {
             </h2>
           </div>
           <p className="landing-section-aside">
-            Escrow only matters when a deal sours. Here is exactly what the contract does
-            then, including the parts that require trusting us.
+            Escrow only matters when a deal sours. Here is exactly what the contract does then,
+            including the parts that require trusting us.
           </p>
         </div>
 
@@ -424,58 +419,56 @@ export default function Home() {
           <div className="landing-card">
             <h3>The client never approves.</h3>
             <p>
-              Once a milestone is delivered, an auto-release window starts. If it closes
-              without approval, the provider can claim auto-release directly from the
-              contract, with no counter-signature needed. This applies to delivered
-              milestones, not to partially released ones.
+              Once a milestone is delivered, an auto-release window starts. If it closes without
+              approval, the provider can claim auto-release directly from the contract, with no
+              counter-signature needed. This applies to delivered milestones, not to partially
+              released ones.
             </p>
           </div>
 
           <div className="landing-card">
             <h3>You genuinely disagree.</h3>
             <p>
-              Either side can raise a dispute. Resolution can split a milestone between
-              both parties, so a half-finished job doesn&apos;t have to end in a total loss
-              for someone.
+              Either side can raise a dispute. Resolution can split a milestone between both
+              parties, so a half-finished job doesn&apos;t have to end in a total loss for someone.
             </p>
           </div>
 
           <div className="landing-card">
             <h3>The work needs more time.</h3>
             <p>
-              The client can extend a milestone&apos;s deadline with their signature alone,
-              and can do so repeatedly. Every extension is recorded on-chain, but the
-              provider&apos;s consent is not required today.
+              The client can extend a milestone&apos;s deadline with their signature alone, and can
+              do so repeatedly. Every extension is recorded on-chain, but the provider&apos;s
+              consent is not required today.
             </p>
           </div>
 
           <div className="landing-card landing-card-flag">
             <h3>Who can touch the funds.</h3>
             <p>
-              Milestone never custodies your money. The contract does. But an admin key
-              exists and can pause the contract or force a release or refund. We&apos;d
-              rather say so plainly than let you find it in the source.
+              Milestone never custodies your money. The contract does. But an admin key exists and
+              can pause the contract or force a release or refund. We&apos;d rather say so plainly
+              than let you find it in the source.
             </p>
           </div>
 
           <div className="landing-card">
             <h3>Why that key is bounded.</h3>
             <p>
-              Admin transfers are proposed and executed in separate steps, and every
-              action emits an event you can audit on the ledger. Admin overrides and
-              contract upgrades are currently authorized by the admin key alone, not by
-              a multisig.
+              Admin transfers are proposed and executed in separate steps, and every action emits an
+              event you can audit on the ledger. Admin overrides and contract upgrades are currently
+              authorized by the admin key alone, not by a multisig.
             </p>
           </div>
 
           <div className="landing-card">
             <h3>What it costs.</h3>
             <p>
-              A platform fee allocation is set in the contract. A locked allocation can
-              still be changed by the admin, so treat it as a stated policy rather than a
-              guarantee. No fee while we&apos;re on testnet. At mainnet
-              launch, <span className="landing-fee-rate">1% of each milestone</span>, taken
-              only from a successful release, never from funds still in escrow or a refund.
+              A platform fee allocation is set in the contract. A locked allocation can still be
+              changed by the admin, so treat it as a stated policy rather than a guarantee. No fee
+              while we&apos;re on testnet. At mainnet launch,{" "}
+              <span className="landing-fee-rate">1% of each milestone</span>, taken only from a
+              successful release, never from funds still in escrow or a refund.
             </p>
           </div>
         </div>
@@ -495,8 +488,8 @@ export default function Home() {
             first <em>milestone</em>?
           </h2>
           <p className="landing-cta-lede">
-            Set up an escrow in minutes. Funded, timestamped and enforced by the contract,
-            not a promise.
+            Set up an escrow in minutes. Funded, timestamped and enforced by the contract, not a
+            promise.
           </p>
           <Link href="/dashboard" className="landing-cta landing-cta-xl">
             Launch App
@@ -512,8 +505,7 @@ export default function Home() {
         <div className="landing-footer-brand">
           <LandingLogo size={17} color="#8A92A6" full={false} />
           <span>
-            &copy; 2026 Milestone. Running on Stellar{" "}
-            {networkProseName(NETWORK_PASSPHRASE)}.
+            &copy; 2026 Milestone. Running on Stellar {networkProseName(NETWORK_PASSPHRASE)}.
           </span>
         </div>
         <div className="landing-footer-links">

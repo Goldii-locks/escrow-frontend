@@ -15,22 +15,19 @@ describe("NetworkSyncWalletWarningBanner (#153)", () => {
     const banner = screen.getByTestId("network-sync-wallet-warning-banner");
     expect(banner).toBeInTheDocument();
     expect(banner).toHaveAttribute("role", "alert");
-    expect(
-      screen.getByTestId("network-sync-wallet-setup-instruction")
-    ).toHaveTextContent(WALLET_SETUP_INSTRUCTION);
-    expect(
-      screen.getByTestId("network-sync-wallet-install-link")
-    ).toHaveAttribute("href", WALLET_INSTALL_URL);
+    expect(screen.getByTestId("network-sync-wallet-setup-instruction")).toHaveTextContent(
+      WALLET_SETUP_INSTRUCTION
+    );
+    expect(screen.getByTestId("network-sync-wallet-install-link")).toHaveAttribute(
+      "href",
+      WALLET_INSTALL_URL
+    );
   });
 
   it("does not render when wallet is available", () => {
-    const { container } = render(
-      <NetworkSyncWalletWarningBanner detector={() => true} />
-    );
+    const { container } = render(<NetworkSyncWalletWarningBanner detector={() => true} />);
 
-    expect(
-      screen.queryByTestId("network-sync-wallet-warning-banner")
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("network-sync-wallet-warning-banner")).not.toBeInTheDocument();
     expect(container).toBeEmptyDOMElement();
   });
 
@@ -44,9 +41,9 @@ describe("NetworkSyncWalletWarningBanner (#153)", () => {
 
     render(<NetworkSyncWalletWarningBanner availability={availability} />);
 
-    expect(
-      screen.getByTestId("network-sync-wallet-setup-instruction")
-    ).toHaveTextContent(/No wallet extension detected/i);
+    expect(screen.getByTestId("network-sync-wallet-setup-instruction")).toHaveTextContent(
+      /No wallet extension detected/i
+    );
   });
 
   it("renders error-state instructions when availability check failed", () => {
@@ -60,9 +57,9 @@ describe("NetworkSyncWalletWarningBanner (#153)", () => {
     render(<NetworkSyncWalletWarningBanner availability={availability} />);
 
     expect(screen.getByRole("alert")).toBeInTheDocument();
-    expect(
-      screen.getByTestId("network-sync-wallet-setup-instruction")
-    ).toHaveTextContent(/Install a supported Stellar wallet/i);
+    expect(screen.getByTestId("network-sync-wallet-setup-instruction")).toHaveTextContent(
+      /Install a supported Stellar wallet/i
+    );
   });
 
   it("does not render when availability reports available", () => {
@@ -73,9 +70,7 @@ describe("NetworkSyncWalletWarningBanner (#153)", () => {
       warningMessage: null,
     };
 
-    const { container } = render(
-      <NetworkSyncWalletWarningBanner availability={availability} />
-    );
+    const { container } = render(<NetworkSyncWalletWarningBanner availability={availability} />);
 
     expect(container).toBeEmptyDOMElement();
   });

@@ -41,9 +41,7 @@ export const REFUND_PANEL_GRID_FULL_ROW_CLASS = "col-span-full";
 
 /** Column-span class for an item so it never exceeds the available columns. */
 export function getRefundPanelSpanClass(span: number, columns: 1 | 2 | 3): string {
-  const safe = Number.isFinite(span)
-    ? Math.min(Math.max(Math.floor(span), 1), columns)
-    : 1;
+  const safe = Number.isFinite(span) ? Math.min(Math.max(Math.floor(span), 1), columns) : 1;
   return `col-span-${safe}`;
 }
 

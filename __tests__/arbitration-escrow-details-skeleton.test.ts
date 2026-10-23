@@ -21,8 +21,6 @@ describe("arbitration_escrow_details loading skeletons (#481)", () => {
   it("defines standard accessibility ARIA attributes for the placeholder loader", () => {
     expect(ARBITRATION_SKELETON_ARIA.role).toBe("status");
     expect(ARBITRATION_SKELETON_ARIA["aria-busy"]).toBe(true);
-    expect(ARBITRATION_SKELETON_ARIA["aria-label"]).toBe(
-      "Loading locked escrow details",
-    );
+    expect(ARBITRATION_SKELETON_ARIA["aria-label"]).toBe("Loading locked escrow details");
   });
 });

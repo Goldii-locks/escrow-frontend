@@ -56,18 +56,21 @@ describe("DisputeHistoryTimeline", () => {
         currentWalletAddress="GSTRANGER"
         authorizedWallets={[WALLET]}
         initialEvents={MOCK_DISPUTE_HISTORY}
-      />,
+      />
     );
     expect(screen.getByTestId("dispute-timeline-unauthorized-warning")).toBeInTheDocument();
     expect(screen.queryByTestId("dispute-history-timeline")).not.toBeInTheDocument();
   });
 
   it("shows placeholder frames while the query runs (#441)", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {}))
+    );
     render(<DisputeHistoryTimeline disputeId="disp-101" currentWalletAddress={WALLET} />);
     expect(screen.getByTestId("dispute-timeline-loading-skeletons")).toHaveAttribute(
       "aria-busy",
-      "true",
+      "true"
     );
     expect(screen.getAllByLabelText("Timeline event placeholder")).toHaveLength(3);
   });
@@ -78,7 +81,7 @@ describe("DisputeHistoryTimeline", () => {
         disputeId="disp-101"
         currentWalletAddress={WALLET}
         initialEvents={[]}
-      />,
+      />
     );
     fireEvent.change(screen.getByLabelText(/add note/i), {
       target: { value: "<script>alert(1)</script>" },
@@ -93,7 +96,7 @@ describe("DisputeHistoryTimeline", () => {
         disputeId="disp-101"
         currentWalletAddress={WALLET}
         initialEvents={[]}
-      />,
+      />
     );
     fireEvent.change(screen.getByLabelText(/add note/i), {
       target: { value: "hello <code>evil()</code>" },
@@ -119,7 +122,7 @@ describe("DisputeHistoryTimeline grid layout and mock data (#448, #449)", () => 
         disputeId="disp-101"
         currentWalletAddress={WALLET}
         initialEvents={events}
-      />,
+      />
     );
 
   it("lays events out in a responsive grid", () => {
@@ -144,12 +147,12 @@ describe("DisputeHistoryTimeline grid layout and mock data (#448, #449)", () => 
   it("summarises the event count with singular and plural wording", () => {
     const { unmount } = renderWith();
     expect(screen.getByTestId("dispute-timeline-summary")).toHaveTextContent(
-      `Showing ${MOCK_DISPUTE_HISTORY.length} events`,
+      `Showing ${MOCK_DISPUTE_HISTORY.length} events`
     );
     unmount();
     renderWith([MOCK_DISPUTE_HISTORY[0]]);
     expect(screen.getByTestId("dispute-timeline-summary")).toHaveTextContent(
-      /Showing 1 event(?!s)/,
+      /Showing 1 event(?!s)/
     );
   });
 
@@ -166,7 +169,7 @@ describe("DisputeHistoryTimeline grid layout and mock data (#448, #449)", () => 
         currentWalletAddress={WALLET}
         initialEvents={MOCK_DISPUTE_HISTORY}
         isLoading
-      />,
+      />
     );
     expect(screen.getByTestId("dispute-timeline-loading-skeletons")).toBeInTheDocument();
     expect(screen.queryByText(MOCK_DISPUTE_HISTORY[0].title)).not.toBeInTheDocument();

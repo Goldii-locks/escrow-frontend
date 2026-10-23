@@ -23,7 +23,7 @@ export interface RefundConfirmCopy {
 export function getRefundConfirmCopy(
   step: RefundConfirmStep,
   amount: string,
-  token: string,
+  token: string
 ): RefundConfirmCopy {
   if (step === "review") {
     return {

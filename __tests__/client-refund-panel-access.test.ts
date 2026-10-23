@@ -39,9 +39,7 @@ describe("client_refund_panel access restrictions (#500)", () => {
     expect(getClientRefundFallbackMessage(allowed)).toBeNull();
 
     const denied = resolveClientRefundAccess(OTHER, "freelancer");
-    expect(getClientRefundFallbackMessage(denied)).toBe(
-      CLIENT_REFUND_UNAUTHORIZED_WARNING,
-    );
+    expect(getClientRefundFallbackMessage(denied)).toBe(CLIENT_REFUND_UNAUTHORIZED_WARNING);
   });
 
   it("guards client refund panel rendering with conditional wrapper", () => {
@@ -49,7 +47,7 @@ describe("client_refund_panel access restrictions (#500)", () => {
       guardClientRefundPanel(
         resolveClientRefundAccess(wallet, "client", CLIENT),
         () => "refund-content",
-        (warning) => `warning:${warning}`,
+        (warning) => `warning:${warning}`
       );
 
     expect(render(CLIENT)).toBe("refund-content");

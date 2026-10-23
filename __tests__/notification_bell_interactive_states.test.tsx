@@ -82,10 +82,7 @@ describe("notification_bell — disabled trigger (#321)", () => {
     fireEvent.keyDown(trigger, { key: "Enter" });
     fireEvent.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "false");
-    expect(screen.getByRole("dialog", { hidden: true })).toHaveProperty(
-      "hidden",
-      true
-    );
+    expect(screen.getByRole("dialog", { hidden: true })).toHaveProperty("hidden", true);
   });
 
   it("retains the unread badge and accessible name while disabled", () => {

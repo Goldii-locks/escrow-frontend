@@ -18,7 +18,9 @@ function MockPanel({ onToast }: { onToast: (t: { message: string; type: string }
   return (
     <section data-testid="panel" style={claimPanelGridStyle}>
       <div data-testid="cell" style={claimPanelGridItemStyle}>
-        <button onClick={() => (handleClaimExport([]) ? null : onToast(claimNothingToClaimToast()))}>
+        <button
+          onClick={() => (handleClaimExport([]) ? null : onToast(claimNothingToClaimToast()))}
+        >
           Export
         </button>
         <button onClick={() => onToast(claimSuccessToast("7"))}>Claim</button>

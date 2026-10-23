@@ -7,6 +7,8 @@
  * payload carrying a secret key, seed or auth token is rejected on parse.
  */
 
+import { getSafeStorage } from "@/app/lib/safe_storage";
+
 export const TX_SIGNER_STATE_VERSION = 1 as const;
 export const TX_SIGNER_STORAGE_KEY = "transaction_signer_active_session";
 
@@ -29,8 +31,7 @@ export interface TransactionSignerSession {
   connectedAt: number;
 }
 
-export interface TransactionSignerSerializedState
-  extends TransactionSignerSession {
+export interface TransactionSignerSerializedState extends TransactionSignerSession {
   version: typeof TX_SIGNER_STATE_VERSION;
 }
 
@@ -81,9 +82,7 @@ export function serializeSignerState(input: {
 }
 
 /** Validates a decoded payload, throwing {@link TransactionSignerStateParseError}. */
-export function validateSignerState(
-  value: unknown
-): TransactionSignerSerializedState {
+export function validateSignerState(value: unknown): TransactionSignerSerializedState {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new TransactionSignerStateParseError("expected object");
   }
@@ -91,9 +90,7 @@ export function validateSignerState(
   const record = value as Record<string, unknown>;
   for (const key of Object.keys(record)) {
     if (SENSITIVE_FIELD_PATTERN.test(key)) {
-      throw new TransactionSignerStateParseError(
-        `forbidden sensitive field "${key}"`
-      );
+      throw new TransactionSignerStateParseError(`forbidden sensitive field "${key}"`);
     }
   }
 
@@ -127,9 +124,7 @@ export function validateSignerState(
 }
 
 /** Parses a raw storage string into a validated session envelope. */
-export function parseSignerState(
-  raw: string
-): TransactionSignerSerializedState {
+export function parseSignerState(raw: string): TransactionSignerSerializedState {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -143,19 +138,9 @@ export interface TransactionSignerPersistOptions {
   storage?: StorageAdapter | null;
 }
 
-function resolveStorageAdapter(
-  storage?: StorageAdapter | null
-): StorageAdapter | null {
+function resolveStorageAdapter(storage?: StorageAdapter | null): StorageAdapter | null {
   if (storage !== undefined) return storage;
-  if (typeof window === "undefined") return null;
-  try {
-    const testKey = "__transaction_signer_storage_test__";
-    window.localStorage.setItem(testKey, "1");
-    window.localStorage.removeItem(testKey);
-    return window.localStorage;
-  } catch {
-    return null;
-  }
+  return getSafeStorage();
 }
 
 const EMPTY_STATE: TransactionSignerRestoredState = {
@@ -186,16 +171,10 @@ export function saveSignerState(
   if (!storage) return false;
 
   try {
-    storage.setItem(
-      TX_SIGNER_STORAGE_KEY,
-      JSON.stringify(serializeSignerState(input))
-    );
+    storage.setItem(TX_SIGNER_STORAGE_KEY, JSON.stringify(serializeSignerState(input)));
     return true;
   } catch (err) {
-    console.warn(
-      `${LOG_PREFIX} PERSIST FAILED`,
-      err instanceof Error ? err.message : String(err)
-    );
+    console.warn(`${LOG_PREFIX} PERSIST FAILED`, err instanceof Error ? err.message : String(err));
     return false;
   }
 }
@@ -235,9 +214,7 @@ export function loadSignerState(
     };
   } catch (err) {
     const message =
-      err instanceof TransactionSignerStateParseError
-        ? err.message
-        : "invalid persisted state";
+      err instanceof TransactionSignerStateParseError ? err.message : "invalid persisted state";
     try {
       storage.removeItem(TX_SIGNER_STORAGE_KEY);
     } catch {
@@ -249,9 +226,7 @@ export function loadSignerState(
 }
 
 /** Drops the persisted session (used on disconnect). */
-export function clearSignerState(
-  options?: TransactionSignerPersistOptions
-): boolean {
+export function clearSignerState(options?: TransactionSignerPersistOptions): boolean {
   const storage = resolveStorageAdapter(options?.storage);
   if (!storage) return false;
 
@@ -259,10 +234,7 @@ export function clearSignerState(
     storage.removeItem(TX_SIGNER_STORAGE_KEY);
     return true;
   } catch (err) {
-    console.warn(
-      `${LOG_PREFIX} CLEAR FAILED`,
-      err instanceof Error ? err.message : String(err)
-    );
+    console.warn(`${LOG_PREFIX} CLEAR FAILED`, err instanceof Error ? err.message : String(err));
     return false;
   }
 }
@@ -276,8 +248,7 @@ export class TransactionSignerSessionStore {
   private storage: StorageAdapter | null;
 
   constructor(storage?: StorageAdapter | null) {
-    this.storage =
-      storage !== undefined ? storage : resolveStorageAdapter(undefined);
+    this.storage = storage !== undefined ? storage : resolveStorageAdapter(undefined);
     this.memory = loadSignerState({ storage: this.storage });
   }
 

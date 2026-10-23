@@ -73,12 +73,8 @@ describe("contract_pause_switch export (#477)", () => {
 
   describe("csv formatting", () => {
     it("writes the header row", () => {
-      expect(CONTRACT_PAUSE_EXPORT_HEADERS.join(",")).toBe(
-        "Transition ID,At,By,To,Reason",
-      );
-      expect(buildContractPauseCsv([])).toBe(
-        "Transition ID,At,By,To,Reason",
-      );
+      expect(CONTRACT_PAUSE_EXPORT_HEADERS.join(",")).toBe("Transition ID,At,By,To,Reason");
+      expect(buildContractPauseCsv([])).toBe("Transition ID,At,By,To,Reason");
     });
 
     it("writes correct cell values for each transition", () => {
@@ -86,19 +82,17 @@ describe("contract_pause_switch export (#477)", () => {
 
       expect(header).toBe("Transition ID,At,By,To,Reason");
       expect(first).toBe(
-        "pause-002,2026-09-24T18:42:00Z,GADMIN3XQ7LKZP4V2M6YB9WDHRTC5FJN8AUE2HSVG6KCDY,frozen,Payout indexer reports duplicate release events for milestone 3.",
+        "pause-002,2026-09-24T18:42:00Z,GADMIN3XQ7LKZP4V2M6YB9WDHRTC5FJN8AUE2HSVG6KCDY,frozen,Payout indexer reports duplicate release events for milestone 3."
       );
       expect(second).toBe(
-        "pause-001,2026-09-21T07:15:00Z,GADMIN3XQ7LKZP4V2M6YB9WDHRTC5FJN8AUE2HSVG6KCDY,active,Freeze lifted after the entrypoint upgrade completed.",
+        "pause-001,2026-09-21T07:15:00Z,GADMIN3XQ7LKZP4V2M6YB9WDHRTC5FJN8AUE2HSVG6KCDY,active,Freeze lifted after the entrypoint upgrade completed."
       );
     });
 
     it("quotes a reason containing a comma", () => {
-      const csv = buildContractPauseCsv([
-        { ...ROWS[0], reason: "Indexer lag, milestone 3" },
-      ]);
+      const csv = buildContractPauseCsv([{ ...ROWS[0], reason: "Indexer lag, milestone 3" }]);
       expect(csv.split("\r\n")[1]).toBe(
-        'pause-002,2026-09-24T18:42:00Z,GADMIN3XQ7LKZP4V2M6YB9WDHRTC5FJN8AUE2HSVG6KCDY,frozen,"Indexer lag, milestone 3"',
+        'pause-002,2026-09-24T18:42:00Z,GADMIN3XQ7LKZP4V2M6YB9WDHRTC5FJN8AUE2HSVG6KCDY,frozen,"Indexer lag, milestone 3"'
       );
     });
 
@@ -144,7 +138,7 @@ describe("contract_pause_switch export (#477)", () => {
   describe("filenames", () => {
     it("builds a dated filename", () => {
       expect(contractPauseExportFilename(new Date("2026-09-28T10:00:00Z"))).toBe(
-        "contract-pause-history-2026-09-28.csv",
+        "contract-pause-history-2026-09-28.csv"
       );
     });
   });
@@ -184,11 +178,11 @@ describe("contract_pause_switch export (#477)", () => {
 
     it("downloads under the supplied filename and leaves no anchor behind", () => {
       const anchors: HTMLAnchorElement[] = [];
-      const spy = vi
-        .spyOn(HTMLAnchorElement.prototype, "click")
-        .mockImplementation(function (this: HTMLAnchorElement) {
-          anchors.push(this);
-        });
+      const spy = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+        this: HTMLAnchorElement
+      ) {
+        anchors.push(this);
+      });
 
       handleContractPauseExport(ROWS, "freeze.csv");
 
@@ -217,7 +211,7 @@ describe("contract_pause_switch export (#477)", () => {
       expect(handled).toBe(true);
       // `text()` strips the BOM, so compare against the CSV directly.
       expect(await created[0].text()).toBe(
-        buildContractPauseCsv(toContractPauseExportRows(MOCK_CONTRACT_PAUSE_TRANSITIONS)),
+        buildContractPauseCsv(toContractPauseExportRows(MOCK_CONTRACT_PAUSE_TRANSITIONS))
       );
     });
 

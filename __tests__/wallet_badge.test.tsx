@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import WalletBadge, {
-  formatAddress,
-  isValidStellarAddress,
-} from "@/app/components/WalletBadge";
+import WalletBadge, { formatAddress, isValidStellarAddress } from "@/app/components/WalletBadge";
 
 describe("formatAddress helper", () => {
   it("truncates standard Stellar public address to G...1234 format", () => {
@@ -125,17 +122,11 @@ describe("WalletBadge — connection states", () => {
   it("renders network mismatch state when networkMismatch prop is present", () => {
     const fullAddress = "GABC123456789012345678901234567890123456789012345678901234";
     render(
-      <WalletBadge
-        address={fullAddress}
-        networkMismatch="Network mismatch: App expects Testnet"
-      />
+      <WalletBadge address={fullAddress} networkMismatch="Network mismatch: App expects Testnet" />
     );
 
     const badge = screen.getByTestId("wallet-badge");
-    expect(badge).toHaveAttribute(
-      "aria-label",
-      `Wallet network mismatch ${fullAddress}`
-    );
+    expect(badge).toHaveAttribute("aria-label", `Wallet network mismatch ${fullAddress}`);
 
     const dot = screen.getByTestId("wallet-status-dot");
     expect(dot).toHaveAttribute("data-status", "mismatch");
@@ -153,7 +144,7 @@ describe("WalletBadge — validation field errors & indicators", () => {
     );
 
     const badge = screen.getByTestId("wallet-badge");
-    expect(badge).toHaveAttribute("aria-invalid", "true");
+    expect(badge).not.toHaveAttribute("aria-invalid");
 
     const fieldError = screen.getByTestId("wallet-field-error");
     expect(fieldError).toBeInTheDocument();
@@ -182,7 +173,7 @@ describe("WalletBadge — validation field errors & indicators", () => {
     render(<WalletBadge address="G123INVALID" validateAddress={true} />);
 
     const badge = screen.getByTestId("wallet-badge");
-    expect(badge).toHaveAttribute("aria-invalid", "true");
+    expect(badge).not.toHaveAttribute("aria-invalid");
     expect(screen.getByTestId("wallet-field-error")).toBeInTheDocument();
     expect(screen.getByTestId("wallet-error-text")).toHaveTextContent("Invalid Stellar address");
   });
@@ -262,7 +253,9 @@ describe("WalletBadge — alerts", () => {
     );
 
     expect(screen.getByTestId("wallet-field-error")).toBeInTheDocument();
-    expect(screen.getByTestId("wallet-error-text")).toHaveTextContent("Critical configuration error");
+    expect(screen.getByTestId("wallet-error-text")).toHaveTextContent(
+      "Critical configuration error"
+    );
     expect(screen.queryByTestId("wallet-alert-badge")).not.toBeInTheDocument();
   });
 });
@@ -282,9 +275,7 @@ describe("WalletBadge — provider tag & status dot options", () => {
   });
 
   it("omits provider tag when providerName is not supplied", () => {
-    render(
-      <WalletBadge address="GABC123456789012345678901234567890123456789012345678901234" />
-    );
+    render(<WalletBadge address="GABC123456789012345678901234567890123456789012345678901234" />);
 
     expect(screen.queryByTestId("wallet-provider-tag")).not.toBeInTheDocument();
   });
@@ -417,11 +408,6 @@ describe("WalletBadge — empty data states & placeholder elements", () => {
     render(<WalletBadge accounts={[]} emptyText="No accounts configured" />);
 
     const badge = screen.getByTestId("wallet-badge");
-    expect(badge).toHaveAttribute(
-      "aria-label",
-      "Wallet placeholder state: No accounts configured"
-    );
+    expect(badge).toHaveAttribute("aria-label", "Wallet placeholder state: No accounts configured");
   });
 });
-
-

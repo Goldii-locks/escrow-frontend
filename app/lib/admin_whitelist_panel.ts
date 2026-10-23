@@ -89,14 +89,11 @@ function toEntry(item: unknown): WhitelistEntry | null {
   if (!item || typeof item !== "object") return null;
 
   const o = item as Record<string, unknown>;
-  const rawAddress = [o.address, o.token, o.id].find(
-    (v): v is string => typeof v === "string",
-  );
+  const rawAddress = [o.address, o.token, o.id].find((v): v is string => typeof v === "string");
   const address = rawAddress ? sanitizeTokenAddress(rawAddress) : "";
   if (!address) return null;
 
-  const symbol =
-    typeof o.symbol === "string" ? sanitizeDisplayText(o.symbol) : "";
+  const symbol = typeof o.symbol === "string" ? sanitizeDisplayText(o.symbol) : "";
   const name = typeof o.name === "string" ? sanitizeDisplayText(o.name) : "";
   return {
     address,
@@ -109,12 +106,7 @@ function toEntry(item: unknown): WhitelistEntry | null {
 // Status badges (#434)
 // =============================================================
 
-export type WhitelistStatus =
-  | "active"
-  | "adding"
-  | "removing"
-  | "removed"
-  | "failed";
+export type WhitelistStatus = "active" | "adding" | "removing" | "removed" | "failed";
 
 export interface StatusBadge {
   status: WhitelistStatus;
@@ -161,10 +153,7 @@ export const STATUS_BADGES: Record<WhitelistStatus, StatusBadge> = {
 };
 
 /** Badge for a whitelisted token, derived from its remove-transaction state. */
-export function getTokenStatusBadge(state: {
-  phase: TxPhase;
-  error: string | null;
-}): StatusBadge {
+export function getTokenStatusBadge(state: { phase: TxPhase; error: string | null }): StatusBadge {
   switch (state.phase) {
     case "building":
     case "signing":
@@ -199,9 +188,7 @@ export function getAddStatusBadge(phase: TxPhase): StatusBadge | null {
 // Double-confirm modal (#435)
 // =============================================================
 
-export type WhitelistAction =
-  | { kind: "add"; token: string }
-  | { kind: "remove"; token: string };
+export type WhitelistAction = { kind: "add"; token: string } | { kind: "remove"; token: string };
 
 export interface ConfirmCopy {
   title: string;
@@ -216,16 +203,14 @@ export function getConfirmCopy(action: WhitelistAction): ConfirmCopy {
         title: "Confirm: Add Token",
         description:
           "This will whitelist the token below as an accepted payment token and ask your wallet to sign the transaction.",
-        acknowledgement:
-          "I have verified this token address and want to sign this transaction.",
+        acknowledgement: "I have verified this token address and want to sign this transaction.",
         confirmLabel: "Confirm & Sign",
       }
     : {
         title: "Confirm: Remove Token",
         description:
           "This will remove the token below from the whitelist so new escrows can no longer use it. Your wallet will be asked to sign the transaction.",
-        acknowledgement:
-          "I understand this removes the token and want to sign this transaction.",
+        acknowledgement: "I understand this removes the token and want to sign this transaction.",
         confirmLabel: "Confirm & Sign",
       };
 }
@@ -244,16 +229,11 @@ export type WhitelistActionKind = "add" | "remove";
 
 /** Shorten a long token address for use in toast copy. */
 function shortAddress(address: string): string {
-  return address.length > 12
-    ? `${address.slice(0, 4)}…${address.slice(-4)}`
-    : address;
+  return address.length > 12 ? `${address.slice(0, 4)}…${address.slice(-4)}` : address;
 }
 
 /** Toast shown when a whitelist add/remove transaction succeeds. */
-export function whitelistSuccessToast(
-  action: WhitelistActionKind,
-  token: string,
-): WhitelistToast {
+export function whitelistSuccessToast(action: WhitelistActionKind, token: string): WhitelistToast {
   return {
     type: "success",
     message:
@@ -267,7 +247,7 @@ export function whitelistSuccessToast(
 export function whitelistErrorToast(
   action: WhitelistActionKind,
   token: string,
-  reason: string,
+  reason: string
 ): WhitelistToast {
   const verb = action === "add" ? "add" : "remove";
   return {
@@ -306,9 +286,7 @@ export function escapeCsvCell(value: string | number): string {
 /** Format the whitelist as CSV text (CRLF rows, header included). */
 export function buildWhitelistCsv(tokens: string[]): string {
   const rows = tokens.map((token, i) => [i + 1, token]);
-  return [CSV_HEADER, ...rows]
-    .map((row) => row.map(escapeCsvCell).join(","))
-    .join("\r\n");
+  return [CSV_HEADER, ...rows].map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
 }
 
 /** Timestamped filename, e.g. `whitelisted-tokens-2026-09-25.csv`. */
@@ -319,7 +297,7 @@ export function whitelistExportFilename(now: Date = new Date()): string {
 /** Trigger a client-side CSV download of the whitelist. */
 export function downloadWhitelistCsv(
   tokens: string[],
-  filename: string = whitelistExportFilename(),
+  filename: string = whitelistExportFilename()
 ): void {
   const blob = new Blob([`﻿${buildWhitelistCsv(tokens)}`], {
     type: "text/csv;charset=utf-8;",

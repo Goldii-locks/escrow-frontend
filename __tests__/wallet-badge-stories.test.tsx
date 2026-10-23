@@ -6,10 +6,7 @@ import WalletBadge from "@/app/components/WalletBadge";
 describe("WalletBadge Storybook stories — rendering validation", () => {
   it("renders Disconnected state correctly", () => {
     render(<WalletBadge address={null} status="disconnected" />);
-    expect(screen.getByTestId("wallet-badge")).toHaveAttribute(
-      "data-status",
-      "disconnected"
-    );
+    expect(screen.getByTestId("wallet-badge")).toHaveAttribute("data-status", "disconnected");
     expect(screen.getByText("No wallet")).toBeInTheDocument();
   });
 
@@ -20,10 +17,7 @@ describe("WalletBadge Storybook stories — rendering validation", () => {
         status="connected"
       />
     );
-    expect(screen.getByTestId("wallet-badge")).toHaveAttribute(
-      "data-status",
-      "connected"
-    );
+    expect(screen.getByTestId("wallet-badge")).toHaveAttribute("data-status", "connected");
     expect(screen.getByText("GBHK...R2S3")).toBeInTheDocument();
   });
 
@@ -35,34 +29,21 @@ describe("WalletBadge Storybook stories — rendering validation", () => {
         onDisconnect={() => {}}
       />
     );
-    expect(
-      screen.getByRole("button", { name: "Disconnect wallet" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Disconnect wallet" })).toBeInTheDocument();
   });
 
   it("renders Loading state correctly", () => {
     render(<WalletBadge address={null} status="loading" />);
-    expect(screen.getByTestId("wallet-badge")).toHaveAttribute(
-      "data-status",
-      "loading"
-    );
+    expect(screen.getByTestId("wallet-badge")).toHaveAttribute("data-status", "loading");
     expect(screen.getByText("Connecting…")).toBeInTheDocument();
   });
 
   it("renders Error state with message correctly", () => {
     render(
-      <WalletBadge
-        status="error"
-        errorMessage="Failed to connect wallet. Please try again."
-      />
+      <WalletBadge status="error" errorMessage="Failed to connect wallet. Please try again." />
     );
-    expect(screen.getByTestId("wallet-badge")).toHaveAttribute(
-      "data-status",
-      "error"
-    );
-    expect(
-      screen.getByText("Failed to connect wallet. Please try again.")
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("wallet-badge")).toHaveAttribute("data-status", "error");
+    expect(screen.getByText("Failed to connect wallet. Please try again.")).toBeInTheDocument();
   });
 
   it("renders Error state without message (fallback) correctly", () => {

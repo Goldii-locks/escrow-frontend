@@ -15,10 +15,34 @@ export interface ClaimBadge {
 }
 
 const BADGES: Record<ClaimBadgeState, ClaimBadge> = {
-  pending: { state: "pending", label: "Pending", icon: "clock", className: "bg-yellow-100 text-yellow-800", ariaLabel: "Claim status: pending" },
-  claimable: { state: "claimable", label: "Ready to claim", icon: "unlock", className: "bg-blue-100 text-blue-800", ariaLabel: "Claim status: ready to claim" },
-  claimed: { state: "claimed", label: "Claimed", icon: "check", className: "bg-green-100 text-green-800", ariaLabel: "Claim status: claimed" },
-  failed: { state: "failed", label: "Failed", icon: "x", className: "bg-red-100 text-red-800", ariaLabel: "Claim status: failed" },
+  pending: {
+    state: "pending",
+    label: "Pending",
+    icon: "clock",
+    className: "bg-yellow-100 text-yellow-800",
+    ariaLabel: "Claim status: pending",
+  },
+  claimable: {
+    state: "claimable",
+    label: "Ready to claim",
+    icon: "unlock",
+    className: "bg-blue-100 text-blue-800",
+    ariaLabel: "Claim status: ready to claim",
+  },
+  claimed: {
+    state: "claimed",
+    label: "Claimed",
+    icon: "check",
+    className: "bg-green-100 text-green-800",
+    ariaLabel: "Claim status: claimed",
+  },
+  failed: {
+    state: "failed",
+    label: "Failed",
+    icon: "x",
+    className: "bg-red-100 text-red-800",
+    ariaLabel: "Claim status: failed",
+  },
 };
 
 /** Badge for a claim state; unknown values fall back to the pending badge. */

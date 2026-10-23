@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  checkNetworkSync,
-  type SyncNetwork,
-} from "@/app/lib/network_sync_checker";
+import { checkNetworkSync, type SyncNetwork } from "@/app/lib/network_sync_checker";
 
 interface Props {
   walletNetwork: SyncNetwork;

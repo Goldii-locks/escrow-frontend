@@ -13,11 +13,14 @@
       "postcss": "^8.5.10"
     },
     "protobufjs": "^7.6.3",
-    "axios": "^1.18.1",
+    "toml": "^4.3.0",
+    "axios": "^1.20.0",
     "nanoid": "^3.3.17",
     "@hot-wallet/sdk": "npm:empty-npm-package@1.0.0",
     "@trezor/connect-web": "npm:empty-npm-package@1.0.0",
-    "@trezor/connect-plugin-stellar": "npm:empty-npm-package@1.0.0"
+    "@trezor/connect-plugin-stellar": "npm:empty-npm-package@1.0.0",
+    "source-map-js": "^1.2.2",
+    "smol-toml": "^1.8.1"
   },
   "scripts": {
     "dev": "next dev",
@@ -25,31 +28,40 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "type-check": "tsc --noEmit"
+    "check-test-locations": "node scripts/check-test-locations.mjs",
+    "generate-tokens": "node scripts/generate-tokens.mjs",
+    "test:e2e": "playwright test",
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write \"**/*.{ts,tsx,js,mjs,mts,json,css,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,mts,json,css,md}\""
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.3.0",
     "@stellar/stellar-sdk": "^13.3.0",
     "@storybook/blocks": "^8.3.0",
     "@storybook/react": "^8.3.0",
-    "next": "16.3.0",
+    "next": "16.3.8",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "3.25.76"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@storybook/test": "^8.6.18",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.6",
-    "@types/node": "^20",
+    "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.3",
+    "axe-core": "^4.14.0",
     "eslint": "^9",
-    "eslint-config-next": "16.3.0",
+    "eslint-config-next": "16.3.8",
     "jsdom": "^29.1.1",
+    "prettier": "3.5.3",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.9"

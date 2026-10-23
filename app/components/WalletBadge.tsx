@@ -3,11 +3,7 @@
 import React from "react";
 import ButtonSpinner from "./ButtonSpinner";
 
-export type WalletBadgeStatus =
-  | "connected"
-  | "disconnected"
-  | "loading"
-  | "error";
+export type WalletBadgeStatus = "connected" | "disconnected" | "loading" | "error";
 
 /**
  * Two prop shapes reached this component from separate pieces of work and both
@@ -202,10 +198,7 @@ export default function WalletBadge({
       if (resolvedStatus === "connected" && address) {
         return (
           <>
-            <span
-              aria-hidden="true"
-              className="h-2 w-2 rounded-full bg-success animate-pulse"
-            />
+            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-success animate-pulse" />
             <span>{formatAddress(address)}</span>
           </>
         );
@@ -213,10 +206,7 @@ export default function WalletBadge({
 
       return (
         <>
-          <span
-            aria-hidden="true"
-            className="h-2 w-2 rounded-full bg-text-disabled"
-          />
+          <span aria-hidden="true" className="h-2 w-2 rounded-full bg-text-disabled" />
           <span>No wallet</span>
         </>
       );
@@ -227,11 +217,9 @@ export default function WalletBadge({
       "data-status": resolvedStatus,
       "data-disabled": isDisabled ? "true" : "false",
       className: shellClassName,
-      title: resolvedStatus === "error" ? errorMessage ?? undefined : undefined,
+      title: resolvedStatus === "error" ? (errorMessage ?? undefined) : undefined,
       "aria-label":
-        resolvedStatus === "connected" && address
-          ? `Connected wallet ${address}`
-          : undefined,
+        resolvedStatus === "connected" && address ? `Connected wallet ${address}` : undefined,
     };
 
     const disconnectButton =
@@ -252,12 +240,7 @@ export default function WalletBadge({
     if (interactive) {
       return (
         <span className="inline-flex items-center gap-1">
-          <button
-            type="button"
-            onClick={onClick}
-            disabled={isDisabled}
-            {...sharedProps}
-          >
+          <button type="button" onClick={onClick} disabled={isDisabled} {...sharedProps}>
             {contents}
           </button>
           {disconnectButton}
@@ -280,8 +263,7 @@ export default function WalletBadge({
   const hasMismatch = Boolean(networkMismatch);
 
   let statusText = "Not Connected";
-  let statusState: "connected" | "connecting" | "mismatch" | "disconnected" =
-    "disconnected";
+  let statusState: "connected" | "connecting" | "mismatch" | "disconnected" = "disconnected";
 
   if (isConnecting) {
     statusText = "Connecting...";
@@ -296,10 +278,8 @@ export default function WalletBadge({
 
   // Error takes precedence over the advisory alert, which in turn overrides
   // the plain connection status on the dot.
-  const formatInvalid =
-    invalidAddress || (validateAddress && !isValidStellarAddress(address));
-  const errorText =
-    error ?? fieldError ?? (formatInvalid ? "Invalid Stellar address" : null);
+  const formatInvalid = invalidAddress || (validateAddress && !isValidStellarAddress(address));
+  const errorText = error ?? fieldError ?? (formatInvalid ? "Invalid Stellar address" : null);
   const alertText = errorText ? null : (alert ?? null);
 
   // An empty address, an explicitly emptied list, or the caller forcing it.
@@ -315,7 +295,7 @@ export default function WalletBadge({
     showEmptyPlaceholder ||
       emptyList ||
       blankAddress ||
-      (missingAddress && (emptyText || emptyPlaceholder)),
+      (missingAddress && (emptyText || emptyPlaceholder))
   );
   const placeholderText = emptyText ?? "Not Connected";
   const emptyListText =
@@ -362,7 +342,6 @@ export default function WalletBadge({
       data-empty-state={isEmptyState ? "true" : undefined}
       role="status"
       aria-label={ariaLabel}
-      aria-invalid={errorText ? "true" : undefined}
       onClick={onClick}
       className={`inline-flex items-center gap-2 rounded-full border border-gray-800 bg-gray-900/90 px-3 py-1 text-sm font-mono text-gray-200 shadow-sm transition-all duration-150 hover:border-gray-700 ${
         onClick ? "cursor-pointer hover:bg-gray-800/80" : ""
@@ -397,9 +376,7 @@ export default function WalletBadge({
 
       {isEmptyState &&
         (emptyPlaceholder ? (
-          <div data-testid="wallet-badge-placeholder-custom">
-            {emptyPlaceholder}
-          </div>
+          <div data-testid="wallet-badge-placeholder-custom">{emptyPlaceholder}</div>
         ) : emptyList ? (
           <span
             data-testid="wallet-empty-list-placeholder"

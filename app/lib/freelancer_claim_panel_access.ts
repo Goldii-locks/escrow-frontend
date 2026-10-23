@@ -4,17 +4,9 @@
  * Block rendering for unauthorized wallets with a fallback warning screen.
  */
 
-export type FreelancerClaimRole =
-  | "freelancer"
-  | "client"
-  | "arbiter"
-  | "admin"
-  | "other"
-  | "none";
+export type FreelancerClaimRole = "freelancer" | "client" | "arbiter" | "admin" | "other" | "none";
 
-export const FREELANCER_CLAIM_ALLOWED_ROLES: readonly FreelancerClaimRole[] = [
-  "freelancer",
-];
+export const FREELANCER_CLAIM_ALLOWED_ROLES: readonly FreelancerClaimRole[] = ["freelancer"];
 
 export type FreelancerClaimAccess =
   | { allowed: true; reason: null }
@@ -30,7 +22,7 @@ export const FREELANCER_CLAIM_UNAUTHORIZED_WARNING =
 export function resolveFreelancerClaimAccess(
   wallet: string | null | undefined,
   role?: FreelancerClaimRole | string | null,
-  freelancerAddress?: string | null,
+  freelancerAddress?: string | null
 ): FreelancerClaimAccess {
   if (!wallet || !wallet.trim()) {
     return {
@@ -72,9 +64,7 @@ export function resolveFreelancerClaimAccess(
 }
 
 /** Get fallback message for unauthorized access. */
-export function getFreelancerClaimFallbackMessage(
-  access: FreelancerClaimAccess,
-): string | null {
+export function getFreelancerClaimFallbackMessage(access: FreelancerClaimAccess): string | null {
   return access.allowed ? null : access.warning;
 }
 
@@ -82,7 +72,7 @@ export function getFreelancerClaimFallbackMessage(
 export function guardFreelancerClaimPanel<T, F>(
   access: FreelancerClaimAccess,
   renderContent: () => T,
-  renderFallback: (warning: string) => F,
+  renderFallback: (warning: string) => F
 ): T | F {
   return access.allowed ? renderContent() : renderFallback(access.warning);
 }

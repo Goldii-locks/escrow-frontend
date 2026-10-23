@@ -68,9 +68,7 @@ export default function DarkModeSwitcher() {
         <span aria-hidden="true" className="text-base leading-none flex-shrink-0">
           {isDark ? "ðŸŒ™" : "â˜€ï¸"}
         </span>
-        <span className="sr-only">
-          {label}
-        </span>
+        <span className="sr-only">{label}</span>
         <span
           aria-hidden="true"
           className="relative inline-flex h-5 w-9 items-center rounded-full bg-border-strong transition flex-shrink-0"

@@ -28,6 +28,31 @@ describe("Navbar wallet selector", () => {
     vi.clearAllMocks();
   });
 
+  it("shows the Milestone logo and product name as the brand", () => {
+    mockUseWallet.mockReturnValue({
+      address: null,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      isConnecting: false,
+      networkMismatchMessage: null,
+      selectedWalletId: "freighter",
+      setSelectedWalletId: vi.fn(),
+    });
+
+    render(<Navbar />);
+
+    const brandLink = screen.getByRole("link", { name: "Milestone home" });
+    expect(brandLink).toBeInTheDocument();
+    // The logo is an inline SVG with aria-hidden, so the accessible name
+    // comes from the "Milestone" text node.
+    expect(brandLink).toHaveTextContent("Milestone");
+    // The padlock emoji must not be present.
+    expect(brandLink).not.toHaveTextContent("🔐");
+    expect(brandLink).not.toHaveTextContent("Escrow");
+    // The LandingLogo SVG should be rendered inside the link.
+    expect(brandLink.querySelector("svg")).not.toBeNull();
+  });
+
   it("opens the wallet selector modal when Connect Wallet is clicked", () => {
     mockUseWallet.mockReturnValue({
       address: null,
@@ -69,7 +94,8 @@ describe("Navbar wallet selector", () => {
       connect: vi.fn(),
       disconnect: vi.fn(),
       isConnecting: false,
-      networkMismatchMessage: "Network mismatch: your Freighter is on Mainnet but this app expects Stellar Testnet.",
+      networkMismatchMessage:
+        "Network mismatch: your Freighter is on Mainnet but this app expects Stellar Testnet.",
       selectedWalletId: "freighter",
       setSelectedWalletId: vi.fn(),
     });

@@ -12,13 +12,7 @@ export interface RefundExportRow {
   requestedAt?: string;
 }
 
-export const REFUND_EXPORT_HEADERS = [
-  "Escrow ID",
-  "Amount",
-  "Token",
-  "Status",
-  "Requested At",
-];
+export const REFUND_EXPORT_HEADERS = ["Escrow ID", "Amount", "Token", "Status", "Requested At"];
 
 /** Escape one CSV cell (RFC 4180) and neutralise spreadsheet formula injection. */
 export function escapeRefundCsvCell(value: string | number | undefined | null): string {
@@ -33,7 +27,7 @@ export function buildRefundCsv(rows: RefundExportRow[]): string {
   const body = rows.map((r) =>
     [r.escrowId, r.amount, r.token, r.status, r.requestedAt ?? ""]
       .map(escapeRefundCsvCell)
-      .join(","),
+      .join(",")
   );
   return [header, ...body].join("\r\n");
 }
@@ -49,7 +43,7 @@ export function refundExportFilename(now: Date = new Date()): string {
  */
 export function handleRefundExport(
   rows: RefundExportRow[],
-  filename: string = refundExportFilename(),
+  filename: string = refundExportFilename()
 ): boolean {
   if (rows.length === 0) return false;
   const blob = new Blob([`\uFEFF${buildRefundCsv(rows)}`], {

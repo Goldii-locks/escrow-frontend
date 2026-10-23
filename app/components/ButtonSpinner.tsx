@@ -5,10 +5,7 @@ interface Props {
   disabled?: boolean;
 }
 
-export default function ButtonSpinner({
-  className = "h-3.5 w-3.5",
-  disabled = false,
-}: Props) {
+export default function ButtonSpinner({ className = "h-3.5 w-3.5", disabled = false }: Props) {
   const disabledClasses = disabled
     ? "opacity-50 cursor-not-allowed"
     : "opacity-100 hover:opacity-90";

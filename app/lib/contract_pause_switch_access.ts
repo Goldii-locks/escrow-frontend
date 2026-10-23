@@ -21,7 +21,7 @@ export const CONTRACT_PAUSE_UNAUTHORIZED_MESSAGE =
 /** Resolves a wallet's access. Missing wallets or unknown roles are denied. */
 export function resolveContractPauseAccess(
   wallet: string | null | undefined,
-  role: ContractPauseRole | null | undefined,
+  role: ContractPauseRole | null | undefined
 ): ContractPauseAccess {
   if (!wallet || !wallet.trim()) return { allowed: false, reason: "no_wallet" };
   if (!role || !CONTRACT_PAUSE_ALLOWED_ROLES.includes(role)) {
@@ -42,7 +42,7 @@ export function getContractPauseFallbackMessage(access: ContractPauseAccess): st
 export function guardContractPauseSwitch<T>(
   access: ContractPauseAccess,
   renderSwitch: () => T,
-  renderFallback: (message: string) => T,
+  renderFallback: (message: string) => T
 ): T {
   const message = getContractPauseFallbackMessage(access);
   return message === null ? renderSwitch() : renderFallback(message);

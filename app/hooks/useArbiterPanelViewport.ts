@@ -31,11 +31,7 @@ function getServerViewportSnapshot(): ArbiterPanelViewport {
  * `useDisputeViewport` for the rationale behind `useSyncExternalStore`).
  */
 export function useArbiterPanelViewport(): ArbiterPanelViewport {
-  return useSyncExternalStore(
-    subscribeToViewport,
-    getViewportSnapshot,
-    getServerViewportSnapshot,
-  );
+  return useSyncExternalStore(subscribeToViewport, getViewportSnapshot, getServerViewportSnapshot);
 }
 
 export default useArbiterPanelViewport;

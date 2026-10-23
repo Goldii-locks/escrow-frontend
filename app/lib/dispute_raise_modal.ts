@@ -67,9 +67,7 @@ export interface DisputeModalLayout {
  * medium dialog with inline actions; desktop widens the panel and splits the
  * summary into two columns.
  */
-export function getDisputeModalLayout(
-  viewport: DisputeViewport,
-): DisputeModalLayout {
+export function getDisputeModalLayout(viewport: DisputeViewport): DisputeModalLayout {
   switch (viewport) {
     case "desktop":
       return {
@@ -121,12 +119,10 @@ export const DISPUTE_MODAL_CLASSES = {
     "shadow-xl sm:max-w-lg sm:rounded-2xl lg:max-w-2xl animate-slide-in",
 
   /** Overlay wrapper for mobile — ensures proper scrolling on small screens. */
-  overlayWrapper:
-    "flex flex-col max-h-[92vh] overflow-hidden p-4 sm:p-6 lg:p-8",
+  overlayWrapper: "flex flex-col max-h-[92vh] overflow-hidden p-4 sm:p-6 lg:p-8",
 
   /** Scrollable content area — allows middle content to scroll on mobile. */
-  scrollableContent:
-    "flex-1 overflow-y-auto min-h-0",
+  scrollableContent: "flex-1 overflow-y-auto min-h-0",
 
   /** Header row — title and close button. */
   header: "flex items-start justify-between gap-3 mb-4 flex-shrink-0",
@@ -135,8 +131,7 @@ export const DISPUTE_MODAL_CLASSES = {
   title: "text-base font-semibold text-primary sm:text-lg lg:text-xl",
 
   /** Summary grid — one column on mobile, two from `sm:` upward. */
-  summary:
-    "grid grid-cols-1 gap-3 mb-4 text-sm sm:grid-cols-2 sm:gap-4",
+  summary: "grid grid-cols-1 gap-3 mb-4 text-sm sm:grid-cols-2 sm:gap-4",
 
   /** Individual summary cell — `min-w-0` so long addresses truncate. */
   summaryCell: "min-w-0 break-words",
@@ -147,8 +142,7 @@ export const DISPUTE_MODAL_CLASSES = {
     "px-3 py-2 text-sm text-primary sm:min-h-[120px]",
 
   /** Footer actions — stacked full-width on mobile, inline from `sm:`. */
-  actions:
-    "mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-3 flex-shrink-0",
+  actions: "mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end sm:gap-3 flex-shrink-0",
 
   /** Buttons — full-width tap targets on mobile, auto-width from `sm:`. */
   button:
@@ -176,9 +170,7 @@ export interface DisputeReasonValidation {
  * Validates the free-text reason a user must supply before a dispute can be
  * raised.  Whitespace-only input is rejected the same as an empty field.
  */
-export function validateDisputeReason(
-  reason: string | null | undefined,
-): DisputeReasonValidation {
+export function validateDisputeReason(reason: string | null | undefined): DisputeReasonValidation {
   const trimmed = typeof reason === "string" ? reason.trim() : "";
 
   if (trimmed === "") {
@@ -213,7 +205,7 @@ export function readViewportWidth(): number {
   } catch (err) {
     console.warn(
       `${LOG_PREFIX} VIEWPORT READ FAILED:`,
-      err instanceof Error ? err.message : String(err),
+      err instanceof Error ? err.message : String(err)
     );
     return 0;
   }

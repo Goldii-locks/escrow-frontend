@@ -45,12 +45,8 @@ describe("arbitration_escrow_details module", () => {
 
   describe("Access restrictions UI blocks (Issue #480)", () => {
     it("normalises addresses for comparison and rejects unusable values", () => {
-      expect(normalizeEscrowPartyAddress(`  ${CLIENT}  `)).toBe(
-        CLIENT.toLowerCase(),
-      );
-      expect(normalizeEscrowPartyAddress(CLIENT.toUpperCase())).toBe(
-        CLIENT.toLowerCase(),
-      );
+      expect(normalizeEscrowPartyAddress(`  ${CLIENT}  `)).toBe(CLIENT.toLowerCase());
+      expect(normalizeEscrowPartyAddress(CLIENT.toUpperCase())).toBe(CLIENT.toLowerCase());
       expect(normalizeEscrowPartyAddress("   ")).toBeNull();
       expect(normalizeEscrowPartyAddress("")).toBeNull();
       expect(normalizeEscrowPartyAddress(null)).toBeNull();
@@ -81,9 +77,7 @@ describe("arbitration_escrow_details module", () => {
     });
 
     it("ignores case and surrounding whitespace on both sides of the check", () => {
-      expect(
-        isEscrowDetailsAuthorized(`  ${ARBITER.toLowerCase()}  `, RECORD),
-      ).toBe(true);
+      expect(isEscrowDetailsAuthorized(`  ${ARBITER.toLowerCase()}  `, RECORD)).toBe(true);
       expect(isEscrowDetailsAuthorized(` ${CLIENT} `, RECORD)).toBe(true);
     });
 
@@ -101,15 +95,13 @@ describe("arbitration_escrow_details module", () => {
       expect(
         isEscrowDetailsAuthorized(STRANGER, RECORD, {
           additionalViewers: [CLIENT, STRANGER],
-        }),
+        })
       ).toBe(true);
-      expect(
-        isEscrowDetailsAuthorized(STRANGER, RECORD, { additionalViewers: [] }),
-      ).toBe(false);
+      expect(isEscrowDetailsAuthorized(STRANGER, RECORD, { additionalViewers: [] })).toBe(false);
       expect(
         isEscrowDetailsAuthorized(null, RECORD, {
           additionalViewers: [STRANGER],
-        }),
+        })
       ).toBe(false);
     });
 
@@ -125,20 +117,18 @@ describe("arbitration_escrow_details module", () => {
           disputeId={RECORD.disputeId}
           currentWalletAddress={STRANGER}
           initialRecord={RECORD}
-        />,
+        />
       );
 
-      const warning = screen.getByTestId(
-        "arbitration-escrow-details-unauthorized",
-      );
+      const warning = screen.getByTestId("arbitration-escrow-details-unauthorized");
       expect(warning).toBeInTheDocument();
       expect(warning).toHaveAttribute("role", "alert");
       expect(warning).toHaveAttribute("aria-live", "assertive");
       expect(screen.getByText("Access Denied")).toBeInTheDocument();
       expect(
         screen.getByText(
-          "Access Restricted: Only the client, freelancer, and assigned arbiter on this locked escrow can view its dispute details.",
-        ),
+          "Access Restricted: Only the client, freelancer, and assigned arbiter on this locked escrow can view its dispute details."
+        )
       ).toBeInTheDocument();
       expect(UNAUTHORIZED_ARBITRATION_WARNING).toMatch(/Access Restricted/);
     });
@@ -149,12 +139,10 @@ describe("arbitration_escrow_details module", () => {
           disputeId={RECORD.disputeId}
           currentWalletAddress={STRANGER}
           initialRecord={RECORD}
-        />,
+        />
       );
 
-      expect(
-        screen.queryByTestId("arbitration-escrow-details-container"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId("arbitration-escrow-details-container")).not.toBeInTheDocument();
       expect(screen.queryByText(RECORD.reason)).not.toBeInTheDocument();
       expect(screen.queryByText(RECORD.lockedAmount)).not.toBeInTheDocument();
       expect(screen.queryByText(RECORD.escrowId)).not.toBeInTheDocument();
@@ -163,18 +151,11 @@ describe("arbitration_escrow_details module", () => {
     });
 
     it("blocks a disconnected wallet with a connect-wallet prompt", () => {
-      render(
-        <ArbitrationEscrowDetails
-          disputeId={RECORD.disputeId}
-          initialRecord={RECORD}
-        />,
-      );
+      render(<ArbitrationEscrowDetails disputeId={RECORD.disputeId} initialRecord={RECORD} />);
 
+      expect(screen.getByTestId("arbitration-escrow-details-unauthorized")).toBeInTheDocument();
       expect(
-        screen.getByTestId("arbitration-escrow-details-unauthorized"),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(/Connect the wallet that is a party on this dispute/i),
+        screen.getByText(/Connect the wallet that is a party on this dispute/i)
       ).toBeInTheDocument();
       expect(screen.getByText(/Current Wallet: Not connected/i)).toBeInTheDocument();
     });
@@ -185,15 +166,11 @@ describe("arbitration_escrow_details module", () => {
           disputeId={RECORD.disputeId}
           currentWalletAddress={STRANGER}
           initialRecord={RECORD}
-        />,
+        />
       );
 
-      expect(
-        screen.getByText(/This wallet is connected but is not a party/i),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(`Current Wallet: ${STRANGER}`),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/This wallet is connected but is not a party/i)).toBeInTheDocument();
+      expect(screen.getByText(`Current Wallet: ${STRANGER}`)).toBeInTheDocument();
     });
 
     it("blocks an unassigned-arbiter wallet from reading the locked record", () => {
@@ -202,15 +179,11 @@ describe("arbitration_escrow_details module", () => {
           disputeId={RECORD.disputeId}
           currentWalletAddress={ARBITER}
           initialRecord={UNASSIGNED}
-        />,
+        />
       );
 
-      expect(
-        screen.getByTestId("arbitration-escrow-details-unauthorized"),
-      ).toBeInTheDocument();
-      expect(
-        screen.queryByTestId("arbitration-escrow-details-container"),
-      ).not.toBeInTheDocument();
+      expect(screen.getByTestId("arbitration-escrow-details-unauthorized")).toBeInTheDocument();
+      expect(screen.queryByTestId("arbitration-escrow-details-container")).not.toBeInTheDocument();
     });
 
     it("renders the details for the client, the freelancer, and the arbiter", () => {
@@ -224,12 +197,10 @@ describe("arbitration_escrow_details module", () => {
             disputeId={RECORD.disputeId}
             currentWalletAddress={wallet}
             initialRecord={RECORD}
-          />,
+          />
         );
 
-        expect(
-          screen.getByTestId("arbitration-escrow-details-container"),
-        ).toBeInTheDocument();
+        expect(screen.getByTestId("arbitration-escrow-details-container")).toBeInTheDocument();
         expect(screen.getByText(label)).toBeInTheDocument();
         expect(screen.queryByText("Access Denied")).not.toBeInTheDocument();
         unmount();
@@ -242,12 +213,10 @@ describe("arbitration_escrow_details module", () => {
           disputeId={RECORD.disputeId}
           currentWalletAddress={STRANGER}
           initialRecord={RECORD}
-        />,
+        />
       );
 
-      const warning = screen.getByTestId(
-        "arbitration-escrow-details-unauthorized",
-      );
+      const warning = screen.getByTestId("arbitration-escrow-details-unauthorized");
       for (const value of [
         RECORD.escrowId,
         RECORD.disputeId,
@@ -267,27 +236,23 @@ describe("arbitration_escrow_details module", () => {
           disputeId={RECORD.disputeId}
           currentWalletAddress={STRANGER}
           initialRecord={RECORD}
-        />,
+        />
       );
 
-      expect(
-        screen.getByTestId("arbitration-escrow-details-unauthorized"),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("arbitration-escrow-details-unauthorized")).toBeInTheDocument();
 
       rerender(
         <ArbitrationEscrowDetails
           disputeId={RECORD.disputeId}
           currentWalletAddress={CLIENT}
           initialRecord={RECORD}
-        />,
+        />
       );
 
       expect(
-        screen.queryByTestId("arbitration-escrow-details-unauthorized"),
+        screen.queryByTestId("arbitration-escrow-details-unauthorized")
       ).not.toBeInTheDocument();
-      expect(
-        screen.getByTestId("arbitration-escrow-details-container"),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("arbitration-escrow-details-container")).toBeInTheDocument();
     });
 
     it("shows placeholders while the record resolves", async () => {
@@ -296,14 +261,15 @@ describe("arbitration_escrow_details module", () => {
       const loading = screen.getByTestId("arbitration-escrow-details-loading");
       expect(loading).toHaveAttribute("aria-busy", "true");
       expect(
-        screen.queryByTestId("arbitration-escrow-details-unauthorized"),
+        screen.queryByTestId("arbitration-escrow-details-unauthorized")
       ).not.toBeInTheDocument();
 
       // Flush the mock fetch so the pending update lands inside the test.
       await waitFor(() => {
-        expect(
-          screen.getByTestId("arbitration-escrow-details-loading"),
-        ).toHaveAttribute("aria-busy", "true");
+        expect(screen.getByTestId("arbitration-escrow-details-loading")).toHaveAttribute(
+          "aria-busy",
+          "true"
+        );
       });
     });
   });
@@ -338,9 +304,7 @@ describe("arbitration_escrow_details module", () => {
         token: "",
         arbiterAddress: null,
       });
-      const byLabel = Object.fromEntries(
-        readouts.map((readout) => [readout.label, readout.value]),
-      );
+      const byLabel = Object.fromEntries(readouts.map((readout) => [readout.label, readout.value]));
 
       expect(byLabel.Reason).toBe("—");
       expect(byLabel.Token).toBe("—");
@@ -354,7 +318,7 @@ describe("arbitration_escrow_details module", () => {
           disputeId={RECORD.disputeId}
           currentWalletAddress={ARBITER}
           initialRecord={RECORD}
-        />,
+        />
       );
 
       const grid = screen.getByTestId("arbitration-escrow-details-grid");
@@ -370,7 +334,7 @@ describe("arbitration_escrow_details module", () => {
           disputeId={RECORD.disputeId}
           currentWalletAddress={CLIENT}
           initialRecord={RECORD}
-        />,
+        />
       );
 
       const value = screen.getByText(RECORD.clientAddress);
@@ -382,9 +346,7 @@ describe("arbitration_escrow_details module", () => {
 
     it("rejects payloads that cannot answer the role check", () => {
       expect(isArbitrationEscrowDetailsRecord(RECORD)).toBe(true);
-      expect(isArbitrationEscrowDetailsRecord({ ...RECORD, clientAddress: 5 })).toBe(
-        false,
-      );
+      expect(isArbitrationEscrowDetailsRecord({ ...RECORD, clientAddress: 5 })).toBe(false);
       // An unassigned arbiter is valid; a missing arbiter key is not, because
       // it cannot be told apart from "every wallet unauthorized".
       expect(isArbitrationEscrowDetailsRecord(UNASSIGNED)).toBe(true);
@@ -397,12 +359,10 @@ describe("arbitration_escrow_details module", () => {
     it("returns the mock record when the backend is unreachable", async () => {
       vi.stubGlobal(
         "fetch",
-        vi.fn(() => Promise.reject(new Error("network down"))),
+        vi.fn(() => Promise.reject(new Error("network down")))
       );
 
-      await expect(
-        fetchArbitrationEscrowDetails(RECORD.disputeId),
-      ).resolves.toEqual(RECORD);
+      await expect(fetchArbitrationEscrowDetails(RECORD.disputeId)).resolves.toEqual(RECORD);
     });
 
     it("returns the mock record when the backend payload is incomplete", async () => {
@@ -412,55 +372,41 @@ describe("arbitration_escrow_details module", () => {
           Promise.resolve({
             ok: true,
             json: () => Promise.resolve({ disputeId: RECORD.disputeId }),
-          }),
-        ),
+          })
+        )
       );
 
-      await expect(
-        fetchArbitrationEscrowDetails(RECORD.disputeId),
-      ).resolves.toEqual(RECORD);
+      await expect(fetchArbitrationEscrowDetails(RECORD.disputeId)).resolves.toEqual(RECORD);
     });
 
     it("still enforces the role check against a mock-fetched record", async () => {
       vi.stubGlobal(
         "fetch",
-        vi.fn(() => Promise.reject(new Error("network down"))),
+        vi.fn(() => Promise.reject(new Error("network down")))
       );
 
       render(
-        <ArbitrationEscrowDetails
-          disputeId={RECORD.disputeId}
-          currentWalletAddress={STRANGER}
-        />,
+        <ArbitrationEscrowDetails disputeId={RECORD.disputeId} currentWalletAddress={STRANGER} />
       );
 
       await waitFor(() => {
-        expect(
-          screen.getByTestId("arbitration-escrow-details-unauthorized"),
-        ).toBeInTheDocument();
+        expect(screen.getByTestId("arbitration-escrow-details-unauthorized")).toBeInTheDocument();
       });
-      expect(
-        screen.queryByTestId("arbitration-escrow-details-container"),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId("arbitration-escrow-details-container")).not.toBeInTheDocument();
     });
 
     it("renders the fetched record for an authorized wallet", async () => {
       vi.stubGlobal(
         "fetch",
-        vi.fn(() => Promise.reject(new Error("network down"))),
+        vi.fn(() => Promise.reject(new Error("network down")))
       );
 
       render(
-        <ArbitrationEscrowDetails
-          disputeId={RECORD.disputeId}
-          currentWalletAddress={FREELANCER}
-        />,
+        <ArbitrationEscrowDetails disputeId={RECORD.disputeId} currentWalletAddress={FREELANCER} />
       );
 
       await waitFor(() => {
-        expect(
-          screen.getByTestId("arbitration-escrow-details-container"),
-        ).toBeInTheDocument();
+        expect(screen.getByTestId("arbitration-escrow-details-container")).toBeInTheDocument();
       });
       expect(screen.getByText("Viewing as Freelancer")).toBeInTheDocument();
     });
@@ -474,7 +420,7 @@ describe("arbitration_escrow_details module", () => {
             initialRecord={RECORD}
             onAction={vi.fn()}
           />
-        </ToastProvider>,
+        </ToastProvider>
       );
 
       expect(screen.getByTestId("action-request-review")).toBeInTheDocument();
@@ -496,7 +442,7 @@ describe("arbitration_escrow_details module", () => {
             initialRecord={RECORD}
             onAction={handleAction}
           />
-        </ToastProvider>,
+        </ToastProvider>
       );
 
       // Trigger action button
@@ -534,7 +480,7 @@ describe("arbitration_escrow_details module", () => {
             onAction={handleSuccess}
           />
           <Toast />
-        </ToastProvider>,
+        </ToastProvider>
       );
 
       // Success flow
@@ -543,7 +489,9 @@ describe("arbitration_escrow_details module", () => {
       fireEvent.click(screen.getByTestId("arbitration-confirm-modal-submit"));
 
       await waitFor(() => {
-        expect(screen.getByText("Action 'request_review' completed successfully.")).toBeInTheDocument();
+        expect(
+          screen.getByText("Action 'request_review' completed successfully.")
+        ).toBeInTheDocument();
       });
 
       // Failure flow
@@ -557,7 +505,7 @@ describe("arbitration_escrow_details module", () => {
             onAction={handleFailure}
           />
           <Toast />
-        </ToastProvider>,
+        </ToastProvider>
       );
 
       fireEvent.click(screen.getByTestId("action-request-review"));
@@ -577,7 +525,7 @@ describe("arbitration_escrow_details module", () => {
             currentWalletAddress={CLIENT}
             initialRecord={RECORD}
           />
-        </ToastProvider>,
+        </ToastProvider>
       );
 
       expect(screen.getByTestId("arbitration-escrow-details-container")).toBeInTheDocument();

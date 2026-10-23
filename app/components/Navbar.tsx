@@ -5,17 +5,13 @@ import { SUPPORTED_WALLETS } from "@/app/context/WalletContext";
 import Link from "next/link";
 import NotificationBell from "./NotificationBell";
 import WalletConnectButton from "./WalletConnectButton";
+import LandingLogo from "./LandingLogo";
 
 import WalletBadge, { formatAddress } from "@/app/components/WalletBadge";
 
 export default function Navbar() {
-  const {
-    address,
-    disconnect,
-    isConnecting,
-    networkMismatchMessage,
-    selectedWalletId,
-  } = useWallet();
+  const { address, disconnect, isConnecting, networkMismatchMessage, selectedWalletId } =
+    useWallet();
   const { isAdminUser } = useIsAdmin(address);
 
   const focusRing =
@@ -35,8 +31,8 @@ export default function Navbar() {
       )}
       {/*
        * `relative z-10` establishes a stacking context so the nav sits above
-       * non-overlay page content on mobile. Full-screen overlays (LedgerLoaderOverlay,
-       * WalletLoaderOverlay) intentionally use z-50 and will still cover the nav
+       * non-overlay page content on mobile. The full-screen WalletLoaderOverlay
+       * intentionally uses z-50 and will still cover the nav
        * correctly during wallet operations.
        */}
       <nav
@@ -45,10 +41,11 @@ export default function Navbar() {
       >
         <Link
           href="/"
-          aria-label="Escrow home"
-          className={`text-xl font-bold text-text-primary tracking-tight shrink-0 ${focusRing}`}
+          aria-label="Milestone home"
+          className={`text-xl font-bold text-text-primary tracking-tight shrink-0 inline-flex items-center gap-2 ${focusRing}`}
         >
-          <span aria-hidden="true">🔐</span> Escrow
+          <LandingLogo size={24} />
+          <span>Milestone</span>
         </Link>
         {/*
          * `flex-wrap` allows nav items to wrap to a second line on narrow

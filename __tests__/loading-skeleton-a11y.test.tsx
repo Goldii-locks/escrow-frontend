@@ -87,9 +87,7 @@ describe("LoadingSkeleton — keyboard navigability", () => {
 
 describe("LoadingSkeleton — interactive accessible name", () => {
   it("accepts a custom aria-label for the interactive variant", () => {
-    render(
-      <LoadingSkeleton interactive onClick={vi.fn()} aria-label="Retry loading" />
-    );
+    render(<LoadingSkeleton interactive onClick={vi.fn()} aria-label="Retry loading" />);
     const button = screen.getByRole("button", { name: "Retry loading" });
     expect(button).toBeInTheDocument();
   });
@@ -97,9 +95,7 @@ describe("LoadingSkeleton — interactive accessible name", () => {
   it("falls back to the sr-only text as the accessible name when no label is set", () => {
     render(<LoadingSkeleton interactive onClick={vi.fn()} />);
     // Accessible name is computed from the sr-only text content.
-    expect(
-      screen.getByRole("button", { name: "Loading job data…" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Loading job data…" })).toBeInTheDocument();
   });
 });
 

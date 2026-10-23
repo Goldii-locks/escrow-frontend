@@ -89,14 +89,8 @@ export default function NetworkSyncChecker({
       data-testid="network-sync-checker"
       className={`text-sm text-text-primary ${className}`}
     >
-      <NetworkSyncNetworkWarningBar
-        walletNetwork={walletNetwork}
-        appNetwork={appNetwork}
-      />
-      <NetworkSyncWalletWarningBanner
-        availability={availability}
-        detector={detector}
-      />
+      <NetworkSyncNetworkWarningBar walletNetwork={walletNetwork} appNetwork={appNetwork} />
+      <NetworkSyncWalletWarningBanner availability={availability} detector={detector} />
 
       <div className="flex items-center gap-4 rounded-lg border border-gray-800 bg-gray-900/60 px-4 py-3">
         <output
@@ -112,8 +106,7 @@ export default function NetworkSyncChecker({
             "Network sync cancelled — you rejected the signature in your wallet."}
           {status === "blocked" &&
             "Network sync blocked — resolve the warning below and try again."}
-          {status === "error" &&
-            "Network sync probe failed. Check the wallet and try again."}
+          {status === "error" && "Network sync probe failed. Check the wallet and try again."}
         </output>
 
         <button

@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import Dashboard from "@/app/dashboard/page";
+import Dashboard from "@/app/(app)/dashboard/page";
 
 const mockUseWallet = vi.fn();
 const mockUseToast = vi.fn();

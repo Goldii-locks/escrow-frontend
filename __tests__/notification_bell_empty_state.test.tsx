@@ -25,9 +25,7 @@ describe("notification_bell — empty list views (#323)", () => {
     const emptyState = screen.getByTestId("notification-bell-empty-state");
     expect(emptyState).toHaveAttribute("role", "status");
     expect(screen.getByText("You're all caught up.")).toBeInTheDocument();
-    expect(
-      screen.getByText(/No alerts right now\./)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/No alerts right now\./)).toBeInTheDocument();
   });
 
   it("marks the empty-state glyph as decorative", () => {
@@ -62,9 +60,7 @@ describe("notification_bell — empty list views (#323)", () => {
 
   it("keeps validation alerts visible with the notifications placeholder", () => {
     openBell({
-      fields: [
-        { name: "amount", label: "Milestone amount", error: "Amount is required." },
-      ],
+      fields: [{ name: "amount", label: "Milestone amount", error: "Amount is required." }],
     });
     expect(screen.getByText("Amount is required.")).toBeInTheDocument();
     expect(screen.getByTestId("notification-bell-notifications-empty")).toBeInTheDocument();

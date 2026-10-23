@@ -6,9 +6,7 @@
 const CODE_TAG_PATTERN = /<[^>]*>?|[<>]|javascript:|data:\s*text\/html/i;
 
 /** Returns true if string contains HTML/code tags or script injection patterns. */
-export function freelancerClaimContainsCodeTags(
-  value: string | null | undefined,
-): boolean {
+export function freelancerClaimContainsCodeTags(value: string | null | undefined): boolean {
   if (typeof value !== "string") return false;
   return CODE_TAG_PATTERN.test(value);
 }
@@ -30,9 +28,7 @@ export function sanitizeClaimNote(raw: string | null | undefined): string {
  * Sanitize invoice ID or reference number.
  * If input contains code tags, ignores/rejects it and returns "".
  */
-export function sanitizeClaimInvoiceId(
-  raw: string | null | undefined,
-): string {
+export function sanitizeClaimInvoiceId(raw: string | null | undefined): string {
   if (!raw || typeof raw !== "string") return "";
   if (freelancerClaimContainsCodeTags(raw)) {
     return "";

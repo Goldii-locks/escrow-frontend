@@ -23,7 +23,8 @@ export default function Toast() {
         <div
           key={toast.id}
           className={`px-4 py-3 rounded-lg border shadow-lg animate-slide-in ${getToastStyles(toast.type)}`}
-          role="alert"
+          role={toast.type === "error" || toast.type === "warning" ? "alert" : "status"}
+          aria-live={toast.type === "error" || toast.type === "warning" ? "assertive" : "polite"}
         >
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm">{toast.message}</p>

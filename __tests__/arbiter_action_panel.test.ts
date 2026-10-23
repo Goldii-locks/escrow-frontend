@@ -40,12 +40,9 @@ describe("classifyArbiterPanelViewport", () => {
     expect(classifyArbiterPanelViewport(width)).toBe(expected);
   });
 
-  it.each([NaN, -1, Infinity, -Infinity])(
-    "falls back to mobile for invalid width %s",
-    (width) => {
-      expect(classifyArbiterPanelViewport(width)).toBe("mobile");
-    },
-  );
+  it.each([NaN, -1, Infinity, -Infinity])("falls back to mobile for invalid width %s", (width) => {
+    expect(classifyArbiterPanelViewport(width)).toBe("mobile");
+  });
 
   it("aligns breakpoints with Tailwind sm and lg", () => {
     expect(ARBITER_PANEL_TABLET_MIN_WIDTH).toBe(640);
@@ -104,10 +101,7 @@ describe("readArbiterPanelViewportWidth", () => {
       },
     });
     expect(readArbiterPanelViewportWidth()).toBe(0);
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining("[arbiter_action_panel]"),
-      "boom",
-    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("[arbiter_action_panel]"), "boom");
   });
 });
 
@@ -117,9 +111,7 @@ describe("validateArbiterResolution", () => {
       valid: true,
       errors: {},
     });
-    expect(validateArbiterResolution({ outcome: "refund", confirmed: true }).valid).toBe(
-      true,
-    );
+    expect(validateArbiterResolution({ outcome: "refund", confirmed: true }).valid).toBe(true);
   });
 
   it("reports every missing field at once", () => {
@@ -156,28 +148,26 @@ describe("validateArbiterResolution", () => {
 describe("getArbiterPanelConfigError", () => {
   it("requires a handler", () => {
     expect(getArbiterPanelConfigError({ hasHandler: false, escrowAmount: "100" })).toBe(
-      ARBITER_NO_HANDLER_ERROR,
+      ARBITER_NO_HANDLER_ERROR
     );
   });
 
   it.each(["0", "-5", " 0 "])("blocks when escrow amount is %j", (amount) => {
     expect(getArbiterPanelConfigError({ hasHandler: true, escrowAmount: amount })).toBe(
-      ARBITER_NO_FUNDS_ERROR,
+      ARBITER_NO_FUNDS_ERROR
     );
   });
 
   it.each([undefined, null, "", "not-a-number", "1.5", "1", "300000000"])(
     "does not block for escrow amount %j",
     (amount) => {
-      expect(
-        getArbiterPanelConfigError({ hasHandler: true, escrowAmount: amount }),
-      ).toBeNull();
-    },
+      expect(getArbiterPanelConfigError({ hasHandler: true, escrowAmount: amount })).toBeNull();
+    }
   );
 
   it("reports the missing handler before missing funds", () => {
     expect(getArbiterPanelConfigError({ hasHandler: false, escrowAmount: "0" })).toBe(
-      ARBITER_NO_HANDLER_ERROR,
+      ARBITER_NO_HANDLER_ERROR
     );
   });
 });
@@ -193,7 +183,7 @@ describe("contrast maths", () => {
   it("is symmetric", () => {
     expect(contrastRatio("#818cf8", "#111827")).toBeCloseTo(
       contrastRatio("#111827", "#818cf8"),
-      10,
+      10
     );
   });
 
@@ -206,25 +196,20 @@ describe("contrast maths", () => {
 describe("colour contrast compliance", () => {
   const globalsCss = readFileSync(resolve(__dirname, "../app/globals.css"), "utf8");
 
-  it.each(Object.entries(ARBITER_PANEL_TOKENS))(
-    "token %s mirrors globals.css",
-    (token, hex) => {
-      const match = globalsCss.match(
-        new RegExp(`--color-${token}:\\s*(#[0-9a-fA-F]{3,6})\\s*;`),
-      );
-      expect(match, `--color-${token} missing from globals.css`).not.toBeNull();
-      expect(match![1].toLowerCase()).toBe(hex);
-    },
-  );
+  it.each(Object.entries(ARBITER_PANEL_TOKENS))("token %s mirrors globals.css", (token, hex) => {
+    const match = globalsCss.match(new RegExp(`--color-${token}:\\s*(#[0-9a-fA-F]{3,6})\\s*;`));
+    expect(match, `--color-${token} missing from globals.css`).not.toBeNull();
+    expect(match![1].toLowerCase()).toBe(hex);
+  });
 
   it.each(ARBITER_PANEL_CONTRAST_PAIRS.map((pair) => [pair.usage, pair] as const))(
     "%s meets its WCAG AA minimum",
     (_usage, pair) => {
       const ratio = contrastRatio(
         ARBITER_PANEL_TOKENS[pair.foreground],
-        ARBITER_PANEL_TOKENS[pair.background],
+        ARBITER_PANEL_TOKENS[pair.background]
       );
       expect(ratio).toBeGreaterThanOrEqual(pair.minRatio);
-    },
+    }
   );
 });

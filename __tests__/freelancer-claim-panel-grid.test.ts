@@ -10,7 +10,7 @@ describe("freelancer_claim_panel grid constraints", () => {
     expect(claimPanelGridStyle.display).toBe("grid");
     expect(claimPanelGridStyle.gridTemplateColumns).toContain("auto-fit");
     expect(claimPanelGridStyle.gridTemplateColumns).toContain(
-      `min(100%, ${CLAIM_PANEL_GRID.columnMin})`,
+      `min(100%, ${CLAIM_PANEL_GRID.columnMin})`
     );
     expect(claimPanelGridStyle.maxWidth).toBe("72rem");
   });

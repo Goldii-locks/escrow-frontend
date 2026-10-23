@@ -21,6 +21,8 @@ describe("deriveClaimBadgeState", () => {
     expect(deriveClaimBadgeState({ claimed: false, releasable: false })).toBe("pending");
     expect(deriveClaimBadgeState({ claimed: false, releasable: true })).toBe("claimable");
     expect(deriveClaimBadgeState({ claimed: true, releasable: true })).toBe("claimed");
-    expect(deriveClaimBadgeState({ claimed: false, failed: true, releasable: true })).toBe("failed");
+    expect(deriveClaimBadgeState({ claimed: false, failed: true, releasable: true })).toBe(
+      "failed"
+    );
   });
 });

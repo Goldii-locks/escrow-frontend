@@ -12,16 +12,9 @@ import { describe, expect, it, vi } from "vitest";
 import ArbiterActionPanel from "@/app/components/ArbiterActionPanel";
 import MilestoneCard from "@/app/components/MilestoneCard";
 
-const renderPanel = (
-  props: Partial<Parameters<typeof ArbiterActionPanel>[0]> = {},
-) =>
+const renderPanel = (props: Partial<Parameters<typeof ArbiterActionPanel>[0]> = {}) =>
   render(
-    <ArbiterActionPanel
-      milestoneIndex={1}
-      displayAmount="30 XLM"
-      onResolve={vi.fn()}
-      {...props}
-    />,
+    <ArbiterActionPanel milestoneIndex={1} displayAmount="30 XLM" onResolve={vi.fn()} {...props} />
   );
 
 /** Tag names of an element's direct children, lower-cased. */
@@ -46,7 +39,7 @@ describe("root", () => {
     renderPanel();
     const root = screen.getByTestId("arbiter-action-panel");
     ["data-viewport", "data-constrained", "data-state"].forEach((attr) =>
-      expect(root).toHaveAttribute(attr),
+      expect(root).toHaveAttribute(attr)
     );
   });
 });
@@ -61,13 +54,7 @@ describe("scrollable body", () => {
   it("inserts the alert between description and fieldset when present", () => {
     renderPanel({ errorMessage: "Provider error" });
     const body = screen.getByTestId("arbiter-panel-scroll");
-    expect(childIds(body)).toEqual([
-      "",
-      "",
-      "arbiter-panel-alert",
-      "arbiter-outcome-fieldset",
-      "",
-    ]);
+    expect(childIds(body)).toEqual(["", "", "arbiter-panel-alert", "arbiter-outcome-fieldset", ""]);
     expect(childTags(body)).toEqual(["h3", "p", "div", "fieldset", "div"]);
   });
 
@@ -81,7 +68,7 @@ describe("scrollable body", () => {
   it("renders heading text with the one-based milestone number", () => {
     renderPanel({ milestoneIndex: 4 });
     expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent(
-      "Resolve dispute — Milestone 5",
+      "Resolve dispute — Milestone 5"
     );
   });
 
@@ -212,7 +199,7 @@ describe("placement inside MilestoneCard", () => {
         claimAutoReleaseState={idle}
         isPartialReleasePending={false}
         isClaimAutoReleasePending={false}
-      />,
+      />
     );
     const card = screen.getByTestId("milestone-card");
     const panel = screen.getByTestId("arbiter-action-panel");

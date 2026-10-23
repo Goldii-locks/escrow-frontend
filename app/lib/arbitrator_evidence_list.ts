@@ -44,9 +44,7 @@ export function isArbitratorAuthorized(
     return true;
   }
 
-  return authorizedArbitrators.some(
-    (arb) => arb.trim().toLowerCase() === trimmed
-  );
+  return authorizedArbitrators.some((arb) => arb.trim().toLowerCase() === trimmed);
 }
 
 /**
@@ -77,7 +75,8 @@ export const MOCK_EVIDENCE_DATASET: EvidenceItem[] = [
     submittedBy: "GCKF7J3...CLIENT",
     submitterRole: "client",
     title: "Project Scope Specification v1.2",
-    description: "Initial signed agreement detailing the milestone deliverables and acceptance criteria.",
+    description:
+      "Initial signed agreement detailing the milestone deliverables and acceptance criteria.",
     fileUrl: "/evidence/scope_v1.pdf",
     fileType: "application/pdf",
     fileSize: 245760,
@@ -91,7 +90,8 @@ export const MOCK_EVIDENCE_DATASET: EvidenceItem[] = [
     submittedBy: "GAX4K9L...FREELANCER",
     submitterRole: "freelancer",
     title: "Production Deployment Logs & Commit Proof",
-    description: "Server access logs and repository commit history demonstrating milestone completion.",
+    description:
+      "Server access logs and repository commit history demonstrating milestone completion.",
     fileUrl: "/evidence/deploy_logs.txt",
     fileType: "text/plain",
     fileSize: 104857,
@@ -105,7 +105,8 @@ export const MOCK_EVIDENCE_DATASET: EvidenceItem[] = [
     submittedBy: "GCKF7J3...CLIENT",
     submitterRole: "client",
     title: "Bug Reports and Non-Responsive Test Cases",
-    description: "Automated QA test suite failures showing that the API endpoint returns 500 on valid inputs.",
+    description:
+      "Automated QA test suite failures showing that the API endpoint returns 500 on valid inputs.",
     fileUrl: "/evidence/qa_failures.json",
     fileType: "application/json",
     fileSize: 52428,
@@ -253,7 +254,7 @@ export function evidenceExportFilename(disputeId: string, now: Date = new Date()
 /** Export button handler: triggers a client-side CSV download. Returns false when empty. */
 export function handleEvidenceExport(
   items: EvidenceItem[],
-  filename: string = evidenceExportFilename("dispute"),
+  filename: string = evidenceExportFilename("dispute")
 ): boolean {
   if (items.length === 0) return false;
   // Leading BOM so Excel reads the UTF-8 payload correctly.
@@ -297,20 +298,16 @@ export function getEvidenceConfirmCopy(action: EvidenceAction): EvidenceConfirmC
   if (action.kind === "reject") {
     return {
       title: "Reject this evidence?",
-      description:
-        `You are about to reject "${action.evidenceTitle}". This is recorded on-chain against the dispute and cannot be undone.`,
-      acknowledgement:
-        "I confirm I have reviewed this evidence and intend to reject it.",
+      description: `You are about to reject "${action.evidenceTitle}". This is recorded on-chain against the dispute and cannot be undone.`,
+      acknowledgement: "I confirm I have reviewed this evidence and intend to reject it.",
       confirmLabel: "Sign & Reject",
     };
   }
 
   return {
     title: "Verify this evidence?",
-    description:
-      `You are about to mark "${action.evidenceTitle}" as verified. This is recorded on-chain against the dispute and cannot be undone.`,
-    acknowledgement:
-      "I confirm I have reviewed this evidence and attest to its validity.",
+    description: `You are about to mark "${action.evidenceTitle}" as verified. This is recorded on-chain against the dispute and cannot be undone.`,
+    acknowledgement: "I confirm I have reviewed this evidence and attest to its validity.",
     confirmLabel: "Sign & Verify",
   };
 }

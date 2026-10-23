@@ -7,7 +7,7 @@
  */
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import CreateJob from "@/app/create/page";
+import CreateJob from "@/app/(app)/create/page";
 
 const mockPush = vi.fn();
 const mockUseWallet = vi.fn();
@@ -92,8 +92,8 @@ describe("Create form – mobile viewport layout (issue #46)", () => {
     render(<CreateJob />);
     expect(screen.getByLabelText("Freelancer Address")).toHaveClass("w-full");
     expect(screen.getByLabelText("Arbiter Address")).toHaveClass("w-full");
-    expect(
-      screen.getByLabelText("Token Contract Address", { selector: "input" })
-    ).toHaveClass("w-full");
+    expect(screen.getByLabelText("Token Contract Address", { selector: "input" })).toHaveClass(
+      "w-full"
+    );
   });
 });

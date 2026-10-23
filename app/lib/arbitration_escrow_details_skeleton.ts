@@ -10,28 +10,25 @@ export interface ArbitrationSkeletonFrame {
   height: string;
 }
 
-export const ARBITRATION_SKELETON_FRAMES: readonly ArbitrationSkeletonFrame[] =
-  [
-    { id: "header-title", kind: "header", width: "200px", height: "24px" },
-    { id: "header-badge", kind: "badge", width: "100px", height: "20px" },
-    { id: "cell-1", kind: "grid-cell", width: "100%", height: "48px" },
-    { id: "cell-2", kind: "grid-cell", width: "100%", height: "48px" },
-    { id: "cell-3", kind: "grid-cell", width: "100%", height: "48px" },
-    { id: "cell-4", kind: "grid-cell", width: "100%", height: "48px" },
-    { id: "cell-5", kind: "grid-cell", width: "100%", height: "48px" },
-    { id: "cell-6", kind: "grid-cell", width: "100%", height: "48px" },
-    {
-      id: "action-button",
-      kind: "action-bar",
-      width: "140px",
-      height: "38px",
-    },
-  ];
+export const ARBITRATION_SKELETON_FRAMES: readonly ArbitrationSkeletonFrame[] = [
+  { id: "header-title", kind: "header", width: "200px", height: "24px" },
+  { id: "header-badge", kind: "badge", width: "100px", height: "20px" },
+  { id: "cell-1", kind: "grid-cell", width: "100%", height: "48px" },
+  { id: "cell-2", kind: "grid-cell", width: "100%", height: "48px" },
+  { id: "cell-3", kind: "grid-cell", width: "100%", height: "48px" },
+  { id: "cell-4", kind: "grid-cell", width: "100%", height: "48px" },
+  { id: "cell-5", kind: "grid-cell", width: "100%", height: "48px" },
+  { id: "cell-6", kind: "grid-cell", width: "100%", height: "48px" },
+  {
+    id: "action-button",
+    kind: "action-bar",
+    width: "140px",
+    height: "38px",
+  },
+];
 
 /** Returns skeleton frames when loading is active; returns empty array when complete. */
-export function getArbitrationSkeleton(
-  isLoading: boolean,
-): readonly ArbitrationSkeletonFrame[] {
+export function getArbitrationSkeleton(isLoading: boolean): readonly ArbitrationSkeletonFrame[] {
   return isLoading ? ARBITRATION_SKELETON_FRAMES : [];
 }
 

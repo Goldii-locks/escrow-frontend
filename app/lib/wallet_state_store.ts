@@ -1,5 +1,7 @@
 "use client";
 
+import { getSafeStorage } from "@/app/lib/safe_storage";
+
 const STORAGE_KEY = "wallet_state_store_active_state";
 const SCHEMA_VERSION = 1;
 
@@ -27,7 +29,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isValidWalletActiveState(value: unknown): value is WalletActiveState {
   if (!isRecord(value)) return false;
   if (typeof value.address !== "string" || value.address.length === 0) return false;
-  if (typeof value.selectedWalletId !== "string" || value.selectedWalletId.length === 0) return false;
+  if (typeof value.selectedWalletId !== "string" || value.selectedWalletId.length === 0)
+    return false;
   if (typeof value.networkPassphrase !== "string") return false;
   if (typeof value.connectedAt !== "number" || !Number.isFinite(value.connectedAt)) return false;
   return true;
@@ -47,25 +50,16 @@ function isValidSerializedPayload(value: unknown): value is WalletActiveStateSer
   if (!isRecord(value)) return false;
   if (value.version !== SCHEMA_VERSION) return false;
   if (typeof value.address !== "string" || value.address.length === 0) return false;
-  if (typeof value.selectedWalletId !== "string" || value.selectedWalletId.length === 0) return false;
+  if (typeof value.selectedWalletId !== "string" || value.selectedWalletId.length === 0)
+    return false;
   if (typeof value.networkPassphrase !== "string") return false;
   if (typeof value.connectedAt !== "number" || !Number.isFinite(value.connectedAt)) return false;
   return true;
 }
 
 function getStorageAdapter(): Storage | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const testKey = "__wallet_state_store_storage_test__";
-    window.localStorage.setItem(testKey, "1");
-    window.localStorage.removeItem(testKey);
-    return window.localStorage;
-  } catch {
-    return null;
-  }
+  return getSafeStorage();
 }
-
-const LOG_PREFIX = "[wallet_state_store]";
 
 export class WalletStateStore {
   private activeState: WalletActiveState | null = null;
@@ -74,8 +68,7 @@ export class WalletStateStore {
   private listeners = new Set<() => void>();
 
   constructor(storageOverride?: Storage | null) {
-    this.storage =
-      storageOverride !== undefined ? storageOverride : getStorageAdapter();
+    this.storage = storageOverride !== undefined ? storageOverride : getStorageAdapter();
     this.rehydrate();
   }
 

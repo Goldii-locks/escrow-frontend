@@ -12,8 +12,7 @@ const focusRing =
  * the modal records it as the selected provider and connects it directly.
  */
 export default function WalletConnectButton() {
-  const { address, connect, isConnecting, selectedWalletId, setSelectedWalletId } =
-    useWallet();
+  const { address, connect, isConnecting, selectedWalletId, setSelectedWalletId } = useWallet();
   const [open, setOpen] = useState(false);
 
   return (

@@ -36,11 +36,7 @@ describe("wallet_selector_modal — transaction timeout clocks", () => {
       payload: new Uint8Array([1, 2, 3, 4]),
     };
 
-    const promise = signWithWalletSelectorTimeout(
-      request,
-      async () => "signed-xdr",
-      5_000
-    );
+    const promise = signWithWalletSelectorTimeout(request, async () => "signed-xdr", 5_000);
     await vi.runAllTimersAsync();
 
     await expect(promise).resolves.toBe("signed-xdr");
@@ -67,11 +63,7 @@ describe("wallet_selector_modal — transaction timeout clocks", () => {
       payload,
     };
 
-    const promise = signWithWalletSelectorTimeout(
-      request,
-      async () => "ok",
-      5_000
-    );
+    const promise = signWithWalletSelectorTimeout(request, async () => "ok", 5_000);
     await vi.runAllTimersAsync();
     await promise;
 
@@ -98,8 +90,7 @@ describe("wallet_selector_modal — transaction timeout clocks", () => {
   it("does not fire the clock before the deadline", async () => {
     const promise = signWithWalletSelectorTimeout(
       { walletId: "freighter", xdr: "DDDD..." },
-      () =>
-        new Promise<string>((resolve) => setTimeout(() => resolve("ok"), 500)),
+      () => new Promise<string>((resolve) => setTimeout(() => resolve("ok"), 500)),
       1_000
     );
     await vi.runAllTimersAsync();
@@ -120,9 +111,7 @@ describe("wallet_selector_modal — transaction timeout clocks", () => {
     };
 
     const promise = signWithWalletSelectorTimeout(request, hang, 1_000);
-    const assertion = expect(promise).rejects.toBeInstanceOf(
-      WalletSelectorTimeoutError
-    );
+    const assertion = expect(promise).rejects.toBeInstanceOf(WalletSelectorTimeoutError);
 
     await vi.advanceTimersByTimeAsync(1_000);
     await assertion;
@@ -142,9 +131,7 @@ describe("wallet_selector_modal — transaction timeout clocks", () => {
       },
       1_000
     );
-    const assertion = expect(promise).rejects.toBeInstanceOf(
-      WalletSelectorTimeoutError
-    );
+    const assertion = expect(promise).rejects.toBeInstanceOf(WalletSelectorTimeoutError);
 
     await vi.advanceTimersByTimeAsync(1_000);
     await assertion;
@@ -173,9 +160,7 @@ describe("wallet_selector_modal — transaction timeout clocks", () => {
       hang,
       1_000
     );
-    const assertion = expect(promise).rejects.toBeInstanceOf(
-      WalletSelectorTimeoutError
-    );
+    const assertion = expect(promise).rejects.toBeInstanceOf(WalletSelectorTimeoutError);
 
     await vi.advanceTimersByTimeAsync(1_000);
     await assertion;
@@ -186,14 +171,8 @@ describe("wallet_selector_modal — transaction timeout clocks", () => {
   });
 
   it("times out cleanly when the request carries no payload", async () => {
-    const promise = signWithWalletSelectorTimeout(
-      { walletId: "hana", xdr: "IIII..." },
-      hang,
-      500
-    );
-    const assertion = expect(promise).rejects.toBeInstanceOf(
-      WalletSelectorTimeoutError
-    );
+    const promise = signWithWalletSelectorTimeout({ walletId: "hana", xdr: "IIII..." }, hang, 500);
+    const assertion = expect(promise).rejects.toBeInstanceOf(WalletSelectorTimeoutError);
 
     await vi.advanceTimersByTimeAsync(500);
     await assertion;
@@ -205,9 +184,7 @@ describe("wallet_selector_modal — transaction timeout clocks", () => {
       hang,
       0
     );
-    const assertion = expect(promise).rejects.toThrow(
-      `${DEFAULT_WALLET_SELECTOR_TIMEOUT_MS}ms`
-    );
+    const assertion = expect(promise).rejects.toThrow(`${DEFAULT_WALLET_SELECTOR_TIMEOUT_MS}ms`);
 
     await vi.advanceTimersByTimeAsync(DEFAULT_WALLET_SELECTOR_TIMEOUT_MS);
     await assertion;
@@ -236,9 +213,7 @@ describe("wallet_selector_modal — transaction timeout clocks", () => {
       hang,
       1_000
     );
-    const assertion = expect(promise).rejects.toBeInstanceOf(
-      WalletSelectorTimeoutError
-    );
+    const assertion = expect(promise).rejects.toBeInstanceOf(WalletSelectorTimeoutError);
 
     expect(getPendingWalletSelectorOperationCount()).toBe(1);
     expect(getPendingWalletSelectorWalletIds()).toEqual(["albedo"]);
@@ -253,9 +228,7 @@ describe("wallet_selector_modal — transaction timeout clocks", () => {
       hang,
       1_000
     );
-    const assertion = expect(promise).rejects.toBeInstanceOf(
-      WalletSelectorTimeoutError
-    );
+    const assertion = expect(promise).rejects.toBeInstanceOf(WalletSelectorTimeoutError);
 
     await vi.advanceTimersByTimeAsync(1_000);
     await assertion;
@@ -292,25 +265,14 @@ describe("wallet_selector_modal — transaction timeout clocks", () => {
   });
 
   it("tracks several concurrent requests independently", async () => {
-    const first = signWithWalletSelectorTimeout(
-      { walletId: "freighter", xdr: "P1" },
-      hang,
-      1_000
-    );
-    const second = signWithWalletSelectorTimeout(
-      { walletId: "albedo", xdr: "P2" },
-      hang,
-      2_000
-    );
+    const first = signWithWalletSelectorTimeout({ walletId: "freighter", xdr: "P1" }, hang, 1_000);
+    const second = signWithWalletSelectorTimeout({ walletId: "albedo", xdr: "P2" }, hang, 2_000);
     const assertions = Promise.all([
       expect(first).rejects.toBeInstanceOf(WalletSelectorTimeoutError),
       expect(second).rejects.toBeInstanceOf(WalletSelectorTimeoutError),
     ]);
 
-    expect(getPendingWalletSelectorWalletIds()).toEqual([
-      "freighter",
-      "albedo",
-    ]);
+    expect(getPendingWalletSelectorWalletIds()).toEqual(["freighter", "albedo"]);
 
     await vi.advanceTimersByTimeAsync(2_000);
     await assertions;
@@ -332,9 +294,7 @@ describe("wallet_selector_modal — transaction timeout clocks", () => {
       },
       10_000
     );
-    const assertion = expect(promise).rejects.toBeInstanceOf(
-      WalletSelectorTimeoutError
-    );
+    const assertion = expect(promise).rejects.toBeInstanceOf(WalletSelectorTimeoutError);
 
     expect(abortAllWalletSelectorOperations()).toBe(1);
     expect(captured?.aborted).toBe(true);
@@ -374,9 +334,7 @@ describe("wallet_selector_modal — transaction timeout clocks", () => {
       },
       5_000
     );
-    const assertion = expect(promise).rejects.not.toBeInstanceOf(
-      WalletSelectorTimeoutError
-    );
+    const assertion = expect(promise).rejects.not.toBeInstanceOf(WalletSelectorTimeoutError);
 
     await vi.runAllTimersAsync();
     await assertion;

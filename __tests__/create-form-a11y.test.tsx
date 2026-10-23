@@ -7,7 +7,7 @@
  */
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import CreateJob from "@/app/create/page";
+import CreateJob from "@/app/(app)/create/page";
 
 const mockPush = vi.fn();
 const mockUseWallet = vi.fn();
@@ -35,9 +35,7 @@ describe("Create form – a11y ARIA compliance (issue #40)", () => {
 
   it("form has an accessible name via aria-label", () => {
     render(<CreateJob />);
-    expect(
-      screen.getByRole("form", { name: "Create new escrow job" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("form", { name: "Create new escrow job" })).toBeInTheDocument();
   });
 
   it("form carries aria-busy=false while idle", () => {
@@ -48,17 +46,12 @@ describe("Create form – a11y ARIA compliance (issue #40)", () => {
 
   it("required inputs carry aria-required='true'", () => {
     render(<CreateJob />);
-    expect(screen.getByLabelText("Freelancer Address")).toHaveAttribute(
+    expect(screen.getByLabelText("Freelancer Address")).toHaveAttribute("aria-required", "true");
+    expect(screen.getByLabelText("Arbiter Address")).toHaveAttribute("aria-required", "true");
+    expect(screen.getByLabelText("Token Contract Address", { selector: "input" })).toHaveAttribute(
       "aria-required",
       "true"
     );
-    expect(screen.getByLabelText("Arbiter Address")).toHaveAttribute(
-      "aria-required",
-      "true"
-    );
-    expect(
-      screen.getByLabelText("Token Contract Address", { selector: "input" })
-    ).toHaveAttribute("aria-required", "true");
   });
 
   it("milestone inputs carry aria-required='true'", () => {
@@ -77,16 +70,13 @@ describe("Create form – a11y ARIA compliance (issue #40)", () => {
 
   it("milestones are grouped in a fieldset with a legend", () => {
     render(<CreateJob />);
-    const fieldset = screen
-      .getByRole("group", { name: "Milestones" });
+    const fieldset = screen.getByRole("group", { name: "Milestones" });
     expect(fieldset.tagName).toBe("FIELDSET");
   });
 
   it("milestone list has aria-label for screen readers", () => {
     render(<CreateJob />);
-    expect(
-      screen.getByRole("list", { name: "Milestone amounts" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Milestone amounts" })).toBeInTheDocument();
   });
 
   it("remove milestone button has a descriptive aria-label", () => {
@@ -140,8 +130,7 @@ describe("Create form – a11y ARIA compliance (issue #40)", () => {
   it("decorative icons are aria-hidden so they're skipped by screen readers", () => {
     render(<CreateJob />);
     // The ✕ span inside remove button should be aria-hidden
-    const hiddenSpans = document
-      .querySelectorAll('[aria-hidden="true"]');
+    const hiddenSpans = document.querySelectorAll('[aria-hidden="true"]');
     // At least the ✕ decorative span should be present
     expect(hiddenSpans.length).toBeGreaterThan(0);
   });

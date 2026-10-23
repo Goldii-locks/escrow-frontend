@@ -2,10 +2,7 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  WalletProvider,
-  useWallet,
-} from "@/app/context/WalletContext";
+import { WalletProvider, useWallet } from "@/app/context/WalletContext";
 import { WalletRejectedError } from "@/app/lib/errors";
 import { submitContractTransaction } from "@/app/lib/transactions";
 
@@ -30,7 +27,8 @@ vi.mock("@creit.tech/stellar-wallets-kit/modules/utils", () => ({
   defaultModules: vi.fn(() => []),
 }));
 
-vi.mock("@/app/lib/contract", () => ({
+vi.mock("@/app/lib/config", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/app/lib/config")>()),
   NETWORK_PASSPHRASE: "Test SDF Network ; September 2015",
 }));
 
@@ -38,16 +36,13 @@ vi.mock("@/app/context/ToastContext", () => ({
   useToast: () => ({ showToast }),
 }));
 
-vi.mock("@/app/lib/freighter_connector", () => ({
+vi.mock("@/app/lib/wallet_session", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/app/lib/wallet_session")>()),
   freighterActiveAddress: {
     clear: vi.fn(),
     setActiveAddress: vi.fn(),
   },
   verifyAndRehydrateFreighterAddress: vi.fn(),
-}));
-
-vi.mock("@/app/lib/ledger_usb_bridge", () => ({
-  ledgerActiveAddresses: { clear: vi.fn() },
 }));
 
 function WalletWrapper({ children }: { children: ReactNode }) {
@@ -92,9 +87,9 @@ describe("wallet_state_context signature rejection handling (#115)", () => {
     walletKitMocks.signTransaction.mockRejectedValue(rejection);
     const wallet = await renderConnectedWallet();
 
-    await expect(
-      wallet.current.signTransaction("unsigned-xdr")
-    ).rejects.toBeInstanceOf(WalletRejectedError);
+    await expect(wallet.current.signTransaction("unsigned-xdr")).rejects.toBeInstanceOf(
+      WalletRejectedError
+    );
 
     expect(showToast).toHaveBeenCalledWith(
       "Signature cancelled - you rejected the request in your wallet.",
@@ -119,9 +114,7 @@ describe("wallet_state_context signature rejection handling (#115)", () => {
     walletKitMocks.signTransaction.mockRejectedValue(signingError);
     const wallet = await renderConnectedWallet();
 
-    await expect(wallet.current.signTransaction("unsigned-xdr")).rejects.toBe(
-      signingError
-    );
+    await expect(wallet.current.signTransaction("unsigned-xdr")).rejects.toBe(signingError);
     expect(showToast).not.toHaveBeenCalled();
     const warning = warnSpy.mock.calls
       .map((call) => String(call[0]))
@@ -134,12 +127,10 @@ describe("wallet_state_context signature rejection handling (#115)", () => {
 
   it("does not classify unexpected signing failures as transaction rejection", async () => {
     const signingError = new Error("Wallet RPC unavailable");
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ xdr: "unsigned-xdr" }),
-      });
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ xdr: "unsigned-xdr" }),
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(

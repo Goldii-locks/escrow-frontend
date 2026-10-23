@@ -18,10 +18,7 @@ export interface ClientRefundPanelProps {
   escrowId?: string;
   initialRefunds?: ClientRefundEntry[];
   isLoading?: boolean;
-  onSubmitRefund?: (data: {
-    reason: string;
-    amount: string;
-  }) => void | Promise<void>;
+  onSubmitRefund?: (data: { reason: string; amount: string }) => void | Promise<void>;
   isPending?: boolean;
   apiEndpoint?: string;
   className?: string;
@@ -36,13 +33,13 @@ export default function ClientRefundPanel({
   apiEndpoint,
   className = "",
 }: ClientRefundPanelProps) {
-  const [fetchedRefunds, setFetchedRefunds] = useState<ClientRefundEntry[]>(
-    () => mapRefundPayload(MOCK_REFUND_PAYLOAD),
+  const [fetchedRefunds, setFetchedRefunds] = useState<ClientRefundEntry[]>(() =>
+    mapRefundPayload(MOCK_REFUND_PAYLOAD)
   );
   // Caller-supplied entries always win; fetched (or mock) data fills in otherwise.
   const refunds = initialRefunds ?? fetchedRefunds;
   const [loading, setLoading] = useState<boolean>(
-    !initialRefunds && (externalLoading || Boolean(apiEndpoint)),
+    !initialRefunds && (externalLoading || Boolean(apiEndpoint))
   );
   const [reason, setReason] = useState("");
   const [amount, setAmount] = useState("");
@@ -125,13 +122,9 @@ export default function ClientRefundPanel({
     >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border-subtle pb-4">
         <div>
-          <h3 className="text-base font-semibold text-text-primary">
-            Client Refund Panel
-          </h3>
+          <h3 className="text-base font-semibold text-text-primary">Client Refund Panel</h3>
           {escrowId && (
-            <p className="text-xs text-text-secondary font-mono mt-1">
-              Escrow ID: {escrowId}
-            </p>
+            <p className="text-xs text-text-secondary font-mono mt-1">Escrow ID: {escrowId}</p>
           )}
         </div>
         <span className="text-xs font-medium px-2.5 py-1 rounded bg-surface-field text-text-secondary">
@@ -140,14 +133,8 @@ export default function ClientRefundPanel({
       </div>
 
       {/* Refund request form */}
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-4"
-        data-testid="client-refund-form"
-      >
-        <h4 className="text-sm font-medium text-text-primary">
-          Request a Refund
-        </h4>
+      <form onSubmit={handleSubmit} className="space-y-4" data-testid="client-refund-form">
+        <h4 className="text-sm font-medium text-text-primary">Request a Refund</h4>
 
         {inputError && (
           <div
@@ -209,9 +196,7 @@ export default function ClientRefundPanel({
       <div className="space-y-3 pt-2" data-testid="client-refunds-list">
         <h4 className="text-sm font-medium text-text-primary">Refund History</h4>
         {refunds.length === 0 ? (
-          <p className="text-xs text-text-secondary">
-            No refund requests found.
-          </p>
+          <p className="text-xs text-text-secondary">No refund requests found.</p>
         ) : (
           <div className="space-y-2">
             {refunds.map((refund) => (
@@ -221,12 +206,8 @@ export default function ClientRefundPanel({
                 className="rounded-lg bg-surface-field p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
               >
                 <div>
-                  <span className="font-semibold text-sm text-text-primary">
-                    {refund.jobTitle}
-                  </span>
-                  <p className="text-xs text-text-secondary mt-0.5">
-                    {refund.reason}
-                  </p>
+                  <span className="font-semibold text-sm text-text-primary">{refund.jobTitle}</span>
+                  <p className="text-xs text-text-secondary mt-0.5">{refund.reason}</p>
                   <span className="text-[11px] text-text-muted">
                     {new Date(refund.createdAt).toLocaleDateString()}
                   </span>

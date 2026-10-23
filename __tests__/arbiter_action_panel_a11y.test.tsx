@@ -13,9 +13,7 @@ import { describe, expect, it, vi } from "vitest";
 import ArbiterActionPanel from "@/app/components/ArbiterActionPanel";
 import MilestoneCard from "@/app/components/MilestoneCard";
 
-const renderPanel = (
-  props: Partial<Parameters<typeof ArbiterActionPanel>[0]> = {},
-) =>
+const renderPanel = (props: Partial<Parameters<typeof ArbiterActionPanel>[0]> = {}) =>
   render(
     <ArbiterActionPanel
       milestoneIndex={2}
@@ -23,7 +21,7 @@ const renderPanel = (
       escrowAmount="300000000"
       onResolve={vi.fn()}
       {...props}
-    />,
+    />
   );
 
 describe("ArbiterActionPanel — ARIA", () => {
@@ -38,15 +36,13 @@ describe("ArbiterActionPanel — ARIA", () => {
   it("describes the region with the finality warning", () => {
     renderPanel();
     expect(screen.getByRole("region")).toHaveAccessibleDescription(
-      /disputed 30 XLM goes\. This decision is final/,
+      /disputed 30 XLM goes\. This decision is final/
     );
   });
 
   it("uses a heading for the panel title", () => {
     renderPanel();
-    expect(
-      screen.getByRole("heading", { level: 3, name: /Milestone 3/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: /Milestone 3/ })).toBeInTheDocument();
   });
 
   it("groups the outcomes in a named, required radio group", () => {
@@ -75,9 +71,7 @@ describe("ArbiterActionPanel — ARIA", () => {
   it("marks the region busy while a resolution is pending", () => {
     const { rerender } = renderPanel();
     expect(screen.getByRole("region")).toHaveAttribute("aria-busy", "false");
-    rerender(
-      <ArbiterActionPanel milestoneIndex={2} onResolve={vi.fn()} isPending />,
-    );
+    rerender(<ArbiterActionPanel milestoneIndex={2} onResolve={vi.fn()} isPending />);
     expect(screen.getByRole("region")).toHaveAttribute("aria-busy", "true");
   });
 
@@ -101,13 +95,13 @@ describe("ArbiterActionPanel — ARIA", () => {
     const group = screen.getByRole("group", { name: "Outcome" });
     expect(group).toHaveAttribute("aria-invalid", "true");
     expect(group).toHaveAccessibleDescription(
-      "Select how the disputed funds should be distributed.",
+      "Select how the disputed funds should be distributed."
     );
 
     const checkbox = screen.getByRole("checkbox");
     expect(checkbox).toHaveAttribute("aria-invalid", "true");
     expect(checkbox).toHaveAccessibleDescription(
-      "Confirm that you understand this decision is final.",
+      "Confirm that you understand this decision is final."
     );
   });
 
@@ -141,7 +135,7 @@ describe("ArbiterActionPanel — ARIA", () => {
       <>
         <ArbiterActionPanel milestoneIndex={0} onResolve={vi.fn()} />
         <ArbiterActionPanel milestoneIndex={1} onResolve={vi.fn()} />
-      </>,
+      </>
     );
     const ids = Array.from(document.querySelectorAll("[id]")).map((el) => el.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -206,7 +200,7 @@ describe("ArbiterActionPanel — keyboard navigation", () => {
       <>
         <ArbiterActionPanel milestoneIndex={0} isPending onResolve={vi.fn()} />
         <button type="button">after</button>
-      </>,
+      </>
     );
     await user.tab();
     expect(screen.getByRole("button", { name: "after" })).toHaveFocus();
@@ -231,7 +225,7 @@ describe("MilestoneCard — arbiter panel integration", () => {
         isArbiter
         milestone={{ index: 0, amount: "100", status: "Disputed" }}
         onResolveDispute={vi.fn()}
-      />,
+      />
     );
     expect(screen.getByTestId("arbiter-action-panel")).toBeInTheDocument();
 
@@ -240,7 +234,7 @@ describe("MilestoneCard — arbiter panel integration", () => {
         {...cardProps}
         isArbiter={false}
         milestone={{ index: 0, amount: "100", status: "Disputed" }}
-      />,
+      />
     );
     expect(screen.queryByTestId("arbiter-action-panel")).not.toBeInTheDocument();
 
@@ -249,7 +243,7 @@ describe("MilestoneCard — arbiter panel integration", () => {
         {...cardProps}
         isArbiter
         milestone={{ index: 0, amount: "100", status: "Pending" }}
-      />,
+      />
     );
     expect(screen.queryByTestId("arbiter-action-panel")).not.toBeInTheDocument();
   });
@@ -263,7 +257,7 @@ describe("MilestoneCard — arbiter panel integration", () => {
         isArbiter
         milestone={{ index: 4, amount: "100", status: "Disputed" }}
         onResolveDispute={onResolveDispute}
-      />,
+      />
     );
     await user.click(screen.getByRole("radio", { name: /Release/ }));
     await user.click(screen.getByRole("checkbox"));
@@ -278,11 +272,9 @@ describe("MilestoneCard — arbiter panel integration", () => {
         isArbiter
         milestone={{ index: 0, amount: "100", releasedAmount: "100", status: "Disputed" }}
         onResolveDispute={vi.fn()}
-      />,
+      />
     );
-    expect(screen.getByTestId("arbiter-panel-alert")).toHaveTextContent(
-      "no escrowed funds left",
-    );
+    expect(screen.getByTestId("arbiter-panel-alert")).toHaveTextContent("no escrowed funds left");
     expect(screen.getByTestId("arbiter-submit")).toBeDisabled();
   });
 });

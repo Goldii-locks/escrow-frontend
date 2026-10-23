@@ -9,7 +9,13 @@ import {
 } from "@/app/lib/client_refund_panel_export";
 
 const rows = [
-  { escrowId: "ABC-1", amount: "50.00", token: "USDC", status: "pending_refund", requestedAt: "2026-09-01" },
+  {
+    escrowId: "ABC-1",
+    amount: "50.00",
+    token: "USDC",
+    status: "pending_refund",
+    requestedAt: "2026-09-01",
+  },
   { escrowId: "ABC-2", amount: 10, token: "=XLM", status: 'refund_approved,"ok"' },
 ];
 
@@ -52,16 +58,14 @@ describe("client_refund_panel export", () => {
 
   it("generates a dated filename", () => {
     expect(refundExportFilename(new Date("2026-09-28T10:00:00Z"))).toBe(
-      "client-refunds-2026-09-28.csv",
+      "client-refunds-2026-09-28.csv"
     );
   });
 
   it("downloads a file, and skips when empty", () => {
     URL.createObjectURL = vi.fn(() => "blob:x");
     URL.revokeObjectURL = vi.fn();
-    const click = vi
-      .spyOn(HTMLAnchorElement.prototype, "click")
-      .mockImplementation(() => {});
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 
     expect(handleRefundExport([])).toBe(false);
     expect(click).not.toHaveBeenCalled();

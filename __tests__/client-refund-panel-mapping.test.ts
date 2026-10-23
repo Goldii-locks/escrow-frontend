@@ -17,9 +17,7 @@ describe("client_refund_panel data mapping bindings (#503)", () => {
     expect(entry?.amount).toBe("750.00");
     expect(entry?.token).toBe("USDC");
     expect(entry?.status).toBe("pending");
-    expect(entry?.clientAddress).toBe(
-      "GCLIENT1111111111111111111111111111111111111111111",
-    );
+    expect(entry?.clientAddress).toBe("GCLIENT1111111111111111111111111111111111111111111");
   });
 
   it("handles missing or unknown fields with defaults", () => {
@@ -40,9 +38,7 @@ describe("client_refund_panel data mapping bindings (#503)", () => {
 
   it("maps array or wrapped payload formats", () => {
     expect(mapRefundPayload(MOCK_REFUND_PAYLOAD)).toHaveLength(3);
-    expect(
-      mapRefundPayload({ refunds: [...MOCK_REFUND_PAYLOAD, {}] }),
-    ).toHaveLength(3);
+    expect(mapRefundPayload({ refunds: [...MOCK_REFUND_PAYLOAD, {}] })).toHaveLength(3);
     expect(mapRefundPayload({ data: MOCK_REFUND_PAYLOAD })).toHaveLength(3);
     expect(mapRefundPayload("invalid")).toEqual([]);
   });
@@ -57,7 +53,7 @@ describe("client_refund_panel data mapping bindings (#503)", () => {
           ok: true,
           status: 200,
           json: async () => MOCK_REFUND_PAYLOAD,
-        }),
+        })
       );
 
       const items = await fetchRefundEntries();
@@ -72,12 +68,10 @@ describe("client_refund_panel data mapping bindings (#503)", () => {
           ok: false,
           status: 404,
           json: async () => ({}),
-        }),
+        })
       );
 
-      await expect(fetchRefundEntries(CLIENT_REFUND_ENDPOINT)).rejects.toThrow(
-        "404",
-      );
+      await expect(fetchRefundEntries(CLIENT_REFUND_ENDPOINT)).rejects.toThrow("404");
     });
   });
 });

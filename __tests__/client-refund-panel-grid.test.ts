@@ -59,7 +59,7 @@ describe("refundPanelGridStyle", () => {
     expect(refundPanelGridStyle.display).toBe("grid");
     expect(refundPanelGridStyle.gridTemplateColumns).toContain("auto-fit");
     expect(refundPanelGridStyle.gridTemplateColumns).toContain(
-      `min(100%, ${REFUND_PANEL_GRID.columnMin})`,
+      `min(100%, ${REFUND_PANEL_GRID.columnMin})`
     );
     expect(refundPanelGridStyle.maxWidth).toBe("72rem");
   });

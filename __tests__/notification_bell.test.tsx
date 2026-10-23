@@ -55,13 +55,9 @@ describe("notification_bell — a11y (keyboard & ARIA)", () => {
     renderBell({
       notifications: [{ id: "n1", type: "info", title: "Hi" }],
     });
-    const hiddenCount = screen.getAllByText("1").find((el) =>
-      el.hasAttribute("aria-hidden")
-    );
+    const hiddenCount = screen.getAllByText("1").find((el) => el.hasAttribute("aria-hidden"));
     expect(hiddenCount).toBeTruthy();
-    expect(
-      screen.getByText("1 unread notification")
-    ).toBeInTheDocument();
+    expect(screen.getByText("1 unread notification")).toBeInTheDocument();
   });
 
   it("announces the panel via an aria-live region once opened", () => {
@@ -107,9 +103,7 @@ describe("notification_bell — a11y (labels & landmarks)", () => {
   it("groups validation fields inside a labelled region", () => {
     renderBell({ fields: [{ name: "amount", label: "Amount" }] });
     fireEvent.click(screen.getByRole("button"));
-    expect(
-      screen.getByRole("group", { name: "Validation errors" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Validation errors" })).toBeInTheDocument();
   });
 
   it("shows a 'caught up' message when there is nothing to show", () => {
@@ -126,14 +120,10 @@ describe("notification_bell — a11y (labels & landmarks)", () => {
 describe("notification_bell — validation alerts (#324)", () => {
   it("renders an error message when a field is invalid", () => {
     renderBell({
-      fields: [
-        { name: "amount", label: "Milestone amount", error: "Amount is required." },
-      ],
+      fields: [{ name: "amount", label: "Milestone amount", error: "Amount is required." }],
     });
     fireEvent.click(screen.getByRole("button"));
-    expect(
-      screen.getByRole("alert", { name: "" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("alert", { name: "" })).toBeInTheDocument();
     expect(screen.getByText("Amount is required.")).toBeInTheDocument();
     expect(screen.getByText("Invalid")).toBeInTheDocument();
   });
@@ -148,9 +138,7 @@ describe("notification_bell — validation alerts (#324)", () => {
     expect(screen.getByText("Amount is required.")).toBeInTheDocument();
 
     rerender(
-      <NotificationBell
-        fields={[{ name: "amount", label: "Milestone amount", error: null }]}
-      />
+      <NotificationBell fields={[{ name: "amount", label: "Milestone amount", error: null }]} />
     );
     expect(screen.queryByText("Amount is required.")).not.toBeInTheDocument();
     expect(screen.getByText("Valid")).toBeInTheDocument();
@@ -165,9 +153,7 @@ describe("notification_bell — validation alerts (#324)", () => {
 
   it("announces field errors with role=alert and assertive aria-live", () => {
     renderBell({
-      fields: [
-        { name: "deadline", label: "Deadline", error: "Deadline is in the past." },
-      ],
+      fields: [{ name: "deadline", label: "Deadline", error: "Deadline is in the past." }],
     });
     fireEvent.click(screen.getByRole("button"));
     const alertEl = screen.getByRole("alert");
@@ -242,9 +228,9 @@ describe("notification_bell — notifications & alert roles", () => {
       notifications: [{ id: "ok", type: "success", title: "Released" }],
     });
     fireEvent.click(screen.getByRole("button"));
-    const statusEl = screen.getAllByRole("status").find((el) =>
-      el.textContent?.includes("Released")
-    );
+    const statusEl = screen
+      .getAllByRole("status")
+      .find((el) => el.textContent?.includes("Released"));
     expect(statusEl).toBeTruthy();
   });
 

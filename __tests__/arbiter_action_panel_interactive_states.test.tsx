@@ -14,9 +14,8 @@ import { describe, expect, it, vi } from "vitest";
 import ArbiterActionPanel from "@/app/components/ArbiterActionPanel";
 import { ARBITER_SUBMIT_TONE } from "@/app/lib/arbiter_action_panel";
 
-const renderPanel = (
-  props: Partial<Parameters<typeof ArbiterActionPanel>[0]> = {},
-) => render(<ArbiterActionPanel milestoneIndex={0} onResolve={vi.fn()} {...props} />);
+const renderPanel = (props: Partial<Parameters<typeof ArbiterActionPanel>[0]> = {}) =>
+  render(<ArbiterActionPanel milestoneIndex={0} onResolve={vi.fn()} {...props} />);
 
 const FOCUS_RING = [
   "focus-visible:outline-none",
@@ -43,27 +42,28 @@ describe("submit button", () => {
 
   it.each([
     [null, "Resolve Dispute", ["bg-accent", "hover:bg-accent/80", "disabled:hover:bg-accent"]],
-    ["release", "Release to Freelancer", ["bg-success", "hover:bg-success-soft", "disabled:hover:bg-success"]],
+    [
+      "release",
+      "Release to Freelancer",
+      ["bg-success", "hover:bg-success-soft", "disabled:hover:bg-success"],
+    ],
     ["refund", "Refund to Client", ["bg-danger", "hover:bg-danger/80", "disabled:hover:bg-danger"]],
-  ] as const)(
-    "outcome %s → %s with matching hover tone",
-    async (outcome, label, classes) => {
-      const user = userEvent.setup();
-      renderPanel();
-      if (outcome) {
-        await user.click(screen.getByRole("radio", { name: new RegExp(label) }));
-      }
-      const button = screen.getByTestId("arbiter-submit");
-      expect(button).toHaveTextContent(label);
-      expect(button).toHaveClass(...classes);
-    },
-  );
+  ] as const)("outcome %s → %s with matching hover tone", async (outcome, label, classes) => {
+    const user = userEvent.setup();
+    renderPanel();
+    if (outcome) {
+      await user.click(screen.getByRole("radio", { name: new RegExp(label) }));
+    }
+    const button = screen.getByTestId("arbiter-submit");
+    expect(button).toHaveTextContent(label);
+    expect(button).toHaveClass(...classes);
+  });
 
   it("has a pressed state that is suppressed when disabled", () => {
     renderPanel();
     expect(screen.getByTestId("arbiter-submit")).toHaveClass(
       "active:scale-[0.97]",
-      "disabled:active:scale-100",
+      "disabled:active:scale-100"
     );
   });
 
@@ -80,7 +80,9 @@ describe("submit button", () => {
   ] as const)("shows a spinner and %s copy while pending", async (outcome, copy) => {
     const user = userEvent.setup();
     const { rerender } = renderPanel();
-    await user.click(screen.getByRole("radio", { name: new RegExp(outcome === "release" ? "Release" : "Refund") }));
+    await user.click(
+      screen.getByRole("radio", { name: new RegExp(outcome === "release" ? "Release" : "Refund") })
+    );
     rerender(<ArbiterActionPanel milestoneIndex={0} onResolve={vi.fn()} isPending />);
     expect(screen.getByTestId("arbiter-submit")).toHaveTextContent(copy);
     expect(screen.getByTestId("button-spinner")).toBeInTheDocument();
@@ -102,7 +104,7 @@ describe("outcome options", () => {
       "hover:border-accent-soft/60",
       "hover:bg-surface-field/80",
       "transition",
-      "duration-200",
+      "duration-200"
     );
   });
 
@@ -114,7 +116,7 @@ describe("outcome options", () => {
     expect(screen.getByTestId("arbiter-outcome-release")).toHaveClass(
       "has-[:focus-visible]:ring-2",
       "has-[:focus-visible]:ring-accent-soft",
-      "has-[:focus-visible]:ring-offset-2",
+      "has-[:focus-visible]:ring-offset-2"
     );
   });
 
@@ -122,7 +124,7 @@ describe("outcome options", () => {
     renderPanel();
     expect(screen.getByTestId("arbiter-outcome-refund")).toHaveClass(
       "has-[:checked]:border-accent-soft",
-      "has-[:checked]:bg-accent/10",
+      "has-[:checked]:bg-accent/10"
     );
   });
 
@@ -133,7 +135,7 @@ describe("outcome options", () => {
       "has-[:disabled]:opacity-50",
       "has-[:disabled]:cursor-not-allowed",
       "has-[:disabled]:hover:border-border-subtle",
-      "has-[:disabled]:hover:bg-surface-field",
+      "has-[:disabled]:hover:bg-surface-field"
     );
     screen.getAllByRole("radio").forEach((radio) => expect(radio).toBeDisabled());
   });
@@ -152,7 +154,7 @@ describe("confirmation checkbox", () => {
     expect(checkbox).toHaveClass("disabled:cursor-not-allowed");
     expect(checkbox.closest("label")).toHaveClass(
       "has-[:disabled]:opacity-50",
-      "has-[:disabled]:cursor-not-allowed",
+      "has-[:disabled]:cursor-not-allowed"
     );
   });
 });

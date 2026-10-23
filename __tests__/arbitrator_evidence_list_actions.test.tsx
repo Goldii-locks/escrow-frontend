@@ -103,9 +103,7 @@ describe("Export data handlers (Issue #427)", () => {
   });
 
   it("quotes values containing commas so columns stay aligned", () => {
-    const csv = buildEvidenceCsv([
-      makeItem({ title: "Logs, commits and proof" }),
-    ]);
+    const csv = buildEvidenceCsv([makeItem({ title: "Logs, commits and proof" })]);
     expect(csv).toContain('"Logs, commits and proof"');
     // Header + exactly one data row.
     expect(csv.split("\r\n")).toHaveLength(2);
@@ -219,10 +217,7 @@ describe("Action toast warnings (Issue #426)", () => {
     renderList([makeItem({ id: "evi-001" }), makeItem({ id: "evi-002" })]);
     fireEvent.click(screen.getByTestId("evidence-export-button"));
 
-    expect(mockShowToast).toHaveBeenCalledWith(
-      "Exported 2 evidence rows to CSV.",
-      "success"
-    );
+    expect(mockShowToast).toHaveBeenCalledWith("Exported 2 evidence rows to CSV.", "success");
   });
 
   it("uses the singular form for a one-row export", () => {
@@ -235,10 +230,7 @@ describe("Action toast warnings (Issue #426)", () => {
     renderList([makeItem()]);
     fireEvent.click(screen.getByTestId("evidence-export-button"));
 
-    expect(mockShowToast).toHaveBeenCalledWith(
-      "Exported 1 evidence row to CSV.",
-      "success"
-    );
+    expect(mockShowToast).toHaveBeenCalledWith("Exported 1 evidence row to CSV.", "success");
   });
 
   it("warns instead of downloading an empty file", () => {
@@ -393,10 +385,9 @@ describe("Validation modals (Issue #425)", () => {
   });
 
   it("resets the acknowledgement between separate actions", () => {
-    renderList(
-      [makeItem({ id: "evi-001" }), makeItem({ id: "evi-002" })],
-      { onEvidenceVerified: vi.fn() }
-    );
+    renderList([makeItem({ id: "evi-001" }), makeItem({ id: "evi-002" })], {
+      onEvidenceVerified: vi.fn(),
+    });
 
     fireEvent.click(screen.getByTestId("evidence-action-evi-001"));
     fireEvent.click(screen.getByTestId("evidence-confirm-acknowledge"));
@@ -412,9 +403,7 @@ describe("Validation modals (Issue #425)", () => {
     });
 
     fireEvent.click(screen.getByTestId("evidence-action-evi-001"));
-    expect(screen.getByTestId("evidence-confirm-submit")).toHaveTextContent(
-      "Sign & Reject"
-    );
+    expect(screen.getByTestId("evidence-confirm-submit")).toHaveTextContent("Sign & Reject");
   });
 });
 
@@ -457,12 +446,8 @@ describe("State badges (Issue #424)", () => {
       makeItem({ id: "evi-003", hash: "", verified: false }),
     ]);
 
-    expect(screen.getByTestId("evidence-state-badge-evi-001")).toHaveTextContent(
-      "Verified"
-    );
-    expect(screen.getByTestId("evidence-state-badge-evi-002")).toHaveTextContent(
-      "Pending Review"
-    );
+    expect(screen.getByTestId("evidence-state-badge-evi-001")).toHaveTextContent("Verified");
+    expect(screen.getByTestId("evidence-state-badge-evi-002")).toHaveTextContent("Pending Review");
     expect(screen.getByTestId("evidence-state-badge-evi-003")).toHaveTextContent(
       "Integrity Unverified"
     );
@@ -473,10 +458,7 @@ describe("State badges (Issue #424)", () => {
 
     const badge = screen.getByTestId("evidence-state-badge-evi-001");
     expect(badge).toHaveAttribute("role", "status");
-    expect(badge).toHaveAttribute(
-      "aria-label",
-      "Evidence verified by an arbiter"
-    );
+    expect(badge).toHaveAttribute("aria-label", "Evidence verified by an arbiter");
   });
 
   it("updates the badge after a decision is confirmed", () => {
@@ -484,16 +466,12 @@ describe("State badges (Issue #424)", () => {
       onEvidenceVerified: vi.fn(),
     });
 
-    expect(screen.getByTestId("evidence-state-badge-evi-001")).toHaveTextContent(
-      "Pending Review"
-    );
+    expect(screen.getByTestId("evidence-state-badge-evi-001")).toHaveTextContent("Pending Review");
 
     fireEvent.click(screen.getByTestId("evidence-action-evi-001"));
     fireEvent.click(screen.getByTestId("evidence-confirm-acknowledge"));
     fireEvent.click(screen.getByTestId("evidence-confirm-submit"));
 
-    expect(screen.getByTestId("evidence-state-badge-evi-001")).toHaveTextContent(
-      "Verified"
-    );
+    expect(screen.getByTestId("evidence-state-badge-evi-001")).toHaveTextContent("Verified");
   });
 });

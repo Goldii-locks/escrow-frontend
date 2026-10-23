@@ -29,13 +29,13 @@ import {
 } from "@/app/lib/theme_tokens";
 
 const theme = parseThemeColourTokens(
-  readFileSync(resolve(__dirname, "../app/globals.css"), "utf8"),
+  readFileSync(resolve(__dirname, "../app/globals.css"), "utf8")
 );
 const themeNames = new Set(theme.keys());
 
 /** Flattens every class string in the panel's class maps. */
 const allMapEntries = Object.entries(ARBITER_PANEL_CLASS_MAPS).flatMap(([map, entries]) =>
-  Object.entries(entries).map(([key, classes]) => [`${map}.${key}`, classes as string] as const),
+  Object.entries(entries).map(([key, classes]) => [`${map}.${key}`, classes as string] as const)
 );
 
 /** Class strings of every rendered node, excluding shared child components. */
@@ -47,7 +47,7 @@ function renderedClassStrings(root: HTMLElement): string[] {
         // TxStatusBanner and ButtonSpinner are shared components with their
         // own styling; this suite covers the panel's own allocations.
         !el.closest("[data-testid='arbiter-panel-status']") &&
-        !el.closest("[data-testid='button-spinner']"),
+        !el.closest("[data-testid='button-spinner']")
     )
     .map((el) => el.getAttribute("class") ?? "")
     .filter(Boolean);
@@ -62,14 +62,14 @@ describe("config file", () => {
     "panel token %s matches its @theme value",
     (token, hex) => {
       expect(theme.get(token), `--color-${token} missing from @theme`).toBe(hex);
-    },
+    }
   );
 });
 
 describe("class maps", () => {
   it.each(allMapEntries)("%s uses only theme tokens for colour", (_name, classes) => {
     const offPalette = classifyClassString(classes, themeNames).filter(
-      (c) => c.kind === "off-palette",
+      (c) => c.kind === "off-palette"
     );
     expect(offPalette.map((c) => c.utility)).toEqual([]);
   });
@@ -79,8 +79,8 @@ describe("class maps", () => {
       allMapEntries.flatMap(([, classes]) =>
         classifyClassString(classes, themeNames)
           .filter((c) => c.kind === "token")
-          .map((c) => (c as { token: string }).token),
-      ),
+          .map((c) => (c as { token: string }).token)
+      )
     );
     const mirrored = new Set(Object.keys(ARBITER_PANEL_TOKENS));
     expect([...referenced].filter((t) => !mirrored.has(t))).toEqual([]);
@@ -97,7 +97,9 @@ describe("class maps", () => {
     allMapEntries.forEach(([, classes]) => {
       expect(classes).not.toMatch(/#[0-9a-f]{3,6}\b/i);
       expect(classes).not.toMatch(/rgba?\(/);
-      expect(classes).not.toMatch(/\b(?:bg|text|border|ring)-(?:gray|white|black|indigo|red|green)\b/);
+      expect(classes).not.toMatch(
+        /\b(?:bg|text|border|ring)-(?:gray|white|black|indigo|red|green)\b/
+      );
     });
   });
 });
@@ -157,7 +159,7 @@ describe("rendered DOM matches the colour scheme", () => {
     expect(screen.getByText("Outcome")).toHaveClass("text-text-secondary");
     expect(screen.getByText("Release to Freelancer")).toHaveClass("text-text-primary");
     expect(screen.getByText("Pay the disputed funds to the freelancer.")).toHaveClass(
-      "text-text-muted",
+      "text-text-muted"
     );
   });
 });
@@ -168,14 +170,14 @@ describe("hover states keep AA contrast", () => {
   it("release submit hovers to the lighter success-soft token", () => {
     expect(ARBITER_SUBMIT_TONE.release).toContain("hover:bg-success-soft");
     expect(
-      contrastRatio(ARBITER_PANEL_TOKENS["surface-page"], ARBITER_PANEL_TOKENS["success-soft"]),
+      contrastRatio(ARBITER_PANEL_TOKENS["surface-page"], ARBITER_PANEL_TOKENS["success-soft"])
     ).toBeGreaterThanOrEqual(WCAG_AA_NORMAL_TEXT);
   });
 
   it("the previous release hover (success/80) fell below AA", () => {
     const hovered = blendOver(ARBITER_PANEL_TOKENS.success, 0.8, card);
     expect(contrastRatio(ARBITER_PANEL_TOKENS["surface-page"], hovered)).toBeLessThan(
-      WCAG_AA_NORMAL_TEXT,
+      WCAG_AA_NORMAL_TEXT
     );
   });
 
@@ -186,7 +188,7 @@ describe("hover states keep AA contrast", () => {
     expect(ARBITER_SUBMIT_TONE[tone]).toContain(`hover:bg-${bg}/80`);
     const hovered = blendOver(ARBITER_PANEL_TOKENS[bg], 0.8, card);
     expect(contrastRatio(ARBITER_PANEL_TOKENS[fg], hovered)).toBeGreaterThanOrEqual(
-      WCAG_AA_NORMAL_TEXT,
+      WCAG_AA_NORMAL_TEXT
     );
   });
 
@@ -194,7 +196,7 @@ describe("hover states keep AA contrast", () => {
     expect(ARBITER_SUBMIT_TONE.none).not.toContain("accent-hover");
     const accentHover = theme.get("accent-hover")!;
     expect(contrastRatio(ARBITER_PANEL_TOKENS["text-primary"], accentHover)).toBeLessThan(
-      WCAG_AA_NORMAL_TEXT,
+      WCAG_AA_NORMAL_TEXT
     );
   });
 });

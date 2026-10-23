@@ -40,7 +40,9 @@ describe("arbitrator_evidence_list module", () => {
       expect(screen.getByRole("alert")).toBeInTheDocument();
       expect(screen.getByText(/Access Denied/i)).toBeInTheDocument();
       expect(
-        screen.getByText(/Only authorized arbiters assigned to this dispute can review submitted evidence/i)
+        screen.getByText(
+          /Only authorized arbiters assigned to this dispute can review submitted evidence/i
+        )
       ).toBeInTheDocument();
       expect(screen.queryByTestId("arbitrator-evidence-list-container")).not.toBeInTheDocument();
     });
@@ -106,7 +108,9 @@ describe("arbitrator_evidence_list module", () => {
       fireEvent.change(titleInput, { target: { value: "<code>malicious code payload</code>" } });
       fireEvent.click(submitBtn);
 
-      expect(screen.getByText(/Evidence title is required and cannot contain code tags/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Evidence title is required and cannot contain code tags/i)
+      ).toBeInTheDocument();
     });
   });
 
@@ -149,7 +153,9 @@ describe("arbitrator_evidence_list module", () => {
       fireEvent.click(clientFilterBtn);
 
       expect(screen.getByText("Project Scope Specification v1.2")).toBeInTheDocument();
-      expect(screen.queryByText("Production Deployment Logs & Commit Proof")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Production Deployment Logs & Commit Proof")
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -166,7 +172,9 @@ describe("arbitrator_evidence_list module", () => {
 
       const row = screen.getByTestId(`evidence-item-${MOCK_EVIDENCE_DATASET[0].id}`);
       expect(row).toHaveClass("grid", "grid-cols-1");
-      expect(row.className).toMatch(/lg:grid-cols-\[minmax\(0,2fr\)_minmax\(0,3fr\)_minmax\(0,auto\)\]/);
+      expect(row.className).toMatch(
+        /lg:grid-cols-\[minmax\(0,2fr\)_minmax\(0,3fr\)_minmax\(0,auto\)\]/
+      );
       // Every direct grid child may shrink so long content cannot overflow the row.
       Array.from(row.children).forEach((child) => expect(child).toHaveClass("min-w-0"));
     });
@@ -190,7 +198,10 @@ describe("arbitrator_evidence_list module", () => {
     it("renders a fetched dataset end to end through a mocked backend", async () => {
       vi.stubGlobal(
         "fetch",
-        vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: MOCK_EVIDENCE_DATASET }) })
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({ success: true, data: MOCK_EVIDENCE_DATASET }),
+        })
       );
 
       render(

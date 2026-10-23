@@ -48,13 +48,7 @@ describe("WalletBadge — interactive state styling", () => {
     });
 
     it("styles the disconnect control on hover", () => {
-      render(
-        <WalletBadge
-          address={SAMPLE_ADDRESS}
-          status="connected"
-          onDisconnect={() => {}}
-        />
-      );
+      render(<WalletBadge address={SAMPLE_ADDRESS} status="connected" onDisconnect={() => {}} />);
       const disconnect = screen.getByRole("button", {
         name: "Disconnect wallet",
       });
@@ -88,13 +82,7 @@ describe("WalletBadge — interactive state styling", () => {
     });
 
     it("applies a focus-visible ring to the disconnect control", () => {
-      render(
-        <WalletBadge
-          address={SAMPLE_ADDRESS}
-          status="connected"
-          onDisconnect={() => {}}
-        />
-      );
+      render(<WalletBadge address={SAMPLE_ADDRESS} status="connected" onDisconnect={() => {}} />);
       const className = screen.getByRole("button", {
         name: "Disconnect wallet",
       }).className;
@@ -158,9 +146,7 @@ describe("WalletBadge — interactive state styling", () => {
     it("does not fire onClick while disabled", async () => {
       const user = userEvent.setup();
       const onClick = vi.fn();
-      render(
-        <WalletBadge status="disconnected" onClick={onClick} disabled />
-      );
+      render(<WalletBadge status="disconnected" onClick={onClick} disabled />);
       await user.click(badge());
       expect(onClick).not.toHaveBeenCalled();
     });
@@ -190,16 +176,9 @@ describe("WalletBadge — interactive state styling", () => {
 
     it("disables the disconnect control when the badge is disabled", () => {
       render(
-        <WalletBadge
-          address={SAMPLE_ADDRESS}
-          status="connected"
-          onDisconnect={() => {}}
-          disabled
-        />
+        <WalletBadge address={SAMPLE_ADDRESS} status="connected" onDisconnect={() => {}} disabled />
       );
-      expect(
-        screen.getByRole("button", { name: "Disconnect wallet" })
-      ).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Disconnect wallet" })).toBeDisabled();
     });
 
     it("does not fire onDisconnect while disabled", async () => {
@@ -213,20 +192,12 @@ describe("WalletBadge — interactive state styling", () => {
           disabled
         />
       );
-      await user.click(
-        screen.getByRole("button", { name: "Disconnect wallet" })
-      );
+      await user.click(screen.getByRole("button", { name: "Disconnect wallet" }));
       expect(onDisconnect).not.toHaveBeenCalled();
     });
 
     it("applies disabled utilities to the disconnect control", () => {
-      render(
-        <WalletBadge
-          address={SAMPLE_ADDRESS}
-          status="connected"
-          onDisconnect={() => {}}
-        />
-      );
+      render(<WalletBadge address={SAMPLE_ADDRESS} status="connected" onDisconnect={() => {}} />);
       const className = screen.getByRole("button", {
         name: "Disconnect wallet",
       }).className;
@@ -242,13 +213,7 @@ describe("WalletBadge — interactive state styling", () => {
 
   describe("composition", () => {
     it("keeps the status design tokens on an actionable badge", () => {
-      render(
-        <WalletBadge
-          address={SAMPLE_ADDRESS}
-          status="connected"
-          onClick={() => {}}
-        />
-      );
+      render(<WalletBadge address={SAMPLE_ADDRESS} status="connected" onClick={() => {}} />);
       expect(badge().className).toContain("bg-surface-field");
       expect(badge().className).toContain("text-text-primary");
     });
@@ -263,15 +228,11 @@ describe("WalletBadge — interactive state styling", () => {
         />
       );
       expect(badge().tagName).toBe("BUTTON");
-      expect(
-        screen.getByRole("button", { name: "Disconnect wallet" })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Disconnect wallet" })).toBeInTheDocument();
     });
 
     it("still applies a custom className to an actionable badge", () => {
-      render(
-        <WalletBadge status="disconnected" onClick={() => {}} className="mt-4" />
-      );
+      render(<WalletBadge status="disconnected" onClick={() => {}} className="mt-4" />);
       expect(badge().className).toContain("mt-4");
     });
 
@@ -282,13 +243,7 @@ describe("WalletBadge — interactive state styling", () => {
     });
 
     it("keeps the error title on an actionable badge", () => {
-      render(
-        <WalletBadge
-          status="error"
-          errorMessage="Network mismatch"
-          onClick={() => {}}
-        />
-      );
+      render(<WalletBadge status="error" errorMessage="Network mismatch" onClick={() => {}} />);
       expect(badge()).toHaveAttribute("title", "Network mismatch");
     });
   });

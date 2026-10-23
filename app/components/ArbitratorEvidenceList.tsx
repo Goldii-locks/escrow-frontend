@@ -197,10 +197,7 @@ export default function ArbitratorEvidenceList({
 
   // 5. Spreadsheet export handler (Issue #427)
   const handleExportClick = () => {
-    const exported = handleEvidenceExport(
-      filteredEvidence,
-      evidenceExportFilename(disputeId)
-    );
+    const exported = handleEvidenceExport(filteredEvidence, evidenceExportFilename(disputeId));
 
     // `handleEvidenceExport` returns false for an empty set rather than
     // downloading a header-only file (Issue #426 covers the messaging).
@@ -225,9 +222,7 @@ export default function ArbitratorEvidenceList({
       onEvidenceVerified?.(action.evidenceId);
       setEvidenceList((prev) =>
         prev.map((item) =>
-          item.id === action.evidenceId
-            ? { ...item, verified: action.kind === "verify" }
-            : item
+          item.id === action.evidenceId ? { ...item, verified: action.kind === "verify" } : item
         )
       );
       showToast(
@@ -370,7 +365,9 @@ export default function ArbitratorEvidenceList({
                 <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 lg:flex-col lg:items-end lg:gap-y-0.5">
                   <span>Type: {item.fileType}</span>
                   <span>Size: {(item.fileSize / 1024).toFixed(1)} KB</span>
-                  <span className="max-w-full break-all font-mono text-[11px] text-gray-500">Hash: {item.hash}</span>
+                  <span className="max-w-full break-all font-mono text-[11px] text-gray-500">
+                    Hash: {item.hash}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   {onEvidenceVerified && (

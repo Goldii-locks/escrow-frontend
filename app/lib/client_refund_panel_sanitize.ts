@@ -6,9 +6,7 @@
 const CODE_TAG_PATTERN = /<[^>]*>?|[<>]|javascript:|data:\s*text\/html/i;
 
 /** Returns true if string contains HTML/code tags or script injection patterns. */
-export function refundContainsCodeTags(
-  value: string | null | undefined,
-): boolean {
+export function refundContainsCodeTags(value: string | null | undefined): boolean {
   if (typeof value !== "string") return false;
   return CODE_TAG_PATTERN.test(value);
 }

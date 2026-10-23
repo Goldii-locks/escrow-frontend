@@ -14,10 +14,7 @@ export type SyncNetwork = "mainnet" | "testnet";
 
 export type SyncToastHandler = (message: string, type: ToastType) => void;
 
-export type WalletAvailabilityStatus =
-  | "available"
-  | "unavailable"
-  | "error";
+export type WalletAvailabilityStatus = "available" | "unavailable" | "error";
 
 export interface WalletAvailabilityState {
   available: boolean;
@@ -29,12 +26,7 @@ export interface WalletAvailabilityState {
 
 const LOG_PREFIX = "[network_sync_checker]";
 
-export type NetworkSyncTxPhase =
-  | "idle"
-  | "checking"
-  | "signing"
-  | "success"
-  | "error";
+export type NetworkSyncTxPhase = "idle" | "checking" | "signing" | "success" | "error";
 
 export interface NetworkSyncTxTrackEntry {
   txId: string;
@@ -62,16 +54,12 @@ export function formatStackTrace(err?: unknown): string {
     return err;
   }
 
-  const synthetic = new Error(
-    typeof err === "string" ? err : "network_sync_checker trace"
-  );
+  const synthetic = new Error(typeof err === "string" ? err : "network_sync_checker trace");
   return synthetic.stack ?? "Error: network_sync_checker trace";
 }
 
 /** Builds a multi-line console warning block for transaction debug tracking. */
-export function formatConsoleWarningBlock(
-  block: NetworkSyncConsoleWarningBlock
-): string {
+export function formatConsoleWarningBlock(block: NetworkSyncConsoleWarningBlock): string {
   const lines = [
     `${LOG_PREFIX} ╔══════════════════════════════════════╗`,
     `${LOG_PREFIX} ║ ${block.title.padEnd(36).slice(0, 36)} ║`,
@@ -213,9 +201,7 @@ export function isNetworkSyncUserRejected(err: unknown): boolean {
 }
 
 /** Zeroes and drops a sensitive buffer so it cannot be retained after abort. */
-export function clearSensitiveMemory(
-  request: NetworkSyncSignRequest
-): NetworkSyncSignRequest {
+export function clearSensitiveMemory(request: NetworkSyncSignRequest): NetworkSyncSignRequest {
   if (request.payload) {
     request.payload.fill(0);
   }
@@ -300,16 +286,8 @@ export async function runNetworkSyncSign<T>(
     return result;
   } catch (err) {
     if (isNetworkSyncUserRejected(err)) {
-      networkSyncTracker.track(
-        txId,
-        "error",
-        "signature rejected during network sync",
-        err
-      );
-      showToast(
-        "Network sync cancelled — you rejected the signature in your wallet.",
-        "warning"
-      );
+      networkSyncTracker.track(txId, "error", "signature rejected during network sync", err);
+      showToast("Network sync cancelled — you rejected the signature in your wallet.", "warning");
       return null;
     }
     throw err;
@@ -353,22 +331,14 @@ export function detectWalletExtension(detector?: () => boolean): boolean {
     return false;
   }
   const w = window as unknown as Record<string, unknown>;
-  return !!(
-    w["freighterApi"] ||
-    w["freighter"] ||
-    w["albedo"] ||
-    w["xBullSDK"] ||
-    w["hanaWallet"]
-  );
+  return !!(w["freighterApi"] || w["freighter"] || w["albedo"] || w["xBullSDK"] || w["hanaWallet"]);
 }
 
 /**
  * Checks wallet extension availability and returns fallback setup instructions
  * when the extension is missing or the check itself throws.
  */
-export function checkWalletAvailability(
-  detector?: () => boolean
-): WalletAvailabilityState {
+export function checkWalletAvailability(detector?: () => boolean): WalletAvailabilityState {
   try {
     const available = detectWalletExtension(detector);
     if (available) {
@@ -379,18 +349,17 @@ export function checkWalletAvailability(
         warningMessage: null,
       };
     }
-return {
+    return {
       available: false,
       status: "unavailable",
       setupInstruction: WALLET_SETUP_INSTRUCTION,
       warningMessage: WALLET_SETUP_INSTRUCTION,
     };
   } catch (err) {
-    logNetworkSyncWarning(
-      "WALLET AVAILABILITY FAILED",
-      "wallet availability check failed",
-      { err, phase: "checking" }
-    );
+    logNetworkSyncWarning("WALLET AVAILABILITY FAILED", "wallet availability check failed", {
+      err,
+      phase: "checking",
+    });
     return {
       available: false,
       status: "error",
@@ -562,11 +531,10 @@ export function loadNetworkSyncSession(): NetworkSyncSessionState | null {
       };
     }
   } catch (err) {
-    logNetworkSyncWarning(
-      "SESSION PARSE FAILED",
-      "failed to parse session state",
-      { err, phase: "idle" }
-    );
+    logNetworkSyncWarning("SESSION PARSE FAILED", "failed to parse session state", {
+      err,
+      phase: "idle",
+    });
   }
   return null;
 }
@@ -766,10 +734,7 @@ export function parseMultiSigEnvelope(
   }
   const trimmed = baseXdr.trim();
   if (trimmed.length === 0) {
-    throw new NetworkSyncMultiSigStructureError(
-      "empty_xdr",
-      "Multi-sig envelope XDR is empty."
-    );
+    throw new NetworkSyncMultiSigStructureError("empty_xdr", "Multi-sig envelope XDR is empty.");
   }
   const bytes = decodeBase64Envelope(trimmed);
   if (bytes.length === 0) {
@@ -801,11 +766,7 @@ export function parseMultiSigEnvelope(
           : "Multi-sig envelope XDR could not be parsed."
       );
     }
-    if (
-      !parsed ||
-      typeof parsed.signatures !== "number" ||
-      !Number.isFinite(parsed.signatures)
-    ) {
+    if (!parsed || typeof parsed.signatures !== "number" || !Number.isFinite(parsed.signatures)) {
       throw new NetworkSyncMultiSigStructureError(
         "envelope_parse_failure",
         "Multi-sig envelope parser returned an invalid shape — `signatures` must be a finite number."
@@ -815,8 +776,7 @@ export function parseMultiSigEnvelope(
     parsedSourceAccount = parsed.sourceAccount ?? null;
   }
   if (typeof signatures !== "number") {
-    signatures =
-      (options.countSignatures ?? DEFAULT_SIGNATURE_SLOT_EXTRACTOR)(bytes);
+    signatures = (options.countSignatures ?? DEFAULT_SIGNATURE_SLOT_EXTRACTOR)(bytes);
     // Strict only for the byte-heuristic fallback: parseEnvelopeXdr path may
     // legitimately return 0 when the envelope is unsigned-so-far.
     if (signatures < 1) {
@@ -826,10 +786,7 @@ export function parseMultiSigEnvelope(
       );
     }
   }
-  if (
-    typeof options.expectedSignatures === "number" &&
-    signatures !== options.expectedSignatures
-  ) {
+  if (typeof options.expectedSignatures === "number" && signatures !== options.expectedSignatures) {
     throw new NetworkSyncMultiSigStructureError(
       "decorator_mismatch",
       `Multi-sig envelope has ${signatures} signature slot(s); expected ${options.expectedSignatures}.`
@@ -843,16 +800,13 @@ export function parseMultiSigEnvelope(
     parsedSourceAccount && parsedSourceAccount.length > 0
       ? parsedSourceAccount
       : Object.hasOwn(options, "sourceAccount")
-        ? options.sourceAccount ?? null
+        ? (options.sourceAccount ?? null)
         : null;
   return {
     baseXdr: trimmed,
     signatures,
     sourceAccount,
-    signatureSlotIndices: Array.from(
-      { length: signatures },
-      (_, i) => i + 1
-    ),
+    signatureSlotIndices: Array.from({ length: signatures }, (_, i) => i + 1),
   };
 }
 
@@ -916,9 +870,7 @@ export function applyMultiSigSignature(
  * {@link signWithTimeout} and {@link runNetworkSyncSign} can sign the slice
  * without a wallet-specific adapter.
  */
-export function toNetworkSyncSignRequest(
-  split: NetworkSyncMultiSigSplit
-): NetworkSyncSignRequest {
+export function toNetworkSyncSignRequest(split: NetworkSyncMultiSigSplit): NetworkSyncSignRequest {
   return { xdr: split.baseXdr, payload: null };
 }
 
@@ -937,9 +889,10 @@ function signerKey(signer: NetworkSyncMultiSigSigner): string {
  * preview; strict structural checks are performed by
  * {@link validateMultiSigAssembly} which always runs first.
  */
-export function simulateMultiSigAssembly(
-  splits: NetworkSyncMultiSigSplit[]
-): { uniqueSigners: number; duplicates: NetworkSyncMultiSigSigner[] } {
+export function simulateMultiSigAssembly(splits: NetworkSyncMultiSigSplit[]): {
+  uniqueSigners: number;
+  duplicates: NetworkSyncMultiSigSigner[];
+} {
   const seen = new Set<string>();
   const duplicates: NetworkSyncMultiSigSigner[] = [];
   for (const split of splits ?? []) {
@@ -1007,7 +960,7 @@ export function validateMultiSigAssembly(
 // below wires `TransactionBuilder.fromXDR` (from `@stellar/stellar-sdk`,
 // imported at the top with the other module imports) into that injection
 // slot. The Starlar SDK is already a project dependency via
-// `app/lib/contract.ts`, so adding it here does not pull a new package.
+// `app/lib/config.ts`, so adding it here does not pull a new package.
 // =============================================================
 
 /**
@@ -1025,10 +978,7 @@ export function validateMultiSigAssembly(
 export function createStellarEnvelopeParser(
   networkPassphrase: string
 ): (baseXdr: string) => NetworkSyncMultiSigEnvelopeParsed {
-  if (
-    typeof networkPassphrase !== "string" ||
-    networkPassphrase.trim().length === 0
-  ) {
+  if (typeof networkPassphrase !== "string" || networkPassphrase.trim().length === 0) {
     throw new Error(
       `${LOG_PREFIX} createStellarEnvelopeParser requires a non-empty network passphrase.`
     );

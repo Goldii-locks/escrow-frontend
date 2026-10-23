@@ -31,61 +31,41 @@ describe("signature_timeout_alert user rejection handling (#245)", () => {
 
   describe("isSignatureRejectedByUser", () => {
     it("returns true for a first-class SignatureRejectedByUserError", () => {
-      expect(
-        isSignatureRejectedByUser(new SignatureRejectedByUserError())
-      ).toBe(true);
+      expect(isSignatureRejectedByUser(new SignatureRejectedByUserError())).toBe(true);
     });
 
     it("returns true for 'user rejected transaction' message", () => {
-      expect(
-        isSignatureRejectedByUser(new Error("user rejected transaction"))
-      ).toBe(true);
+      expect(isSignatureRejectedByUser(new Error("user rejected transaction"))).toBe(true);
     });
 
     it("returns true for 'user declined' phrase (case-insensitive)", () => {
-      expect(
-        isSignatureRejectedByUser(new Error("User Declined the request"))
-      ).toBe(true);
+      expect(isSignatureRejectedByUser(new Error("User Declined the request"))).toBe(true);
     });
 
     it("returns true for 'request rejected' phrase", () => {
-      expect(isSignatureRejectedByUser(new Error("request rejected"))).toBe(
-        true
-      );
+      expect(isSignatureRejectedByUser(new Error("request rejected"))).toBe(true);
     });
 
     it("returns true for 'denied by the user' phrase", () => {
-      expect(
-        isSignatureRejectedByUser(new Error("denied by the user"))
-      ).toBe(true);
+      expect(isSignatureRejectedByUser(new Error("denied by the user"))).toBe(true);
     });
 
     it("returns true for 'rejected by user' phrase", () => {
-      expect(isSignatureRejectedByUser(new Error("rejected by user"))).toBe(
-        true
-      );
+      expect(isSignatureRejectedByUser(new Error("rejected by user"))).toBe(true);
     });
 
     it("returns true for 'canceled by user' phrase", () => {
-      expect(isSignatureRejectedByUser(new Error("canceled by user"))).toBe(
-        true
-      );
+      expect(isSignatureRejectedByUser(new Error("canceled by user"))).toBe(true);
     });
 
     it("returns true for 'cancelled by user' phrase", () => {
-      expect(isSignatureRejectedByUser(new Error("cancelled by user"))).toBe(
-        true
-      );
+      expect(isSignatureRejectedByUser(new Error("cancelled by user"))).toBe(true);
     });
 
     it("performs case-insensitive matching", () => {
       expect(isSignatureRejectedByUser(new Error("USER REJECTED"))).toBe(true);
-      expect(isSignatureRejectedByUser(new Error("REQUEST REJECTED"))).toBe(
-        true
-      );
-      expect(
-        isSignatureRejectedByUser(new Error("DENIED BY THE USER"))
-      ).toBe(true);
+      expect(isSignatureRejectedByUser(new Error("REQUEST REJECTED"))).toBe(true);
+      expect(isSignatureRejectedByUser(new Error("DENIED BY THE USER"))).toBe(true);
     });
 
     it("returns false for an unrelated error message", () => {
@@ -93,9 +73,7 @@ describe("signature_timeout_alert user rejection handling (#245)", () => {
     });
 
     it("returns false for a horizon unreachable error", () => {
-      expect(
-        isSignatureRejectedByUser(new Error("horizon unreachable"))
-      ).toBe(false);
+      expect(isSignatureRejectedByUser(new Error("horizon unreachable"))).toBe(false);
     });
 
     it("returns false for a plain string (non-Error)", () => {
@@ -121,21 +99,15 @@ describe("signature_timeout_alert user rejection handling (#245)", () => {
 
   describe("SignatureRejectedByUserError", () => {
     it("has the correct error name", () => {
-      expect(new SignatureRejectedByUserError().name).toBe(
-        "SignatureRejectedByUserError"
-      );
+      expect(new SignatureRejectedByUserError().name).toBe("SignatureRejectedByUserError");
     });
 
     it("uses the default message when none is supplied", () => {
-      expect(new SignatureRejectedByUserError().message).toBe(
-        "user rejected transaction"
-      );
+      expect(new SignatureRejectedByUserError().message).toBe("user rejected transaction");
     });
 
     it("accepts a custom message", () => {
-      expect(new SignatureRejectedByUserError("custom").message).toBe(
-        "custom"
-      );
+      expect(new SignatureRejectedByUserError("custom").message).toBe("custom");
     });
 
     it("is an instance of Error", () => {
@@ -143,11 +115,9 @@ describe("signature_timeout_alert user rejection handling (#245)", () => {
     });
 
     it("isSignatureRejectedByUser returns true for a custom-message instance", () => {
-      expect(
-        isSignatureRejectedByUser(
-          new SignatureRejectedByUserError("something else")
-        )
-      ).toBe(true);
+      expect(isSignatureRejectedByUser(new SignatureRejectedByUserError("something else"))).toBe(
+        true
+      );
     });
   });
 
@@ -158,10 +128,7 @@ describe("signature_timeout_alert user rejection handling (#245)", () => {
   describe("runSignatureWithRejectionHandling — happy path", () => {
     it("returns the resolved value when the user approves", async () => {
       const showToast = vi.fn();
-      const result = await runSignatureWithRejectionHandling(
-        async () => "signed-xdr",
-        showToast
-      );
+      const result = await runSignatureWithRejectionHandling(async () => "signed-xdr", showToast);
 
       expect(result).toBe("signed-xdr");
       expect(showToast).not.toHaveBeenCalled();

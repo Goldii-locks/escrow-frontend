@@ -295,9 +295,7 @@ describe("signatureAlertActiveAddress singleton (#247)", () => {
   });
 
   it("is an instance of SignatureAlertActiveAddressStore", () => {
-    expect(signatureAlertActiveAddress).toBeInstanceOf(
-      SignatureAlertActiveAddressStore
-    );
+    expect(signatureAlertActiveAddress).toBeInstanceOf(SignatureAlertActiveAddressStore);
   });
 
   it("singleton state round-trips through overrideStorage / set / get / clear", () => {
@@ -305,9 +303,7 @@ describe("signatureAlertActiveAddress singleton (#247)", () => {
     signatureAlertActiveAddress.overrideStorage(storage);
 
     signatureAlertActiveAddress.setActiveAddress(SAMPLE_ADDRESS);
-    expect(signatureAlertActiveAddress.getActiveAddress()).toEqual(
-      SAMPLE_ADDRESS
-    );
+    expect(signatureAlertActiveAddress.getActiveAddress()).toEqual(SAMPLE_ADDRESS);
 
     signatureAlertActiveAddress.clear();
     expect(signatureAlertActiveAddress.getActiveAddress()).toBeNull();

@@ -22,9 +22,7 @@ export class TransactionSignerNetworkMismatchError extends Error {
     public readonly walletNetwork: TransactionSignerNetwork,
     public readonly appNetwork: TransactionSignerNetwork
   ) {
-    super(
-      `Network mismatch: wallet is on ${walletNetwork}, app expects ${appNetwork}`
-    );
+    super(`Network mismatch: wallet is on ${walletNetwork}, app expects ${appNetwork}`);
     this.name = "TransactionSignerNetworkMismatchError";
   }
 }

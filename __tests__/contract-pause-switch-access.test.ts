@@ -31,10 +31,10 @@ describe("contract_pause_switch access", () => {
   it("returns fallback warnings only when denied", () => {
     expect(getContractPauseFallbackMessage(resolveContractPauseAccess("G", "admin"))).toBeNull();
     expect(getContractPauseFallbackMessage(resolveContractPauseAccess(null, "admin"))).toBe(
-      CONTRACT_PAUSE_NO_WALLET_MESSAGE,
+      CONTRACT_PAUSE_NO_WALLET_MESSAGE
     );
     expect(getContractPauseFallbackMessage(resolveContractPauseAccess("G", "user"))).toBe(
-      CONTRACT_PAUSE_UNAUTHORIZED_MESSAGE,
+      CONTRACT_PAUSE_UNAUTHORIZED_MESSAGE
     );
   });
 
@@ -43,7 +43,7 @@ describe("contract_pause_switch access", () => {
       guardContractPauseSwitch(
         resolveContractPauseAccess("G", role),
         () => "switch",
-        (m) => `warning:${m}`,
+        (m) => `warning:${m}`
       );
     expect(render("admin")).toBe("switch");
     expect(render("user")).toBe(`warning:${CONTRACT_PAUSE_UNAUTHORIZED_MESSAGE}`);

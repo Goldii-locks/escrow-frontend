@@ -25,16 +25,14 @@ export function parseDecimalToBaseUnits(value: string, decimals?: number): bigin
   }
 
   const whole = BigInt(wholePart || "0") * getScale(resolvedDecimals);
-  const fraction = fractionPart
-    ? BigInt(fractionPart.padEnd(resolvedDecimals, "0"))
-    : BigInt(0);
+  const fraction = fractionPart ? BigInt(fractionPart.padEnd(resolvedDecimals, "0")) : BigInt(0);
 
   return whole + fraction;
 }
 
 export function formatBaseUnits(
   amount: string,
-  options?: { decimals?: number; trimTrailingZeros?: boolean }
+  options?: { decimals?: number; trimTrailingZeros?: boolean; grouping?: boolean }
 ): string {
   if (!/^\d+$/.test(amount)) return amount;
 
@@ -45,12 +43,17 @@ export function formatBaseUnits(
   const whole = raw / scale;
   const fraction = raw % scale;
 
-  if (resolvedDecimals === 0) return whole.toString();
+  const wholeText =
+    options?.grouping === false
+      ? whole.toString()
+      : new Intl.NumberFormat("en-US", { useGrouping: true }).format(whole);
+
+  if (resolvedDecimals === 0) return wholeText;
 
   let fractionText = fraction.toString().padStart(resolvedDecimals, "0");
   if (options?.trimTrailingZeros !== false) {
     fractionText = fractionText.replace(/0+$/, "");
   }
 
-  return fractionText.length > 0 ? `${whole.toString()}.${fractionText}` : whole.toString();
+  return fractionText.length > 0 ? `${wholeText}.${fractionText}` : wholeText;
 }

@@ -19,9 +19,7 @@ export const WALLET_SESSION_STORAGE_KEYS: readonly string[] = [
 ];
 
 /** Removes all known wallet session keys from the given storage. */
-export function clearAllWalletSessionStorage(
-  storage?: Pick<Storage, "removeItem"> | null,
-): void {
+export function clearAllWalletSessionStorage(storage?: Pick<Storage, "removeItem"> | null): void {
   let target = storage;
   if (target === undefined) {
     try {

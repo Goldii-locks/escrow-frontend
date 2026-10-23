@@ -45,8 +45,7 @@ afterEach(() => {
   });
 });
 
-const renderPanel = () =>
-  render(<ArbiterActionPanel milestoneIndex={0} onResolve={vi.fn()} />);
+const renderPanel = () => render(<ArbiterActionPanel milestoneIndex={0} onResolve={vi.fn()} />);
 
 describe("ArbiterActionPanel — viewport structure", () => {
   it.each([
@@ -58,24 +57,18 @@ describe("ArbiterActionPanel — viewport structure", () => {
     ["desktop boundary", ARBITER_PANEL_DESKTOP_MIN_WIDTH, "desktop", 2, false],
     ["laptop", WIDTHS.laptop, "desktop", 2, false],
     ["desktop", WIDTHS.desktop, "desktop", 2, false],
-  ] as const)(
-    "%s (%ipx) → %s layout",
-    (_name, width, viewport, columns, stacked) => {
-      setViewportWidth(width);
-      renderPanel();
-      expect(screen.getByTestId("arbiter-action-panel")).toHaveAttribute(
-        "data-viewport",
-        viewport,
-      );
-      expect(screen.getByTestId("arbiter-outcome-grid")).toHaveAttribute(
-        "data-columns",
-        String(columns),
-      );
-      const actions = screen.getByTestId("arbiter-panel-actions");
-      expect(actions).toHaveAttribute("data-stacked", String(stacked));
-      expect(actions).toHaveAttribute("data-full-width", String(stacked));
-    },
-  );
+  ] as const)("%s (%ipx) → %s layout", (_name, width, viewport, columns, stacked) => {
+    setViewportWidth(width);
+    renderPanel();
+    expect(screen.getByTestId("arbiter-action-panel")).toHaveAttribute("data-viewport", viewport);
+    expect(screen.getByTestId("arbiter-outcome-grid")).toHaveAttribute(
+      "data-columns",
+      String(columns)
+    );
+    const actions = screen.getByTestId("arbiter-panel-actions");
+    expect(actions).toHaveAttribute("data-stacked", String(stacked));
+    expect(actions).toHaveAttribute("data-full-width", String(stacked));
+  });
 
   it("re-lays out live as the window is resized", () => {
     setViewportWidth(WIDTHS.phone);
@@ -91,10 +84,7 @@ describe("ArbiterActionPanel — viewport structure", () => {
 
     setViewportWidth(WIDTHS.phoneSmall);
     expect(panel).toHaveAttribute("data-viewport", "mobile");
-    expect(screen.getByTestId("arbiter-outcome-grid")).toHaveAttribute(
-      "data-columns",
-      "1",
-    );
+    expect(screen.getByTestId("arbiter-outcome-grid")).toHaveAttribute("data-columns", "1");
   });
 
   it("removes its resize listener on unmount", () => {
@@ -112,7 +102,7 @@ describe("ArbiterActionPanel — mobile-first classes", () => {
     expect(screen.getByTestId("arbiter-outcome-grid")).toHaveClass(
       "grid",
       "grid-cols-1",
-      "sm:grid-cols-2",
+      "sm:grid-cols-2"
     );
   });
 
@@ -122,7 +112,7 @@ describe("ArbiterActionPanel — mobile-first classes", () => {
       "flex",
       "flex-col",
       "sm:flex-row",
-      "sm:justify-end",
+      "sm:justify-end"
     );
   });
 
@@ -132,7 +122,7 @@ describe("ArbiterActionPanel — mobile-first classes", () => {
       "w-full",
       "min-h-[44px]",
       "sm:w-auto",
-      "sm:min-h-0",
+      "sm:min-h-0"
     );
   });
 
@@ -157,10 +147,10 @@ describe("ArbiterActionPanel — mobile-first classes", () => {
   it("exposes the class strings it renders with", () => {
     renderPanel();
     expect(screen.getByTestId("arbiter-action-panel").className).toContain(
-      ARBITER_PANEL_CLASSES.container,
+      ARBITER_PANEL_CLASSES.container
     );
     expect(screen.getByTestId("arbiter-outcome-grid").className).toBe(
-      ARBITER_PANEL_CLASSES.outcomeGrid,
+      ARBITER_PANEL_CLASSES.outcomeGrid
     );
   });
 });
@@ -180,7 +170,7 @@ describe("MilestoneCard — arbiter panel placement", () => {
         claimAutoReleaseState={idle}
         isPartialReleasePending={false}
         isClaimAutoReleasePending={false}
-      />,
+      />
     );
     const card = screen.getByTestId("milestone-card");
     expect(card).toHaveClass("flex-col", "sm:flex-row", "sm:flex-wrap");

@@ -15,13 +15,9 @@ import {
   ARBITER_OUTCOME_REQUIRED_ERROR,
 } from "@/app/lib/arbiter_action_panel";
 
-const renderPanel = (
-  props: Partial<Parameters<typeof ArbiterActionPanel>[0]> = {},
-) => {
+const renderPanel = (props: Partial<Parameters<typeof ArbiterActionPanel>[0]> = {}) => {
   const onResolve = vi.fn();
-  const utils = render(
-    <ArbiterActionPanel milestoneIndex={1} onResolve={onResolve} {...props} />,
-  );
+  const utils = render(<ArbiterActionPanel milestoneIndex={1} onResolve={onResolve} {...props} />);
   return { onResolve, ...utils };
 };
 
@@ -48,9 +44,7 @@ describe("field error indicators", () => {
   it("outlines both outcome options in the danger colour while invalid", async () => {
     const user = userEvent.setup();
     renderPanel();
-    expect(screen.getByTestId("arbiter-outcome-release")).not.toHaveClass(
-      "!border-danger-soft",
-    );
+    expect(screen.getByTestId("arbiter-outcome-release")).not.toHaveClass("!border-danger-soft");
     await user.click(submit());
     expect(screen.getByTestId("arbiter-outcome-release")).toHaveClass("!border-danger-soft");
     expect(screen.getByTestId("arbiter-outcome-refund")).toHaveClass("!border-danger-soft");
@@ -62,9 +56,7 @@ describe("field error indicators", () => {
     await user.click(submit());
     await user.click(screen.getByRole("radio", { name: /Refund/ }));
     expect(outcomeError()).not.toBeInTheDocument();
-    expect(screen.getByTestId("arbiter-outcome-refund")).not.toHaveClass(
-      "!border-danger-soft",
-    );
+    expect(screen.getByTestId("arbiter-outcome-refund")).not.toHaveClass("!border-danger-soft");
     // The other field's error is untouched.
     expect(confirmError()).toBeInTheDocument();
   });
@@ -135,28 +127,22 @@ describe("panel-level alerts", () => {
 
   it("alerts when no resolve handler is configured", () => {
     renderPanel({ onResolve: undefined });
-    expect(screen.getByTestId("arbiter-panel-alert")).toHaveTextContent(
-      ARBITER_NO_HANDLER_ERROR,
-    );
+    expect(screen.getByTestId("arbiter-panel-alert")).toHaveTextContent(ARBITER_NO_HANDLER_ERROR);
   });
 
   it.each(["0", "-1"])("alerts when escrow amount is %s", (escrowAmount) => {
     renderPanel({ escrowAmount });
-    expect(screen.getByTestId("arbiter-panel-alert")).toHaveTextContent(
-      ARBITER_NO_FUNDS_ERROR,
-    );
+    expect(screen.getByTestId("arbiter-panel-alert")).toHaveTextContent(ARBITER_NO_FUNDS_ERROR);
     expect(submit()).toBeDisabled();
   });
 
   it("toggles the alert as the configuration changes", () => {
     const onResolve = vi.fn();
     const { rerender } = render(
-      <ArbiterActionPanel milestoneIndex={0} escrowAmount="0" onResolve={onResolve} />,
+      <ArbiterActionPanel milestoneIndex={0} escrowAmount="0" onResolve={onResolve} />
     );
     expect(screen.getByTestId("arbiter-panel-alert")).toBeInTheDocument();
-    rerender(
-      <ArbiterActionPanel milestoneIndex={0} escrowAmount="10" onResolve={onResolve} />,
-    );
+    rerender(<ArbiterActionPanel milestoneIndex={0} escrowAmount="10" onResolve={onResolve} />);
     expect(screen.queryByTestId("arbiter-panel-alert")).not.toBeInTheDocument();
     expect(submit()).toBeEnabled();
   });
@@ -164,16 +150,14 @@ describe("panel-level alerts", () => {
   it("shows an external error without disabling the controls", () => {
     renderPanel({ errorMessage: "Wallet rejected the request." });
     expect(screen.getByTestId("arbiter-panel-alert")).toHaveTextContent(
-      "Wallet rejected the request.",
+      "Wallet rejected the request."
     );
     expect(submit()).toBeEnabled();
   });
 
   it("prefers the configuration error over an external error", () => {
     renderPanel({ onResolve: undefined, errorMessage: "Something else" });
-    expect(screen.getByTestId("arbiter-panel-alert")).toHaveTextContent(
-      ARBITER_NO_HANDLER_ERROR,
-    );
+    expect(screen.getByTestId("arbiter-panel-alert")).toHaveTextContent(ARBITER_NO_HANDLER_ERROR);
   });
 });
 
@@ -195,7 +179,7 @@ describe("transaction status", () => {
   it("confirms a successful resolution", () => {
     renderPanel({ resolveState: { phase: "success", error: null, txHash: null } });
     expect(screen.getByTestId("arbiter-panel-status")).toHaveTextContent(
-      "Dispute resolved successfully",
+      "Dispute resolved successfully"
     );
   });
 });

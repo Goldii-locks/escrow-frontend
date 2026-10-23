@@ -1,14 +1,18 @@
+import { BACKEND_URL, CONTRACT_ID } from "@/app/lib/config";
 import { formatTxError, WalletRejectedError } from "@/app/lib/errors";
+
+/**
+ * `BACKEND_URL` and `CONTRACT_ID` are deployment settings and live in
+ * `app/lib/config.ts`; they are re-exported here because every caller already
+ * imports this module and tests mock it.
+ */
+export { BACKEND_URL, CONTRACT_ID };
 
 export type ContractArg = { type: string; value: unknown };
 
 export type TxPhase = "idle" | "building" | "signing" | "submitting" | "success" | "error";
 
-// =============================================================================
-// Transaction signature time limit bounds (#214)
-// =============================================================================
-
-/** Default bound for contract transaction signature requests. */
+/** Default bound used by {@link signTxWithTimeout}. */
 export const DEFAULT_SIGNING_TIMEOUT_MS = 60_000;
 
 /**
@@ -23,7 +27,9 @@ export interface TxSignRequest {
 
 /**
  * Thrown by {@link signTxWithTimeout} when no signature is received within
- * the configured time limit.
+ * the configured time limit. Kept for backwards compatibility with callers
+ * that import it directly; the single source of truth for the timeout is
+ * `WalletSignatureTimeoutError` in `app/lib/wallet_state_context.ts`.
  */
 export class TxSignatureTimeoutError extends Error {
   constructor(timeoutMs: number) {
@@ -46,6 +52,9 @@ export function clearTxSensitiveMemory(request: TxSignRequest): TxSignRequest {
  * On timeout the operation is aborted and any sensitive payload memory is
  * cleared. Matches the setTimeout + Promise.race pattern used by all other
  * connector helpers in this codebase.
+ *
+ * Not used on the contract signing path: `submitContractTransaction` relies on
+ * the single timeout in `WalletContext.signTransaction` (#628).
  */
 export async function signTxWithTimeout<T>(
   request: TxSignRequest,
@@ -77,11 +86,6 @@ export async function signTxWithTimeout<T>(
   }
 }
 
-export const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
-
-export const CONTRACT_ID = process.env.NEXT_PUBLIC_CONTRACT_ID || "";
-
 export function getPhaseLabel(phase: TxPhase): string {
   switch (phase) {
     case "building":
@@ -99,10 +103,108 @@ export function isTxPending(phase: TxPhase): boolean {
   return phase === "building" || phase === "signing" || phase === "submitting";
 }
 
+// =============================================================================
+// Backend response shapes (#686)
+// =============================================================================
+//
+// Both on-chain endpoints wrap their payload in the backend's `ApiSuccessBody`
+// envelope (`{ success: true, data }`), except `POST /api/jobs/build-tx`, which
+// returns `{ success: true, xdr }` inline. Failures come back either as
+// `sendError`'s `{ success: false, error }` or, for schema rejections, as the
+// validate middleware's `ValidationError` body carrying `details` / `fields`.
+// The parsing below is deliberately tolerant of the older flat shapes
+// (`{ hash }`, `{ txHash }`, …) so a backend that has not yet been redeployed
+// still yields a usable hash.
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function firstString(...values: unknown[]): string | null {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim() !== "") {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+/**
+ * Extracts the transaction hash from a `/api/jobs/submit` success body.
+ *
+ * The current backend answers `{ success: true, data: { status, hash } }`, so
+ * `data.hash` is checked first; the flat `hash` / `txHash` / `transactionHash`
+ * keys are kept as a fallback for older payloads.
+ */
+export function extractSubmitTxHash(body: unknown): string {
+  if (!isRecord(body)) return "";
+
+  const data = isRecord(body.data) ? body.data : undefined;
+
+  return (
+    firstString(
+      data?.hash,
+      data?.txHash,
+      data?.transactionHash,
+      body.hash,
+      body.txHash,
+      body.transactionHash
+    ) ?? ""
+  );
+}
+
+/**
+ * Renders a backend error body as a single user-facing message.
+ *
+ * `ValidationError` bodies are expanded to `message` plus the per-field
+ * messages from `details` (or the `fields` map) so the UI shows the actual
+ * reason the request was rejected instead of a generic "ValidationError".
+ */
+export function extractBackendErrorMessage(body: unknown, fallback: string): string {
+  if (typeof body === "string") {
+    return firstString(body) ?? fallback;
+  }
+
+  if (!isRecord(body)) return fallback;
+
+  const message = firstString(body.message);
+  const details = collectValidationDetails(body);
+
+  if (details.length > 0) {
+    return [message ?? firstString(body.error) ?? fallback, ...details].join(": ");
+  }
+
+  return firstString(body.error, body.message) ?? fallback;
+}
+
+/** Flattens `details` / `fields` from a ValidationError body into messages. */
+function collectValidationDetails(body: Record<string, unknown>): string[] {
+  const details: string[] = [];
+
+  if (Array.isArray(body.details)) {
+    for (const entry of body.details) {
+      const detail = firstString(isRecord(entry) ? entry.message : entry);
+      if (detail && !details.includes(detail)) {
+        details.push(detail);
+      }
+    }
+  }
+
+  if (isRecord(body.fields)) {
+    for (const value of Object.values(body.fields)) {
+      const detail = firstString(value);
+      if (detail && !details.includes(detail)) {
+        details.push(detail);
+      }
+    }
+  }
+
+  return details;
+}
+
 async function parseErrorResponse(res: Response, fallback: string): Promise<string> {
   try {
-    const body = await res.json();
-    return body.error || body.message || fallback;
+    return extractBackendErrorMessage(await res.json(), fallback);
   } catch {
     return fallback;
   }
@@ -114,15 +216,12 @@ export async function submitContractTransaction({
   sourceAddress,
   signTransaction,
   onPhase,
-  signingTimeoutMs = DEFAULT_SIGNING_TIMEOUT_MS,
 }: {
   method: string;
   args: ContractArg[];
   sourceAddress: string;
   signTransaction: (xdr: string) => Promise<string>;
   onPhase?: (phase: TxPhase) => void;
-  /** Maximum milliseconds to wait for a wallet signature before aborting. */
-  signingTimeoutMs?: number;
 }): Promise<string> {
   onPhase?.("building");
 
@@ -145,16 +244,22 @@ export async function submitContractTransaction({
     throw new Error(message);
   }
 
-  const { xdr } = await buildTxRes.json();
+  const buildTxBody: unknown = await buildTxRes.json();
+  const xdr = isRecord(buildTxBody) ? firstString(buildTxBody.xdr) : null;
+
+  if (!xdr) {
+    throw new Error("We could not prepare your transaction. Please try again.");
+  }
 
   onPhase?.("signing");
 
+  // The wallet context owns the signature timeout (#628): it derives the
+  // bound from the transaction's maxTime, clears sensitive memory, and sets
+  // `signatureTimeoutError` for the SignatureTimeoutAlert. We hand the XDR
+  // straight to it and let it raise WalletSignatureTimeoutError on timeout.
   const signRequest: TxSignRequest = { xdr };
-  const signedXdr = await signTxWithTimeout(
-    signRequest,
-    signTransaction,
-    signingTimeoutMs
-  );
+  const signedXdr = await signTransaction(signRequest.xdr);
+  clearTxSensitiveMemory(signRequest);
 
   if (!signedXdr) {
     throw new WalletRejectedError();
@@ -176,8 +281,16 @@ export async function submitContractTransaction({
     throw new Error(message);
   }
 
-  const result = await submitRes.json();
-  return result.hash || result.txHash || result.transactionHash || "";
+  const result: unknown = await submitRes.json();
+  const txHash = extractSubmitTxHash(result);
+
+  if (!txHash) {
+    throw new Error(
+      "Your transaction was submitted but the backend did not return a transaction hash."
+    );
+  }
+
+  return txHash;
 }
 
 export async function runContractAction(

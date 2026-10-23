@@ -10,7 +10,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import LoadingSkeleton from "@/app/components/LoadingSkeleton";
-import Dashboard from "@/app/dashboard/page";
+import Dashboard from "@/app/(app)/dashboard/page";
 
 const mockUseWallet = vi.fn();
 
@@ -32,16 +32,12 @@ describe("LoadingSkeleton – mobile viewport constraints (issue #279)", () => {
 
   it("removes the height cap on larger viewports (sm:max-h-none)", () => {
     render(<LoadingSkeleton />);
-    expect(screen.getByTestId("loading-skeleton-mobile-wrapper")).toHaveClass(
-      "sm:max-h-none"
-    );
+    expect(screen.getByTestId("loading-skeleton-mobile-wrapper")).toHaveClass("sm:max-h-none");
   });
 
   it("contains overscroll within the wrapper instead of the page (overscroll-contain)", () => {
     render(<LoadingSkeleton />);
-    expect(screen.getByTestId("loading-skeleton-mobile-wrapper")).toHaveClass(
-      "overscroll-contain"
-    );
+    expect(screen.getByTestId("loading-skeleton-mobile-wrapper")).toHaveClass("overscroll-contain");
   });
 
   it("does not use fixed/absolute positioning that would trap pointer events", () => {
@@ -56,7 +52,10 @@ describe("Dashboard – surrounding controls stay clickable while the skeleton i
   beforeEach(() => {
     vi.clearAllMocks();
     mockUseWallet.mockReturnValue({ address: "GCLIENT", signTransaction: vi.fn() });
-    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {}))
+    );
   });
 
   it("keeps role-filter buttons enabled and clickable while the loading skeleton is displayed", () => {
