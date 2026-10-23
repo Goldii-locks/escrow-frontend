@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Test suite for `notification_bell` empty list display views (#323).
  *

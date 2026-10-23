@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Responsive layout suite for ArbiterActionPanel: asserts the panel reports
  * and styles the right structure at mobile, tablet, and desktop widths.

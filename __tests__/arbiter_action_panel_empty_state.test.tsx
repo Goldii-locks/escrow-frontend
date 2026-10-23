@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Empty-state suite for ArbiterActionPanel: descriptive placeholders render
  * when the panel receives no usable milestone, and when an arbiter's job has

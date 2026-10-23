@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Mobile overlay wrapper suite for ArbiterActionPanel.
  *

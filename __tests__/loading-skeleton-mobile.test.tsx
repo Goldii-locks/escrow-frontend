@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Issue #279 – Handle mobile viewports navigation styling in loading_spinner_skeleton
  *

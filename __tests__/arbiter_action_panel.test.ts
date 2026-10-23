@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Unit tests for the pure helpers in `app/lib/arbiter_action_panel.ts`:
  * viewport classification, structural layout, resolution validation,

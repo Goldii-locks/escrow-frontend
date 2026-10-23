@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { render, screen, act, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WalletProvider, useWallet } from "@/app/context/WalletContext";

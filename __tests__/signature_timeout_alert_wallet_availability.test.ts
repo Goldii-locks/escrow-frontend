@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Tests for issue #243 — Handle wallet availability check errors inside
  * signature_timeout_alert.

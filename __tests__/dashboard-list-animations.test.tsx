@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * CSS micro-animations on the dashboard job list.
  *

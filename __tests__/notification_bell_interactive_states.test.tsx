@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Test suite for `notification_bell` premium interactive states (#321).
  *

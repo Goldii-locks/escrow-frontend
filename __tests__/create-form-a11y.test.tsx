@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Issue #40 – A11y ARIA attribute compliance for create_job_form
  *

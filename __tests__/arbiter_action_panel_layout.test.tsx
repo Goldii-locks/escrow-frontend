@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Client-side layout coverage for ArbiterActionPanel: asserts the exact node
  * tree the panel renders — element types, order, nesting, and which nodes
