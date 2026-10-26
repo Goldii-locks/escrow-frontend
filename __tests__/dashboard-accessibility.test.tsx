@@ -968,7 +968,7 @@ describe("Dashboard — accessibility compliance (ARIA, keyboard, semantic HTML)
 
       await waitFor(() => {
         const input = screen.getByPlaceholderText("Search by contract/job ID");
-        expect(input).toHaveClass("border", "border-gray-700");
+        expect(input).toHaveClass("border", "border-border-subtle");
       });
     });
 
@@ -990,7 +990,7 @@ describe("Dashboard — accessibility compliance (ARIA, keyboard, semantic HTML)
 
       await waitFor(() => {
         const activeTab = screen.getByRole("tab", { name: /Filter jobs: All/i });
-        expect(activeTab).toHaveClass("bg-indigo-600", "text-white");
+        expect(activeTab).toHaveClass("bg-indigo-600", "text-text-primary");
       });
     });
 
@@ -1012,7 +1012,7 @@ describe("Dashboard — accessibility compliance (ARIA, keyboard, semantic HTML)
 
       await waitFor(() => {
         const inactiveTab = screen.getByRole("tab", { name: /Filter jobs: As Client/i });
-        expect(inactiveTab).toHaveClass("text-gray-300");
+        expect(inactiveTab).toHaveClass("text-text-secondary");
       });
     });
 

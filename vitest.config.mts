@@ -33,6 +33,25 @@ export default defineConfig({
     ],
     // Playwright smoke tests live in e2e/ and run against the built site.
     exclude: [...configDefaults.exclude, "e2e/**"],
+    // `npm run test:coverage` (#598). Every app module is included, so files
+    // no test imports show up at 0% rather than being silently left out. CI
+    // turns json-summary into a per-file job summary via
+    // scripts/coverage-summary.mjs. The thresholds sit a few points under the
+    // first measured run (~84% statements, ~82% branches) as a floor against
+    // regressions; raise them as coverage of the live pages improves.
+    coverage: {
+      provider: "v8",
+      include: ["app/**/*.{ts,tsx}"],
+      exclude: ["app/**/*.d.ts", "app/lib/generated_tokens.ts"],
+      reporter: ["text-summary", "json-summary", "html"],
+      reportOnFailure: true,
+      thresholds: {
+        statements: 80,
+        branches: 75,
+        functions: 80,
+        lines: 80,
+      },
+    },
     server: {
       deps: {
         // `@stellar/freighter-api` ships CommonJS (main: build/index.min.js,

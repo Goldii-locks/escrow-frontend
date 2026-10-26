@@ -694,7 +694,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-surface-page text-text-primary">
       <Navbar />
       <main className="w-full max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-12">
         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6">Job Dashboard</h1>
@@ -712,7 +712,7 @@ export default function Dashboard() {
                 type="button"
                 onClick={() => void connect()}
                 disabled={isConnecting}
-                className="px-4 py-2 rounded-lg bg-indigo-600 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-lg bg-indigo-600 text-sm font-medium text-text-primary transition-colors hover:bg-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isConnecting ? "Connecting…" : "Connect wallet"}
               </button>
@@ -736,7 +736,7 @@ export default function Dashboard() {
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Search by contract/job ID"
-                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 hover:border-gray-600"
+                className="w-full bg-surface-card border border-border-subtle rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page hover:border-border-hover"
                 aria-label="Search by contract ID"
                 aria-describedby="search-help"
               />
@@ -745,7 +745,7 @@ export default function Dashboard() {
               </span>
               <button
                 type="submit"
-                className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Submit search query"
               >
                 Search
@@ -770,10 +770,10 @@ export default function Dashboard() {
                     role="tab"
                     aria-selected={active}
                     aria-label={`Filter jobs: ${role.label}`}
-                    className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 ${
+                    className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page ${
                       active
-                        ? "bg-indigo-600 border-indigo-500 text-white focus-visible:ring-indigo-400"
-                        : "bg-gray-900 border-gray-700 text-gray-300 hover:text-white hover:border-gray-600 hover:bg-gray-800 active:bg-gray-700 focus-visible:ring-indigo-500"
+                        ? "bg-indigo-600 border-indigo-500 text-text-primary focus-visible:ring-indigo-400"
+                        : "bg-surface-card border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-hover hover:bg-surface-field active:bg-surface-raised focus-visible:ring-indigo-500"
                     }`}
                   >
                     {role.label}
@@ -799,7 +799,7 @@ export default function Dashboard() {
                     disabled={fetchLoading}
                     data-testid="dashboard-retry-button"
                     aria-label="Retry loading jobs"
-                    className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {fetchLoading ? "Retrying…" : "Retry"}
                   </button>
@@ -827,7 +827,7 @@ export default function Dashboard() {
                 {isFiltering && (
                   <p
                     data-testid="dashboard-filter-hint"
-                    className="text-xs text-gray-400"
+                    className="text-xs text-text-muted"
                     role="status"
                     aria-live="polite"
                   >
@@ -835,7 +835,7 @@ export default function Dashboard() {
                   </p>
                 )}
                 <div
-                  className="border border-gray-800 rounded-lg sm:rounded-xl bg-gray-900 overflow-hidden overflow-x-auto"
+                  className="border border-border-strong rounded-lg sm:rounded-xl bg-surface-card overflow-hidden overflow-x-auto"
                   role="region"
                   aria-label="Jobs list"
                 >
@@ -853,12 +853,12 @@ export default function Dashboard() {
                       <div
                         key={job.id}
                         data-testid="dashboard-list-item"
-                        className="border-b border-gray-800 last:border-b-0 animate-slide-in"
+                        className="border-b border-border-strong last:border-b-0 animate-slide-in"
                       >
                         <button
                           type="button"
                           onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
-                          className="w-full text-left px-3 sm:px-5 py-3 sm:py-4 hover:bg-gray-800/50 transition-all duration-200 active:scale-[0.99] active:bg-gray-800/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
+                          className="w-full text-left px-3 sm:px-5 py-3 sm:py-4 hover:bg-surface-field/50 transition-all duration-200 active:scale-[0.99] active:bg-surface-field/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
                           aria-expanded={isExpanded}
                           aria-label={`Job #${job.id.slice(0, 8)}, ${job.funded ? "Funded" : "Not funded"}, ${isExpanded ? "collapse details" : "expand details"}`}
                           aria-controls={`job-details-${job.id}`}
@@ -868,11 +868,11 @@ export default function Dashboard() {
                               <p className="font-semibold text-sm sm:text-base truncate">
                                 {label || `Job #${job.id.slice(0, 8)}`}
                               </p>
-                              <p className="text-xs text-gray-400 mt-0.5 sm:mt-1">
+                              <p className="text-xs text-text-muted mt-0.5 sm:mt-1">
                                 {job.funded ? "Funded" : "Not funded"}
                               </p>
                               <p
-                                className="text-xs text-gray-500 mt-0.5"
+                                className="text-xs text-text-disabled mt-0.5"
                                 data-testid="job-row-summary"
                               >
                                 {[
@@ -900,7 +900,7 @@ export default function Dashboard() {
                               {roleBadges.map((badge) => (
                                 <span
                                   key={`${job.id}-${badge}`}
-                                  className="text-xs px-2 py-0.5 sm:py-1 rounded-full border border-gray-700 bg-gray-800 text-gray-200 whitespace-nowrap"
+                                  className="text-xs px-2 py-0.5 sm:py-1 rounded-full border border-border-subtle bg-surface-field text-text-secondary whitespace-nowrap"
                                   role="status"
                                   aria-label={`Your role: ${badge}`}
                                 >
@@ -921,11 +921,11 @@ export default function Dashboard() {
                           <div
                             data-testid="dashboard-expanded-panel"
                             id={`job-details-${job.id}`}
-                            className="px-3 sm:px-5 pb-3 sm:pb-5 space-y-3 sm:space-y-4 border-t border-gray-800/50 animate-fade-in"
+                            className="px-3 sm:px-5 pb-3 sm:pb-5 space-y-3 sm:space-y-4 border-t border-border-strong/50 animate-fade-in"
                             role="region"
                             aria-label={`Details for job #${job.id.slice(0, 8)}`}
                           >
-                            <label className="block mb-3 text-xs text-gray-400">
+                            <label className="block mb-3 text-xs text-text-muted">
                               Label (saved on this device)
                               <input
                                 type="text"
@@ -937,21 +937,23 @@ export default function Dashboard() {
                                   setJobLabels((prev) => ({ ...prev, [job.id]: value }));
                                   setJobLabel(job.id, value);
                                 }}
-                                className="mt-1 block w-full rounded border border-gray-700 bg-gray-800 px-2 py-1 text-sm text-gray-100"
+                                className="mt-1 block w-full rounded border border-border-subtle bg-surface-field px-2 py-1 text-sm text-text-primary"
                               />
                             </label>
                             {detailsLoading[job.id] ? (
                               <LoadingSkeleton />
                             ) : !expandedJob ? (
-                              <p className="text-xs sm:text-sm text-gray-400" role="status">
+                              <p className="text-xs sm:text-sm text-text-muted" role="status">
                                 Unable to load job details.
                               </p>
                             ) : (
                               <>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
-                                  <div className="bg-gray-800 rounded-lg p-2 sm:p-3 min-w-0">
+                                  <div className="bg-surface-field rounded-lg p-2 sm:p-3 min-w-0">
                                     <div className="flex items-center justify-between gap-2 mb-1">
-                                      <p className="text-gray-400 text-xs font-semibold">Client</p>
+                                      <p className="text-text-muted text-xs font-semibold">
+                                        Client
+                                      </p>
                                       <CopyButton
                                         value={expandedJob.client}
                                         label="Client address"
@@ -964,9 +966,9 @@ export default function Dashboard() {
                                       {expandedJob.client}
                                     </p>
                                   </div>
-                                  <div className="bg-gray-800 rounded-lg p-2 sm:p-3 min-w-0">
+                                  <div className="bg-surface-field rounded-lg p-2 sm:p-3 min-w-0">
                                     <div className="flex items-center justify-between gap-2 mb-1">
-                                      <p className="text-gray-400 text-xs font-semibold">
+                                      <p className="text-text-muted text-xs font-semibold">
                                         Freelancer
                                       </p>
                                       <CopyButton
@@ -981,9 +983,11 @@ export default function Dashboard() {
                                       {expandedJob.freelancer}
                                     </p>
                                   </div>
-                                  <div className="bg-gray-800 rounded-lg p-2 sm:p-3 min-w-0">
+                                  <div className="bg-surface-field rounded-lg p-2 sm:p-3 min-w-0">
                                     <div className="flex items-center justify-between gap-2 mb-1">
-                                      <p className="text-gray-400 text-xs font-semibold">Arbiter</p>
+                                      <p className="text-text-muted text-xs font-semibold">
+                                        Arbiter
+                                      </p>
                                       <CopyButton
                                         value={expandedJob.arbiter}
                                         label="Arbiter address"
@@ -1063,7 +1067,7 @@ export default function Dashboard() {
                     type="button"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1}
-                    className="w-full xs:w-auto px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-xs sm:text-sm transition-all duration-200 hover:bg-gray-800 hover:border-gray-600 active:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-900 disabled:hover:border-gray-700"
+                    className="w-full xs:w-auto px-3 py-2 rounded-lg border border-border-subtle bg-surface-card text-xs sm:text-sm transition-all duration-200 hover:bg-surface-field hover:border-border-hover active:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-surface-card disabled:hover:border-border-subtle"
                     aria-label={`Previous page, current page is ${page} of ${totalPages}`}
                   >
                     Previous
@@ -1085,10 +1089,10 @@ export default function Dashboard() {
                           aria-label={
                             active ? `Current page, page ${value}` : `Go to page ${value}`
                           }
-                          className={`h-8 min-w-8 px-1.5 sm:px-2 rounded-md text-xs sm:text-sm border whitespace-nowrap transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 ${
+                          className={`h-8 min-w-8 px-1.5 sm:px-2 rounded-md text-xs sm:text-sm border whitespace-nowrap transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page ${
                             active
-                              ? "bg-indigo-600 border-indigo-500 text-white focus-visible:ring-indigo-400"
-                              : "bg-gray-900 border-gray-700 text-gray-200 hover:bg-gray-800 hover:border-gray-600 active:bg-gray-700 focus-visible:ring-indigo-500"
+                              ? "bg-indigo-600 border-indigo-500 text-text-primary focus-visible:ring-indigo-400"
+                              : "bg-surface-card border-border-subtle text-text-secondary hover:bg-surface-field hover:border-border-hover active:bg-surface-raised focus-visible:ring-indigo-500"
                           }`}
                         >
                           {value}
@@ -1101,7 +1105,7 @@ export default function Dashboard() {
                     type="button"
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page >= totalPages}
-                    className="w-full xs:w-auto px-3 py-2 rounded-lg border border-gray-700 bg-gray-900 text-xs sm:text-sm transition-all duration-200 hover:bg-gray-800 hover:border-gray-600 active:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-gray-900 disabled:hover:border-gray-700"
+                    className="w-full xs:w-auto px-3 py-2 rounded-lg border border-border-subtle bg-surface-card text-xs sm:text-sm transition-all duration-200 hover:bg-surface-field hover:border-border-hover active:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-surface-card disabled:hover:border-border-subtle"
                     aria-label={`Next page, current page is ${page} of ${totalPages}`}
                   >
                     Next

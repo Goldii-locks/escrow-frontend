@@ -19,8 +19,10 @@ export const THEME_TOKENS = {
   "surface-page": "#030712",
   "surface-card": "#111827",
   "surface-field": "#1f2937",
+  "surface-raised": "#374151",
   "border-strong": "#1f2937",
   "border-subtle": "#374151",
+  "border-hover": "#4b5563",
   "text-primary": "#f9fafb",
   "text-secondary": "#d1d5db",
   "text-muted": "#9ca3af",
@@ -63,11 +65,17 @@ export const colorSurfaceCard = "#111827" as const;
 /** CSS: --color-surface-field: #1f2937 */
 export const colorSurfaceField = "#1f2937" as const;
 
+/** CSS: --color-surface-raised: #374151 */
+export const colorSurfaceRaised = "#374151" as const;
+
 /** CSS: --color-border-strong: #1f2937 */
 export const colorBorderStrong = "#1f2937" as const;
 
 /** CSS: --color-border-subtle: #374151 */
 export const colorBorderSubtle = "#374151" as const;
+
+/** CSS: --color-border-hover: #4b5563 */
+export const colorBorderHover = "#4b5563" as const;
 
 /** CSS: --color-text-primary: #f9fafb */
 export const colorTextPrimary = "#f9fafb" as const;

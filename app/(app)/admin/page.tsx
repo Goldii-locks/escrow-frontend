@@ -236,7 +236,7 @@ export default function AdminPage() {
   const addBadge = getAddStatusBadge(addState.phase);
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-surface-page text-text-primary">
       <Navbar />
       <main
         className={`mx-auto px-6 py-12 ${
@@ -244,7 +244,7 @@ export default function AdminPage() {
         }`}
       >
         <h1 className="text-2xl font-bold mb-2">Token Whitelist Admin</h1>
-        <p className="text-sm text-gray-400 mb-8">
+        <p className="text-sm text-text-muted mb-8">
           Manage whitelisted payment tokens for the escrow contract. Admin wallet required.
         </p>
         <AdminContractHeader />
@@ -262,7 +262,7 @@ export default function AdminPage() {
                 successMessage="Contract freeze state updated."
               />
             )}
-            <p data-testid="escrow-funded-status" className="text-sm text-gray-400">
+            <p data-testid="escrow-funded-status" className="text-sm text-text-muted">
               Escrow status:{" "}
               {escrowFunded === null ? "Unknown" : escrowFunded ? "Funded" : "Not funded"}
             </p>
@@ -282,19 +282,19 @@ export default function AdminPage() {
             >
               <form
                 onSubmit={handleAddToken}
-                className="space-y-4 border border-gray-800 rounded-xl bg-gray-900 p-6"
+                className="space-y-4 border border-border-strong rounded-xl bg-surface-card p-6"
               >
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="font-semibold">Add Token</h2>
                   {addBadge && <Badge badge={addBadge} testId="add-status-badge" />}
                 </div>
                 <div>
-                  <label htmlFor="token-address" className="block text-sm text-gray-400 mb-1">
+                  <label htmlFor="token-address" className="block text-sm text-text-muted mb-1">
                     Token Contract Address
                   </label>
                   <input
                     id="token-address"
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-indigo-500 disabled:opacity-50"
+                    className="w-full bg-surface-field border border-border-subtle rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-indigo-500 disabled:opacity-50"
                     value={tokenAddress}
                     onChange={(e) => handleTokenAddressChange(e.target.value)}
                     placeholder="C..."
@@ -305,7 +305,7 @@ export default function AdminPage() {
                 <button
                   type="submit"
                   disabled={addPending || whitelistLocked || !tokenAddress.trim()}
-                  className="w-full inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium py-3 rounded-lg transition"
+                  className="w-full inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-text-primary font-medium py-3 rounded-lg transition"
                 >
                   {addPending && <ButtonSpinner className="h-4 w-4" />}
                   {addPending
@@ -318,14 +318,14 @@ export default function AdminPage() {
                 />
               </form>
 
-              <section className="border border-gray-800 rounded-xl bg-gray-900 p-6 space-y-4">
+              <section className="border border-border-strong rounded-xl bg-surface-card p-6 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h2 className="font-semibold">Whitelisted Tokens</h2>
                   <button
                     type="button"
                     onClick={handleExport}
                     disabled={listLoading}
-                    className="inline-flex items-center justify-center min-h-[44px] text-xs bg-gray-800 hover:bg-gray-700 disabled:opacity-50 border border-gray-700 text-white px-4 py-2.5 rounded-lg transition"
+                    className="inline-flex items-center justify-center min-h-[44px] text-xs bg-surface-field hover:bg-surface-raised disabled:opacity-50 border border-border-subtle text-text-primary px-4 py-2.5 rounded-lg transition"
                   >
                     Export CSV
                   </button>
@@ -337,7 +337,7 @@ export default function AdminPage() {
                     {listError}
                   </p>
                 ) : whitelist.length === 0 ? (
-                  <p className="text-sm text-gray-500">No whitelisted tokens found.</p>
+                  <p className="text-sm text-text-disabled">No whitelisted tokens found.</p>
                 ) : (
                   <ul className="space-y-2">
                     {whitelist.map(({ address: token, symbol, name }) => {
@@ -348,7 +348,7 @@ export default function AdminPage() {
                       return (
                         <li
                           key={token}
-                          className="flex flex-col gap-2 bg-gray-800 rounded-lg px-4 py-3"
+                          className="flex flex-col gap-2 bg-surface-field rounded-lg px-4 py-3"
                         >
                           <div className="flex items-center justify-between gap-3">
                             <span className="flex flex-col min-w-0">
@@ -369,7 +369,7 @@ export default function AdminPage() {
                             <button
                               onClick={() => handleRemoveToken(token)}
                               disabled={removePending || whitelistLocked}
-                              className="inline-flex items-center justify-center gap-2 shrink-0 min-h-[44px] text-xs bg-red-800 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg transition"
+                              className="inline-flex items-center justify-center gap-2 shrink-0 min-h-[44px] text-xs bg-red-800 hover:bg-red-700 disabled:opacity-50 text-text-primary px-4 py-2.5 rounded-lg transition"
                             >
                               {removePending && <ButtonSpinner />}
                               {removePending
