@@ -14,7 +14,15 @@ export default defineConfig({
     tsconfigPaths: true,
   },
   test: {
-    environment: "jsdom",
+    // Default to the lightweight "node" environment so the ~70 pure-logic
+    // `.test.ts` files in __tests__ (mapping, sanitize, badges, export,
+    // toasts, etc.) no longer pay the jsdom setup cost that dominated the
+    // suite (~666s environment vs ~172s tests on main).  Files that need a
+    // DOM opt back in with a `// @vitest-environment jsdom` pragma at the
+    // top of the file — this covers every `.test.tsx` (component render
+    // tests) and the handful of `.test.ts` files that touch `window`,
+    // `document`, `navigator`, or `@testing-library/react`.
+    environment: "node",
     globals: true,
     setupFiles: ["./vitest.setup.ts"],
     // Pure-TS helper tests (*.test.ts) run in the lightweight node environment

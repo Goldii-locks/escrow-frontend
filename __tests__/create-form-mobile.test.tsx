@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Issue #46 – Handle mobile viewports navigation styling in create_job_form
  *

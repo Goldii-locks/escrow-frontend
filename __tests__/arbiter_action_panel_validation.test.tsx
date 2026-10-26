@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Validation suite for ArbiterActionPanel: field error indicators and
  * panel-level alerts toggle as validations trigger and clear.

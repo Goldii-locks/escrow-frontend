@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Design-variable linkage for ArbiterActionPanel.
  *

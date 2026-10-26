@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Issue #276 – Design empty list display views for loading_spinner_skeleton
  *

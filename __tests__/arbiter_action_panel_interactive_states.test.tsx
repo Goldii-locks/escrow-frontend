@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Interactive-state suite for ArbiterActionPanel: hover, focus-visible, and
  * disabled styling on every interactive element.
