@@ -78,43 +78,9 @@ export function sanitizeTimelineInput(input: string | null | undefined): string 
     .trim();
 }
 
-/** Mock dataset used as a fallback when the backend query fails. */
-export const MOCK_DISPUTE_HISTORY: DisputeHistoryEvent[] = [
-  {
-    id: "evt-001",
-    disputeId: "disp-101",
-    type: "raised",
-    actor: "GCKF7J3...CLIENT",
-    actorRole: "client",
-    title: "Dispute raised",
-    description: "Client disputed milestone 2 deliverables.",
-    timestamp: "2026-09-20T10:15:00Z",
-  },
-  {
-    id: "evt-002",
-    disputeId: "disp-101",
-    type: "response",
-    actor: "GAX4K9L...FREELANCER",
-    actorRole: "freelancer",
-    title: "Freelancer responded",
-    description: "Freelancer submitted deployment proof for the milestone.",
-    timestamp: "2026-09-21T14:30:00Z",
-  },
-  {
-    id: "evt-003",
-    disputeId: "disp-101",
-    type: "arbiter_assigned",
-    actor: "GARB2M8...ARBITER",
-    actorRole: "arbiter",
-    title: "Arbiter assigned",
-    description: "An arbiter accepted the dispute for review.",
-    timestamp: "2026-09-22T09:00:00Z",
-  },
-];
-
 /**
- * Queries history events for a dispute. Pulls from the backend API and falls
- * back to the mock dataset on a network or server error.
+ * Queries history events for a dispute. Pulls from the backend API and throws
+ * when the backend is unreachable.
  */
 export async function fetchDisputeHistory(
   disputeId: string,
@@ -122,18 +88,15 @@ export async function fetchDisputeHistory(
 ): Promise<DisputeHistoryEvent[]> {
   const url = options?.apiUrl || `/api/disputes/${encodeURIComponent(disputeId)}/history`;
 
-  try {
-    const res = await fetch(url, { signal: options?.signal });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data)) return data;
-    }
-  } catch {
-    // Network or server error - fall back to the mock dataset
+  const res = await fetch(url, { signal: options?.signal });
+  if (!res.ok) {
+    throw new Error(`Failed to load dispute history for ${disputeId} (${res.status})`);
   }
-
-  const matched = MOCK_DISPUTE_HISTORY.filter((e) => e.disputeId === disputeId);
-  return matched.length > 0 ? matched : MOCK_DISPUTE_HISTORY;
+  const data = await res.json();
+  if (!Array.isArray(data)) {
+    throw new Error(`Invalid dispute history response for ${disputeId}`);
+  }
+  return data;
 }
 
 // =============================================================

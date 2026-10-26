@@ -1,0 +1,49 @@
+import type { EvidenceItem } from "@/app/lib/arbitrator_evidence_list";
+
+export const MOCK_EVIDENCE_DATASET: EvidenceItem[] = [
+  {
+    id: "evi-001",
+    disputeId: "disp-101",
+    submittedBy: "GCKF7J3...CLIENT",
+    submitterRole: "client",
+    title: "Project Scope Specification v1.2",
+    description:
+      "Initial signed agreement detailing the milestone deliverables and acceptance criteria.",
+    fileUrl: "/evidence/scope_v1.pdf",
+    fileType: "application/pdf",
+    fileSize: 245760,
+    uploadedAt: "2026-09-20T10:15:00Z",
+    hash: "0x8fa4c379a12b...b3f4",
+    verified: true,
+  },
+  {
+    id: "evi-002",
+    disputeId: "disp-101",
+    submittedBy: "GAX4K9L...FREELANCER",
+    submitterRole: "freelancer",
+    title: "Production Deployment Logs & Commit Proof",
+    description:
+      "Server access logs and repository commit history demonstrating milestone completion.",
+    fileUrl: "/evidence/deploy_logs.txt",
+    fileType: "text/plain",
+    fileSize: 104857,
+    uploadedAt: "2026-09-21T14:30:00Z",
+    hash: "0x91c834a812df...c189",
+    verified: true,
+  },
+  {
+    id: "evi-003",
+    disputeId: "disp-101",
+    submittedBy: "GCKF7J3...CLIENT",
+    submitterRole: "client",
+    title: "Bug Reports and Non-Responsive Test Cases",
+    description:
+      "Automated QA test suite failures showing that the API endpoint returns 500 on valid inputs.",
+    fileUrl: "/evidence/qa_failures.json",
+    fileType: "application/json",
+    fileSize: 52428,
+    uploadedAt: "2026-09-22T09:00:00Z",
+    hash: "0x4b78912ea55c...e890",
+    verified: false,
+  },
+];

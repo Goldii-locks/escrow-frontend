@@ -2,11 +2,13 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ContractPauseSwitch from "@/app/components/ContractPauseSwitch";
 import {
+  MOCK_CONTRACT_PAUSE_STATE,
+  MOCK_CONTRACT_PAUSE_TRANSITIONS,
+} from "@/__tests__/fixtures/contract_pause_switch";
+import {
   CONTRACT_PAUSE_DESKTOP_MIN_WIDTH,
   CONTRACT_PAUSE_GRID_CLASSES,
   CONTRACT_PAUSE_TABLET_MIN_WIDTH,
-  MOCK_CONTRACT_PAUSE_STATE,
-  MOCK_CONTRACT_PAUSE_TRANSITIONS,
   classifyContractPauseViewport,
   containsCodeTags,
   CONTRACT_PAUSE_BADGES,

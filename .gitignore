@@ -17,6 +17,10 @@
 *.snap
 test-results/
 vitest-results/
+*.snap.md
+.test-results/
+playwright-report/
+trace/
 
 # next.js
 /.next/

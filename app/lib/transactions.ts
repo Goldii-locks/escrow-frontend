@@ -1,5 +1,6 @@
 import { BACKEND_URL, CONTRACT_ID } from "@/app/lib/config";
 import { formatTxError, WalletRejectedError } from "@/app/lib/errors";
+import type { WalletSimulationResult } from "@/app/lib/wallet_session";
 
 /**
  * `BACKEND_URL` and `CONTRACT_ID` are deployment settings and live in
@@ -216,12 +217,15 @@ export async function submitContractTransaction({
   sourceAddress,
   signTransaction,
   onPhase,
+  setSimulationResult,
 }: {
   method: string;
   args: ContractArg[];
   sourceAddress: string;
   signTransaction: (xdr: string) => Promise<string>;
   onPhase?: (phase: TxPhase) => void;
+  /** Set after a Soroban simulation completes; triggers fee warning evaluation. */
+  setSimulationResult?: (result: WalletSimulationResult | null) => void;
 }): Promise<string> {
   onPhase?.("building");
 
@@ -249,6 +253,17 @@ export async function submitContractTransaction({
 
   if (!xdr) {
     throw new Error("We could not prepare your transaction. Please try again.");
+  }
+
+  // Hand any simulation result to the wallet context so the fee warning
+  // banner can evaluate it (#631). Accepts the result at the top level or
+  // inside the standard `data` envelope.
+  const simulationResult = isRecord(buildTxBody)
+    ? (buildTxBody.simulationResult ??
+      (isRecord(buildTxBody.data) ? buildTxBody.data.simulationResult : undefined))
+    : undefined;
+  if (setSimulationResult && isRecord(simulationResult)) {
+    setSimulationResult(simulationResult as unknown as WalletSimulationResult);
   }
 
   onPhase?.("signing");

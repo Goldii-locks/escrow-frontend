@@ -58,9 +58,6 @@ export function toContractPauseExportRow(
 
 /**
  * Project a transition list onto export rows.
- *
- * Falls back to `MOCK_CONTRACT_PAUSE_TRANSITIONS` when no transitions are
- * supplied so the export button still produces a file against the mock state.
  */
 export function toContractPauseExportRows(
   transitions: readonly ContractPauseTransition[]

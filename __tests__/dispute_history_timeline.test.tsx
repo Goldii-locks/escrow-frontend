@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import DisputeHistoryTimeline from "@/app/components/DisputeHistoryTimeline";
+import { MOCK_DISPUTE_HISTORY } from "@/__tests__/fixtures/dispute_history_timeline";
 import {
-  MOCK_DISPUTE_HISTORY,
   fetchDisputeHistory,
   isTimelineViewerAuthorized,
   sanitizeTimelineInput,
@@ -41,9 +41,9 @@ describe("fetchDisputeHistory (#443)", () => {
     expect(await fetchDisputeHistory("disp-101")).toEqual(data);
   });
 
-  it("falls back to the mock dataset on failure", async () => {
+  it("throws when the backend is unreachable", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
-    expect(await fetchDisputeHistory("disp-101")).toEqual(MOCK_DISPUTE_HISTORY);
+    await expect(fetchDisputeHistory("disp-101")).rejects.toThrow(/down/);
   });
 });
 
@@ -106,7 +106,10 @@ describe("DisputeHistoryTimeline", () => {
   });
 
   it("loads events from the backend mock dataset (#443)", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: async () => MOCK_DISPUTE_HISTORY })
+    );
     render(<DisputeHistoryTimeline disputeId="disp-101" currentWalletAddress={WALLET} />);
     await waitFor(() => expect(screen.getByText("Dispute raised")).toBeInTheDocument());
     expect(screen.getByText("Arbiter assigned")).toBeInTheDocument();

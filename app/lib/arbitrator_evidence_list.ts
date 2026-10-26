@@ -66,59 +66,8 @@ export function sanitizeEvidenceInput(input: string | null | undefined): string 
 }
 
 /**
- * Mock evidence dataset used as fallback for backend queries.
- */
-export const MOCK_EVIDENCE_DATASET: EvidenceItem[] = [
-  {
-    id: "evi-001",
-    disputeId: "disp-101",
-    submittedBy: "GCKF7J3...CLIENT",
-    submitterRole: "client",
-    title: "Project Scope Specification v1.2",
-    description:
-      "Initial signed agreement detailing the milestone deliverables and acceptance criteria.",
-    fileUrl: "/evidence/scope_v1.pdf",
-    fileType: "application/pdf",
-    fileSize: 245760,
-    uploadedAt: "2026-09-20T10:15:00Z",
-    hash: "0x8fa4c379a12b...b3f4",
-    verified: true,
-  },
-  {
-    id: "evi-002",
-    disputeId: "disp-101",
-    submittedBy: "GAX4K9L...FREELANCER",
-    submitterRole: "freelancer",
-    title: "Production Deployment Logs & Commit Proof",
-    description:
-      "Server access logs and repository commit history demonstrating milestone completion.",
-    fileUrl: "/evidence/deploy_logs.txt",
-    fileType: "text/plain",
-    fileSize: 104857,
-    uploadedAt: "2026-09-21T14:30:00Z",
-    hash: "0x91c834a812df...c189",
-    verified: true,
-  },
-  {
-    id: "evi-003",
-    disputeId: "disp-101",
-    submittedBy: "GCKF7J3...CLIENT",
-    submitterRole: "client",
-    title: "Bug Reports and Non-Responsive Test Cases",
-    description:
-      "Automated QA test suite failures showing that the API endpoint returns 500 on valid inputs.",
-    fileUrl: "/evidence/qa_failures.json",
-    fileType: "application/json",
-    fileSize: 52428,
-    uploadedAt: "2026-09-22T09:00:00Z",
-    hash: "0x4b78912ea55c...e890",
-    verified: false,
-  },
-];
-
-/**
  * Queries evidence records dynamically for a given dispute ID.
- * Pulls from the backend API if available, falling back to mock datasets.
+ * Pulls from the backend API; throws when the backend is unreachable.
  */
 export async function fetchArbitratorEvidence(
   disputeId: string,
@@ -126,21 +75,20 @@ export async function fetchArbitratorEvidence(
 ): Promise<EvidenceItem[]> {
   const url = options?.apiUrl || `/api/disputes/${encodeURIComponent(disputeId)}/evidence`;
 
-  try {
-    const res = await fetch(url, { signal: options?.signal });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        return data;
-      }
-    }
-  } catch {
-    // Network or server error - fallback to mock dataset
+  const res = await fetch(url, { signal: options?.signal });
+  if (!res.ok) {
+    throw new Error(`Failed to load evidence for dispute ${disputeId} (${res.status})`);
   }
-
-  // Filter mock dataset by dispute ID or return default items
-  const matched = MOCK_EVIDENCE_DATASET.filter((item) => item.disputeId === disputeId);
-  return matched.length > 0 ? matched : MOCK_EVIDENCE_DATASET;
+  const data: unknown = await res.json();
+  // Accept the list bare or wrapped in the standard `{ success, data }` envelope.
+  const payload =
+    typeof data === "object" && data !== null && "success" in data && "data" in data
+      ? (data as { data: unknown }).data
+      : data;
+  if (!Array.isArray(payload)) {
+    throw new Error(`Invalid evidence response for dispute ${disputeId}`);
+  }
+  return payload as EvidenceItem[];
 }
 
 /* ------------------------------------------------------------------ *
