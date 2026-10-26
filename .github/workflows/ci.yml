@@ -22,7 +22,9 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Audit runtime dependencies
-        run: npm audit --omit=dev --audit-level=high
+        # High/critical advisories fail the build unless allowlisted with a
+        # reason in .audit-allowlist.json.
+        run: node scripts/audit-gate.mjs
 
       - name: Format check
         run: npm run format:check
