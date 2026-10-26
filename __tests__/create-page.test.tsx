@@ -93,7 +93,7 @@ describe("Create page", () => {
     expect(screen.getByText("No milestones available.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Add first milestone" }));
-    expect(screen.getByLabelText("Milestone 1 amount in stroops")).toBeInTheDocument();
+    expect(screen.getByLabelText("Milestone 1 amount")).toBeInTheDocument();
   });
 
   it("renders asset and requirement placeholders for empty list data and recovers from them", () => {
@@ -133,7 +133,7 @@ describe("Create page", () => {
     fireEvent.change(tokenSelect, { target: { value: "CTOKEN" } });
     expect(tokenSelect.value).toBe("CTOKEN");
 
-    fireEvent.change(screen.getByLabelText("Milestone 1 amount in stroops"), {
+    fireEvent.change(screen.getByLabelText("Milestone 1 amount"), {
       target: { value: "100" },
     });
 
@@ -159,7 +159,7 @@ describe("Create page", () => {
     fireEvent.change(screen.getByLabelText("Token Contract Address", { selector: "select" }), {
       target: { value: "CTOKEN" },
     });
-    fireEvent.change(screen.getByLabelText("Milestone 1 amount in stroops"), {
+    fireEvent.change(screen.getByLabelText("Milestone 1 amount"), {
       target: { value: "100" },
     });
     fireEvent.click(screen.getByTestId("agreement-checkbox"));

@@ -195,13 +195,13 @@ export default function Milestones({ form }: { form: CreateJobForm }) {
                       value={m.amount}
                       onChange={(e) => s.updateMilestone(i, e.target.value)}
                       onFocus={onFocus}
-                      placeholder={`Milestone ${i + 1} amount (stroops)`}
-                      aria-label={`Milestone ${i + 1} amount in stroops`}
+                      placeholder={`Milestone ${i + 1} amount`}
+                      aria-label={`Milestone ${i + 1} amount`}
                       aria-required="true"
                       type="text"
-                      inputMode="numeric"
+                      inputMode="decimal"
                       required
-                      pattern="^[0-9]+$"
+                      pattern="^[0-9]+(\.[0-9]+)?$"
                       aria-invalid={amountError !== null}
                       disabled={loading}
                     />

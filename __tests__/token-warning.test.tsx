@@ -106,7 +106,7 @@ describe("Create Job token warning (#668)", () => {
     fireEvent.change(screen.getByLabelText("Arbiter Address"), {
       target: { value: "GBBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEFZSP" },
     });
-    fireEvent.change(screen.getByLabelText("Milestone 1 amount in stroops"), {
+    fireEvent.change(screen.getByLabelText("Milestone 1 amount"), {
       target: { value: "100" },
     });
     // Tick the agreement checkbox.

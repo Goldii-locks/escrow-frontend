@@ -4,6 +4,7 @@
  */
 import { submitContractTransaction, type ContractArg, type TxPhase } from "@/app/lib/transactions";
 import { validateMilestoneAmount } from "@/app/lib/milestone_amount_validation";
+import { parseDecimalToBaseUnits } from "@/app/lib/amounts";
 import type { Milestone } from "./validation";
 import type { WalletSimulationResult } from "@/app/lib/wallet_session";
 
@@ -20,14 +21,17 @@ export interface CreateJobParams {
   milestones: Milestone[];
 }
 
-/** Milestone amounts (stroops) as i128 strings; throws on any invalid row. */
+/**
+ * Milestone amounts as i128 base-unit strings; throws on any invalid row.
+ * Inputs are decimal token amounts (#574), converted at 7 decimals.
+ */
 export function toMilestoneAmounts(milestones: Milestone[]): string[] {
   return milestones.map((m) => {
     const trimmed = m.amount.trim();
     if (trimmed === "" || validateMilestoneAmount(trimmed) !== null) {
       throw new Error("Invalid milestone amount");
     }
-    return BigInt(trimmed).toString();
+    return parseDecimalToBaseUnits(trimmed, 7).toString();
   });
 }
 

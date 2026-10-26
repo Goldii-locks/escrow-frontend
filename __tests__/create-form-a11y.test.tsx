@@ -55,7 +55,7 @@ describe("Create form – a11y ARIA compliance (issue #40)", () => {
 
   it("milestone inputs carry aria-required='true'", () => {
     render(<CreateJob />);
-    const m1 = screen.getByLabelText("Milestone 1 amount in stroops");
+    const m1 = screen.getByLabelText("Milestone 1 amount");
     expect(m1).toHaveAttribute("aria-required", "true");
   });
 
