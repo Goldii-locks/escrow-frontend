@@ -77,7 +77,11 @@ describe("summarizeMilestones", () => {
   });
 
   it("flags non-numeric rows as invalid", () => {
-    expect(summarizeMilestones([{ amount: "10.5" }]).hasInvalidMilestones).toBe(true);
+    expect(summarizeMilestones([{ amount: "10.5abc" }]).hasInvalidMilestones).toBe(true);
+  });
+
+  it("accepts decimal token amounts (#574)", () => {
+    expect(summarizeMilestones([{ amount: "10.5" }]).hasInvalidMilestones).toBe(false);
   });
 
   it("drops malformed rows", () => {

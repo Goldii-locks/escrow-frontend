@@ -115,7 +115,7 @@ describe("CreateJob form — layout", () => {
 
     it("renders the first milestone amount input", () => {
       render(<CreateJob />);
-      expect(screen.getByLabelText("Milestone 1 amount in stroops")).toBeInTheDocument();
+      expect(screen.getByLabelText("Milestone 1 amount")).toBeInTheDocument();
     });
 
     it("renders the remove button for the first milestone", () => {

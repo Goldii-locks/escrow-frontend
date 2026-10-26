@@ -80,7 +80,7 @@ describe("Create Job agreement panel (#669)", () => {
     }) as HTMLSelectElement;
     fireEvent.change(tokenSelect, { target: { value: "CTOKEN" } });
 
-    fireEvent.change(screen.getByLabelText("Milestone 1 amount in stroops"), {
+    fireEvent.change(screen.getByLabelText("Milestone 1 amount"), {
       target: { value: "100" },
     });
 
@@ -113,7 +113,7 @@ describe("Create Job agreement panel (#669)", () => {
     }) as HTMLSelectElement;
     fireEvent.change(tokenSelect, { target: { value: "CTOKEN" } });
 
-    fireEvent.change(screen.getByLabelText("Milestone 1 amount in stroops"), {
+    fireEvent.change(screen.getByLabelText("Milestone 1 amount"), {
       target: { value: "100" },
     });
 

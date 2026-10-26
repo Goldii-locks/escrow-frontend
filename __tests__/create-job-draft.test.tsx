@@ -37,7 +37,7 @@ async function fillForm() {
   fireEvent.change(screen.getByLabelText("Token Contract Address", { selector: "select" }), {
     target: { value: "CTOKEN" },
   });
-  fireEvent.change(screen.getByLabelText("Milestone 1 amount in stroops"), {
+  fireEvent.change(screen.getByLabelText("Milestone 1 amount"), {
     target: { value: "100" },
   });
 }
@@ -76,7 +76,7 @@ describe("Create job draft persistence", () => {
     );
     expect(screen.getByLabelText("Freelancer Address")).toHaveValue(FREELANCER);
     expect(screen.getByLabelText("Arbiter Address")).toHaveValue(ARBITER);
-    expect(screen.getByLabelText("Milestone 1 amount in stroops")).toHaveValue("100");
+    expect(screen.getByLabelText("Milestone 1 amount")).toHaveValue("100");
   });
 
   it("Discard resets the form and clears the draft", async () => {

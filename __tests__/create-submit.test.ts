@@ -7,14 +7,20 @@ const ARBITER = "G" + "C".repeat(55);
 const TOKEN = "C" + "A".repeat(55);
 
 describe("toMilestoneAmounts", () => {
-  it("trims amounts and keeps values beyond Number.MAX_SAFE_INTEGER exact", () => {
-    expect(toMilestoneAmounts([{ amount: " 100 " }, { amount: "90071992547409930" }])).toEqual([
-      "100",
-      "90071992547409930",
+  it("converts decimal token amounts to base units at 7 decimals (#574)", () => {
+    expect(toMilestoneAmounts([{ amount: " 150 " }, { amount: "12.5" }])).toEqual([
+      "1500000000",
+      "125000000",
     ]);
   });
 
-  it.each(["", "  ", "1.5", "-3"])("throws on %j", (amount) => {
+  it("keeps values beyond Number.MAX_SAFE_INTEGER exact", () => {
+    expect(toMilestoneAmounts([{ amount: "9007199254740993" }])).toEqual([
+      "90071992547409930000000",
+    ]);
+  });
+
+  it.each(["", "  ", "-3", "1.12345678"])("throws on %j", (amount) => {
     expect(() => toMilestoneAmounts([{ amount }])).toThrow("Invalid milestone amount");
   });
 });
@@ -40,8 +46,8 @@ describe("buildInitializeArgs", () => {
       {
         type: "vec",
         value: [
-          { type: "i128", value: "100" },
-          { type: "i128", value: "250" },
+          { type: "i128", value: "1000000000" },
+          { type: "i128", value: "2500000000" },
         ],
       },
     ]);

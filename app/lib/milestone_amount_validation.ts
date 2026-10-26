@@ -1,17 +1,21 @@
+import { parseDecimalToBaseUnits } from "./amounts";
+
 /**
- * Validates a milestone amount string (whole stroops, strictly greater than 0).
+ * Validates a milestone amount string (decimal token amount, strictly greater than 0).
  * Returns an error message, or null when the value is valid. An empty value
  * returns null so untouched inputs do not show an error; callers that need a
  * value should check for emptiness separately.
  */
-export function validateMilestoneAmount(raw: string): string | null {
+export function validateMilestoneAmount(raw: string, decimals = 7): string | null {
   const trimmed = raw.trim();
   if (trimmed.length === 0) return null;
-  if (!/^[0-9]+$/.test(trimmed)) {
-    return "Enter a whole number of stroops (digits only)";
+  try {
+    const units = parseDecimalToBaseUnits(trimmed, decimals);
+    if (units <= BigInt(0)) {
+      return "Amount must be greater than 0";
+    }
+    return null;
+  } catch (err) {
+    return err instanceof Error ? err.message : "Enter a valid decimal amount";
   }
-  if (/^0+$/.test(trimmed)) {
-    return "Amount must be greater than 0";
-  }
-  return null;
 }

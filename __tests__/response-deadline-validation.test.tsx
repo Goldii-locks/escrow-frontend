@@ -297,7 +297,7 @@ describe("Response Deadline validation and features", () => {
       // Fill the milestone amount so the deadline check (which runs first
       // in the submit handler) is what actually gets exercised, rather
       // than the button staying disabled for an unrelated reason.
-      fireEvent.change(screen.getByLabelText("Milestone 1 amount in stroops"), {
+      fireEvent.change(screen.getByLabelText("Milestone 1 amount"), {
         target: { value: "100" },
       });
 
@@ -322,7 +322,7 @@ describe("Response Deadline validation and features", () => {
       fireEvent.click(screen.getByTestId("agreement-checkbox"));
       const submitButton = screen.getByRole("button", { name: /create job/i });
 
-      fireEvent.change(screen.getByLabelText("Milestone 1 amount in stroops"), {
+      fireEvent.change(screen.getByLabelText("Milestone 1 amount"), {
         target: { value: "100" },
       });
 
