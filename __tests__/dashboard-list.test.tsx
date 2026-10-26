@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Dashboard from "@/app/(app)/dashboard/page";
+import { wrapFetchWithJobDetails } from "@/__tests__/helpers/job_details_fetch";
 
 const mockUseWallet = vi.fn();
 const mockUseToast = vi.fn();
@@ -135,6 +136,7 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
         json: async () => response,
       })
     );
+    wrapFetchWithJobDetails();
   };
 
   describe("Loading state", () => {
@@ -144,6 +146,7 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
         resolveFetch = resolve;
       });
       vi.stubGlobal("fetch", vi.fn().mockReturnValue(fetchPromise));
+      wrapFetchWithJobDetails();
 
       render(<Dashboard />);
 
@@ -159,6 +162,7 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
           json: async () => mockJobsResponse([]),
         })
       );
+      wrapFetchWithJobDetails();
 
       render(<Dashboard />);
 
@@ -178,6 +182,7 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
           }),
         })
       );
+      wrapFetchWithJobDetails();
 
       render(<Dashboard />);
 
@@ -199,6 +204,7 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
           }),
         })
       );
+      wrapFetchWithJobDetails();
 
       render(<Dashboard />);
 

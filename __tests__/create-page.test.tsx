@@ -119,10 +119,10 @@ describe("Create page", () => {
     render(<CreateJob />);
 
     fireEvent.change(screen.getByLabelText("Freelancer Address"), {
-      target: { value: "G" + "F".repeat(55) },
+      target: { value: "GABQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQHGPC" },
     });
     fireEvent.change(screen.getByLabelText("Arbiter Address"), {
-      target: { value: "G" + "B".repeat(55) },
+      target: { value: "GABAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEJXA" },
     });
 
     // Wait for the whitelist to load, then select the token from the dropdown.
@@ -150,10 +150,10 @@ describe("Create page", () => {
     render(<CreateJob />);
 
     fireEvent.change(screen.getByLabelText("Freelancer Address"), {
-      target: { value: "G" + "F".repeat(55) },
+      target: { value: "GABQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQGAYDAMBQHGPC" },
     });
     fireEvent.change(screen.getByLabelText("Arbiter Address"), {
-      target: { value: "G" + "B".repeat(55) },
+      target: { value: "GABAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEJXA" },
     });
     await screen.findByRole("option", { name: "USDC" });
     fireEvent.change(screen.getByLabelText("Token Contract Address", { selector: "select" }), {

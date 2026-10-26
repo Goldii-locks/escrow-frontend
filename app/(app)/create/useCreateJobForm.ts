@@ -24,6 +24,7 @@ import {
   nonBlank,
   summarizeMilestones,
   validateAccountAddress,
+  validateArbiterAddress,
   validateDeadline,
   validateTokenAddress,
 } from "./validation";
@@ -141,7 +142,7 @@ export function useCreateJobForm() {
   };
   const changeArbiter = (value: string) => {
     setArbiter(value);
-    setArbiterError(validateAccountAddress(value));
+    setArbiterError(validateArbiterAddress(value));
   };
   const chooseArbiterMode = (mode: "default" | "custom") => {
     setArbiterMode(mode);
@@ -247,7 +248,7 @@ export function useCreateJobForm() {
       arbiter,
       arbiterError,
       changeArbiter,
-      blurArbiter: (value: string) => setArbiterError(validateAccountAddress(value)),
+      blurArbiter: (value: string) => setArbiterError(validateArbiterAddress(value)),
       defaultArbiter,
       arbiterMode,
       chooseArbiterMode,

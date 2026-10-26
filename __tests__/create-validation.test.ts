@@ -11,9 +11,12 @@ import {
   type TokenStatus,
 } from "@/app/(app)/create/validation";
 
-const ACCOUNT = "G" + "A".repeat(55);
-const OTHER_ACCOUNT = "G" + "B".repeat(55);
-const TOKEN = "C" + "A".repeat(55);
+// Real StrKeys: validation checks the checksum, not just the shape (#579).
+const ACCOUNT = "GAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQDZ7H";
+const OTHER_ACCOUNT = "GABAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEJXA";
+const TOKEN = "CAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQC526";
+// ACCOUNT with its last character changed: right shape, bad checksum.
+const BAD_CHECKSUM = ACCOUNT.slice(0, -1) + (ACCOUNT.endsWith("A") ? "B" : "A");
 
 describe("validateAccountAddress", () => {
   it("accepts an empty value and a well-formed G… key", () => {
@@ -21,9 +24,12 @@ describe("validateAccountAddress", () => {
     expect(validateAccountAddress(ACCOUNT)).toBe("");
   });
 
-  it.each(["GABC", TOKEN, "g" + "a".repeat(55), ACCOUNT + "A"])("rejects %s", (value) => {
-    expect(validateAccountAddress(value)).toBe("Invalid Stellar public key format");
-  });
+  it.each(["GABC", TOKEN, "g" + "a".repeat(55), ACCOUNT + "A", BAD_CHECKSUM])(
+    "rejects %s",
+    (value) => {
+      expect(validateAccountAddress(value)).toBe("Invalid Stellar public key format");
+    }
+  );
 });
 
 describe("validateTokenAddress", () => {
@@ -179,7 +185,7 @@ describe("checkSubmission", () => {
       ok: false,
       message: "Please fix the address fields before creating a job.",
       freelancerError: "This field is required.",
-      arbiterError: "Invalid Stellar public key format",
+      arbiterError: "Invalid Stellar public key or contract address format",
     });
   });
 
