@@ -35,8 +35,20 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
-      - name: Test
-        run: npm run test
+      - name: Test with coverage
+        run: npm run test:coverage
+
+      - name: Publish coverage summary
+        if: ${{ !cancelled() }}
+        run: node scripts/coverage-summary.mjs
+
+      - name: Upload coverage report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          if-no-files-found: ignore
 
       - name: Build
         run: npm run build
