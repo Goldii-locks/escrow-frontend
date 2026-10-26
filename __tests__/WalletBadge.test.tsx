@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * WalletBadge – mobile viewport overlay / clickability tests
  *

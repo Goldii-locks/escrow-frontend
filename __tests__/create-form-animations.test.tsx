@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Issue #45 – CSS micro-animations on create_job_form elements
  *

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Accessibility test suite for MilestoneCard
  *
