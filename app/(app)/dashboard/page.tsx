@@ -13,7 +13,6 @@ import DisputeRaiseModal from "@/app/components/DisputeRaiseModal";
 import { ArbiterPanelPlaceholder } from "@/app/components/ArbiterActionPanel";
 import { getArbiterJobEmptyState } from "@/app/lib/arbiter_action_panel";
 import { useActionStates } from "@/app/hooks/useActionStates";
-import { useToast } from "@/app/context/ToastContext";
 import { BACKEND_URL, runContractAction, submitContractTransaction } from "@/app/lib/transactions";
 import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
 import {
@@ -35,6 +34,7 @@ import {
   setJobLabel,
   shortAddress,
 } from "@/app/lib/job_list_summary";
+import { hashDisputeReason } from "@/app/lib/dispute_reason";
 
 type RoleFilter = "all" | "client" | "freelancer" | "arbiter";
 
@@ -124,7 +124,6 @@ const roleFilterLabels: Array<{ id: RoleFilter; label: string }> = [
 
 export default function Dashboard() {
   const { address, signTransaction, connect, isConnecting, registerPendingAction } = useWallet();
-  const { showToast } = useToast();
   const [fetchLoading, setFetchLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -635,7 +634,18 @@ export default function Dashboard() {
   };
 
   const handleMarkDelivered = async (i: number) => {
-    showToast(`Mark milestone ${i + 1} delivered (wired to contract soon)`, "info");
+    if (!address) return;
+
+    await executeTx(`deliver-${i}`, "mark_delivered", [
+      { type: "address", value: address },
+      { type: "u32", value: i.toString() },
+    ]);
+  };
+
+  const handleFund = async () => {
+    if (!address || !expandedJob) return;
+
+    await executeTx(`fund-${expandedJob.id}`, "fund", [{ type: "address", value: address }]);
   };
 
   const handleApprove = async (i: number) => {
@@ -655,10 +665,11 @@ export default function Dashboard() {
   const handleDisputeSubmit = async (reason: string) => {
     if (!address || disputeMilestoneIndex === null) return;
 
+    // The contract takes a 32-byte hash of the reason, not the text (#590).
     await executeTx(`dispute-${disputeMilestoneIndex}`, "raise_dispute", [
       { type: "address", value: address },
       { type: "u32", value: disputeMilestoneIndex.toString() },
-      { type: "string", value: reason },
+      { type: "bytes", value: await hashDisputeReason(reason) },
     ]);
 
     setDisputeModalOpen(false);
@@ -1002,6 +1013,29 @@ export default function Dashboard() {
                                   </div>
                                 </div>
 
+                                {isClient && !expandedJob.funded && (
+                                  <div className="bg-amber-950/40 border border-amber-600/50 rounded-lg p-3 sm:p-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                    <div>
+                                      <p className="text-amber-300 font-semibold text-sm">
+                                        Escrow Unfunded
+                                      </p>
+                                      <p className="text-amber-200/80 text-xs mt-0.5">
+                                        Deposit the escrow tokens so the freelancer can begin
+                                        delivery.
+                                      </p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={handleFund}
+                                      disabled={isPending("fund-" + expandedJob.id)}
+                                      className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-semibold transition"
+                                    >
+                                      {isPending("fund-" + expandedJob.id)
+                                        ? "Funding..."
+                                        : "Fund escrow"}
+                                    </button>
+                                  </div>
+                                )}
                                 <div
                                   className="space-y-3 sm:space-y-4"
                                   role="region"
