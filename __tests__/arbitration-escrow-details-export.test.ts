@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { MOCK_ARBITRATION_ESCROW_DETAILS } from "@/app/lib/arbitration_escrow_details";
+import { MOCK_ARBITRATION_ESCROW_DETAILS } from "@/__tests__/fixtures/arbitration_escrow_details";
 import {
   ARBITRATION_EXPORT_HEADERS,
   arbitrationExportFilename,

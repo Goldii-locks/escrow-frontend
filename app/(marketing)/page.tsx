@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import "./landing.css";
+import "../landing.css";
 import LandingNav from "@/app/components/LandingNav";
 import LandingLogo from "@/app/components/LandingLogo";
 import LandingArrow from "@/app/components/LandingArrow";

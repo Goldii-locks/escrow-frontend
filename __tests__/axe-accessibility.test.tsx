@@ -16,7 +16,7 @@ import { render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import axe from "axe-core";
 
-import Home from "@/app/page";
+import Home from "@/app/(marketing)/page";
 import Dashboard from "@/app/(app)/dashboard/page";
 import CreateJob from "@/app/(app)/create/page";
 import AdminPage from "@/app/(app)/admin/page";

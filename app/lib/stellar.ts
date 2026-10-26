@@ -1,5 +1,10 @@
-const STELLAR_EXPERT_TESTNET = "https://stellar.expert/explorer/testnet";
+import { NETWORK_PASSPHRASE } from "@/app/lib/config";
+import { explorerTxUrl } from "@/app/lib/network";
 
 export function getStellarExpertTxUrl(txHash: string): string {
-  return `${STELLAR_EXPERT_TESTNET}/tx/${txHash}`;
+  const url = explorerTxUrl(txHash, NETWORK_PASSPHRASE);
+  if (!url) {
+    throw new Error(`No Stellar Expert explorer URL for tx ${txHash} on current network`);
+  }
+  return url;
 }

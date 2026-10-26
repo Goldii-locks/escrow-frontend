@@ -14,7 +14,7 @@ import {
 import {
   MOCK_CONTRACT_PAUSE_STATE,
   MOCK_CONTRACT_PAUSE_TRANSITIONS,
-} from "@/app/lib/contract_pause_switch";
+} from "@/__tests__/fixtures/contract_pause_switch";
 
 const ROWS: ContractPauseExportRow[] = [
   {

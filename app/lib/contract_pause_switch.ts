@@ -284,23 +284,6 @@ export interface ContractPauseState {
   reason: string;
 }
 
-/**
- * Mock freeze state used as the fallback for backend queries.
- *
- * #629: this symbol is no longer reachable from any page module. It lives in
- * this file purely so the test suite can import it from one place; production
- * code must not touch it. `fetchContractPauseState` now returns `null` on
- * failure and the component renders an explicit error state instead of
- * fabricating a live status.
- */
-export const MOCK_CONTRACT_PAUSE_STATE: ContractPauseState = {
-  contractId: "CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH",
-  paused: true,
-  updatedAt: "2026-09-24T18:42:00Z",
-  updatedBy: "GADMIN3XQ7LKZP4V2M6YB9WDHRTC5FJN8AUE2HSVG6KCDY",
-  reason: "Payout indexer reports duplicate release events for milestone 3.",
-};
-
 /** One entry in the freeze transition log. */
 export interface ContractPauseTransition {
   id: string;
@@ -309,36 +292,6 @@ export interface ContractPauseTransition {
   to: "frozen" | "active";
   reason: string;
 }
-
-/**
- * Mock transition log backing the freeze history readout, so the panel renders
- * a real history instead of an empty shell when the backend is unreachable.
- *
- * #629: test-only; not imported by any page module.
- */
-export const MOCK_CONTRACT_PAUSE_TRANSITIONS: ContractPauseTransition[] = [
-  {
-    id: "pause-002",
-    at: "2026-09-24T18:42:00Z",
-    by: "GADMIN3XQ7LKZP4V2M6YB9WDHRTC5FJN8AUE2HSVG6KCDY",
-    to: "frozen",
-    reason: "Payout indexer reports duplicate release events for milestone 3.",
-  },
-  {
-    id: "pause-001",
-    at: "2026-09-21T07:15:00Z",
-    by: "GADMIN3XQ7LKZP4V2M6YB9WDHRTC5FJN8AUE2HSVG6KCDY",
-    to: "frozen",
-    reason: "Scheduled upgrade of the dispute escrow entrypoint.",
-  },
-  {
-    id: "pause-000",
-    at: "2026-09-18T11:03:00Z",
-    by: "GADMIN3XQ7LKZP4V2M6YB9WDHRTC5FJN8AUE2HSVG6KCDY",
-    to: "active",
-    reason: "Freeze lifted after the entrypoint upgrade completed.",
-  },
-];
 
 /** Narrows an unknown value to a `ContractPauseState`. */
 export function isContractPauseState(value: unknown): value is ContractPauseState {
