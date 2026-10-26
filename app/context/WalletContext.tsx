@@ -12,6 +12,7 @@ import {
 import { Networks, StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
 import { defaultModules } from "@creit.tech/stellar-wallets-kit/modules/utils";
 import { NETWORK_PASSPHRASE } from "@/app/lib/config";
+import { NETWORK_PASSPHRASES } from "@/app/lib/network_config";
 import { assertWalletNetwork } from "@/app/lib/network";
 import { useToast } from "./ToastContext";
 import {
@@ -42,6 +43,37 @@ import {
   isWalletRejectedError,
 } from "@/app/lib/errors";
 import { submitContractTransaction, type ContractArg } from "@/app/lib/transactions";
+
+/**
+ * Map NETWORK_PASSPHRASE to the kit's Networks enum value.
+ * Falls back to Networks.TESTNET for unknown passphrases so the kit
+ * never receives an empty string.
+ */
+function passphraseToKitNetwork(passphrase: string): (typeof Networks)[keyof typeof Networks] {
+  switch (passphrase) {
+    case NETWORK_PASSPHRASES.PUBLIC:
+      return Networks.PUBLIC;
+    case NETWORK_PASSPHRASES.FUTURENET:
+      return Networks.FUTURENET;
+    case NETWORK_PASSPHRASES.TESTNET:
+    default:
+      return Networks.TESTNET;
+  }
+}
+
+/**
+ * The wallet's active account, read without any user-facing prompt (#595).
+ *
+ * Only Freighter exposes the active account silently (cached via its watch
+ * API). For other wallets `StellarWalletsKit.getAddress()` opens a
+ * connect/approval window (Albedo, xBull) or requests access (Freighter when
+ * nothing is cached), so callers that run on a timer or before every
+ * signature must not use it; they get `undefined` and skip the check.
+ */
+function readActiveAddressSilently(walletId: string | null): string | undefined {
+  if (walletId !== "freighter") return undefined;
+  return freighterActiveAddress.getActiveAddress()?.address ?? undefined;
+}
 
 const LEGACY_STORAGE_KEY = "milesto_wallet_connected";
 const STORAGE_KEY = LEGACY_STORAGE_KEY;
@@ -202,6 +234,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         const { WalletConnectModule, WalletConnectTargetChain } = await import(
           "@creit.tech/stellar-wallets-kit/modules/wallet-connect"
         );
+        // Derive the WalletConnect chain from the build-time passphrase so a
+        // mainnet build registers "stellar:pubnet" instead of "stellar:testnet".
+        const wcChain =
+          NETWORK_PASSPHRASE === NETWORK_PASSPHRASES.PUBLIC
+            ? WalletConnectTargetChain.PUBLIC
+            : WalletConnectTargetChain.TESTNET;
         wcModules.push(
           new WalletConnectModule({
             projectId: walletConnectProjectId,
@@ -211,7 +249,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
               url: window.location.origin,
               icons: [`${window.location.origin}/favicon.ico`],
             },
-            allowedChains: [WalletConnectTargetChain.TESTNET],
+            allowedChains: [wcChain],
           })
         );
       }
@@ -224,7 +262,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           }),
           ...wcModules,
         ],
-        network: Networks.TESTNET,
+        // Derived from the build-time NETWORK_PASSPHRASE so this is never
+        // hardcoded to testnet on a mainnet build.
+        network: passphraseToKitNetwork(NETWORK_PASSPHRASE),
         authModal: {
           showInstallLabel: true,
           hideUnsupportedWallets: false,
@@ -324,6 +364,82 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     };
   }, [ensureKitInitialized, checkNetwork, selectedWalletId]);
 
+  /**
+   * #595 — Poll for wallet address and network changes while a wallet is
+   * connected. This catches mid-session account switches and network switches
+   * that the kit does not emit events for.
+   *
+   * Polling runs every 3 s while the tab is visible. On an address change the
+   * context address is updated and per-account state is cleared. On a network
+   * change `checkNetwork` re-runs to show or clear the mismatch banner.
+   */
+  const WALLET_POLL_INTERVAL_MS = 3_000;
+  // Keep a ref to the latest address so the poll closure always compares
+  // against the current value without adding `address` to the dep array.
+  const addressRef = useRef<string | null>(null);
+  useEffect(() => {
+    addressRef.current = address;
+  }, [address]);
+
+  useEffect(() => {
+    // Only poll when a wallet is connected.
+    if (!address) return;
+
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+
+    const poll = async () => {
+      if (cancelled) return;
+      // Skip while the tab is hidden to avoid unnecessary wakeups.
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        timerId = setTimeout(poll, WALLET_POLL_INTERVAL_MS);
+        return;
+      }
+
+      try {
+        await ensureKitInitialized();
+
+        // ── Address change ──────────────────────────────────────────────────
+        const currentAddress = readActiveAddressSilently(selectedWalletId);
+
+        if (cancelled) return;
+
+        if (currentAddress && currentAddress !== addressRef.current) {
+          const short = `${currentAddress.slice(0, 4)}…${currentAddress.slice(-4)}`;
+          showToast(`Wallet switched to ${short}`, "info");
+          setAddress(currentAddress);
+          // Clear per-account state so stale job data isn't shown.
+          walletStateStore.setActiveState({
+            address: currentAddress,
+            selectedWalletId,
+            networkPassphrase: NETWORK_PASSPHRASE,
+            connectedAt: Date.now(),
+          });
+          // Re-check network for the newly selected account.
+          await checkNetwork();
+          timerId = setTimeout(poll, WALLET_POLL_INTERVAL_MS);
+          return;
+        }
+
+        // ── Network change ──────────────────────────────────────────────────
+        await checkNetwork();
+      } catch {
+        // Swallow polling errors — the wallet may be locked/unavailable.
+      }
+
+      if (!cancelled) {
+        timerId = setTimeout(poll, WALLET_POLL_INTERVAL_MS);
+      }
+    };
+
+    timerId = setTimeout(poll, WALLET_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      if (timerId !== null) clearTimeout(timerId);
+    };
+  }, [address, selectedWalletId, ensureKitInitialized, checkNetwork, showToast]);
+
   const connect = useCallback(
     async (requestedWalletId?: SupportedWalletId) => {
       // Guard against being wired straight to onClick, which passes an event.
@@ -387,6 +503,31 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         try {
           await ensureKitInitialized();
           StellarWalletsKit.setWallet(selectedWalletId);
+
+          // #595 — Assert the wallet's current address still matches the
+          // address we built the transaction for. If the user switched
+          // accounts between building and signing, abort with a clear message
+          // rather than broadcasting a transaction signed by the wrong key.
+          try {
+            const currentAddress = readActiveAddressSilently(selectedWalletId);
+            if (currentAddress && currentAddress !== address) {
+              const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
+              throw new Error(
+                `Wallet account changed: transaction was built for ${short(address)} but ` +
+                  `your wallet is now on ${short(currentAddress)}. ` +
+                  `Please reconnect or switch back to the original account.`
+              );
+            }
+          } catch (assertErr) {
+            // Re-throw address-mismatch errors; swallow transient get-address
+            // failures so a locked wallet doesn't silently block every sign.
+            if (
+              assertErr instanceof Error &&
+              assertErr.message.startsWith("Wallet account changed:")
+            ) {
+              throw assertErr;
+            }
+          }
 
           // Single timeout source (#628): derive the bound from the
           // transaction's own maxTime when it advertises one, falling back to
