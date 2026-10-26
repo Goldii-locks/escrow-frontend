@@ -4,7 +4,7 @@
  *
  * Formats the emergency freeze readouts and the freeze/unfreeze transition log
  * as a spreadsheet download, entirely client-side, with no server call. Mirrors
- * `client_refund_panel_export.ts` and `admin_fee_configuration_export.ts`.
+ * `admin_fee_configuration_export.ts`.
  *
  * The transition log is the tabulated view: one row per freeze transition, with
  * the current state exported alongside it so the file is self-describing when
