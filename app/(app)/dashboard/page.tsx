@@ -16,7 +16,6 @@ import { useActionStates } from "@/app/hooks/useActionStates";
 import { BACKEND_URL, runContractAction, submitContractTransaction } from "@/app/lib/transactions";
 import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
 import {
-  ApiShapeError,
   JobListResponseSchema,
   JobDetailResponseSchema,
   JobSchema,
@@ -131,6 +130,7 @@ export default function Dashboard() {
   const [jobLabels, setJobLabels] = useState<Record<string, string>>({});
   const [jobDetails, setJobDetails] = useState<Record<string, Job>>({});
   const [detailsLoading, setDetailsLoading] = useState<Record<string, boolean>>({});
+  const [detailsError, setDetailsError] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
   const [limit] = useState(5);
   const [total, setTotal] = useState(0);
@@ -327,6 +327,9 @@ export default function Dashboard() {
         if (requestId !== detailsRequestIdRef.current) return;
 
         reportApiResponse(res, "/api/jobs/:contractId");
+        if (!res.ok) {
+          throw new Error(`Failed to load job details: HTTP ${res.status}`);
+        }
         const rawPayload: unknown = await res.json();
 
         if (requestId !== detailsRequestIdRef.current) return;
@@ -336,31 +339,21 @@ export default function Dashboard() {
 
         if (candidate) {
           setJobDetails((current) => ({ ...current, [jobId]: candidate }));
+          setDetailsError((current) => {
+            const next = { ...current };
+            delete next[jobId];
+            return next;
+          });
           return;
         }
 
-        // Shape parsed OK but data field did not match Job — fall back to list entry
-        const fallback = jobs.find((job) => job.id === jobId);
-        if (fallback) {
-          setJobDetails((current) => ({ ...current, [jobId]: fallback }));
-        }
+        throw new Error("Invalid job data received");
       } catch (err) {
         // Ignore intentional aborts.
         if (err instanceof Error && err.name === "AbortError") return;
 
-        // ApiShapeError means the server returned an unexpected envelope;
-        // surface it so the user sees "Unexpected response" rather than blank
-        if (err instanceof ApiShapeError) {
-          const fallback = jobs.find((job) => job.id === jobId);
-          if (fallback) {
-            setJobDetails((current) => ({ ...current, [jobId]: fallback }));
-          }
-        } else {
-          const fallback = jobs.find((job) => job.id === jobId);
-          if (fallback) {
-            setJobDetails((current) => ({ ...current, [jobId]: fallback }));
-          }
-        }
+        const message = err instanceof Error ? err.message : "Failed to load job details";
+        setDetailsError((current) => ({ ...current, [jobId]: message }));
       } finally {
         // Clear this job's spinner unless a newer request for the same job
         // is still in flight; a request superseded by another job's fetch
@@ -370,7 +363,7 @@ export default function Dashboard() {
         }
       }
     },
-    [address, jobDetails, jobs]
+    [address, jobDetails]
   );
 
   /**
@@ -953,6 +946,24 @@ export default function Dashboard() {
                             </label>
                             {detailsLoading[job.id] ? (
                               <LoadingSkeleton />
+                            ) : detailsError[job.id] ? (
+                              <div className="bg-red-950/40 border border-red-800/60 rounded-lg p-3 sm:p-4 my-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <div>
+                                  <p className="text-red-400 font-semibold text-sm">
+                                    Failed to load job details
+                                  </p>
+                                  <p className="text-red-300/80 text-xs mt-0.5">
+                                    {detailsError[job.id]}
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => fetchJobDetails(job.id, true)}
+                                  className="px-3 py-1.5 bg-red-800 hover:bg-red-700 text-white rounded text-xs font-medium transition"
+                                >
+                                  Retry
+                                </button>
+                              </div>
                             ) : !expandedJob ? (
                               <p className="text-xs sm:text-sm text-text-muted" role="status">
                                 Unable to load job details.

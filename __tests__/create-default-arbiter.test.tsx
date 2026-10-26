@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CreateJob from "@/app/(app)/create/page";
 
-const DEFAULT_ARBITER = "G" + "D".repeat(55);
+const DEFAULT_ARBITER = "GBCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIZCA";
 const mockSubmit = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
@@ -14,7 +14,10 @@ vi.mock("@/app/components/Navbar", () => ({
 }));
 
 vi.mock("@/app/context/WalletContext", () => ({
-  useWallet: () => ({ address: "G" + "C".repeat(55), signTransaction: vi.fn() }),
+  useWallet: () => ({
+    address: "GBBUGQ2DINBUGQ2DINBUGQ2DINBUGQ2DINBUGQ2DINBUGQ2DINBUGWKN",
+    signTransaction: vi.fn(),
+  }),
 }));
 
 vi.mock("@/app/lib/transactions", async (importOriginal) => ({
@@ -24,7 +27,7 @@ vi.mock("@/app/lib/transactions", async (importOriginal) => ({
 
 async function fillRequiredFields() {
   fireEvent.change(screen.getByLabelText("Freelancer Address"), {
-    target: { value: "G" + "F".repeat(55) },
+    target: { value: "GBDEMRSGIZDEMRSGIZDEMRSGIZDEMRSGIZDEMRSGIZDEMRSGIZDEMGSF" },
   });
   await screen.findByRole("option", { name: "USDC" });
   fireEvent.change(screen.getByLabelText("Token Contract Address", { selector: "select" }), {
@@ -83,9 +86,11 @@ describe("Create form arbiter selector (Issue #658)", () => {
     fireEvent.click(screen.getByLabelText("Custom address"));
     const input = screen.getByLabelText("Arbiter Address");
     fireEvent.change(input, { target: { value: "not-a-key" } });
-    expect(screen.getByText("Invalid Stellar public key format")).toBeInTheDocument();
+    expect(
+      screen.getByText("Invalid Stellar public key or contract address format")
+    ).toBeInTheDocument();
 
-    const custom = "G" + "B".repeat(55);
+    const custom = "GBBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEFZSP";
     fireEvent.change(input, { target: { value: custom } });
     await fillRequiredFields();
     fireEvent.click(screen.getByTestId("agreement-checkbox"));

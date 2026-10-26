@@ -23,9 +23,9 @@ vi.mock("@/app/lib/token_validation", () => ({
 }));
 
 // A valid Stellar contract ID (C + 55 base32 chars).
-const VALID_CONTRACT = "C" + "A".repeat(55);
-const NON_TOKEN_CONTRACT = "C" + "B".repeat(55);
-const WHITELISTED_TOKEN = "C" + "C".repeat(55);
+const VALID_CONTRACT = "CBAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUCQKBIFAUDN7R";
+const NON_TOKEN_CONTRACT = "CBBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEE5XW";
+const WHITELISTED_TOKEN = "CBBUGQ2DINBUGQ2DINBUGQ2DINBUGQ2DINBUGQ2DINBUGQ2DINBUHSPU";
 
 function stubFetch(body: unknown, ok = true) {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok, json: async () => body }));
@@ -101,10 +101,10 @@ describe("Create Job token warning (#668)", () => {
 
     // Fill in remaining required fields so the only gate is the token confirm.
     fireEvent.change(screen.getByLabelText("Freelancer Address"), {
-      target: { value: "G" + "F".repeat(55) },
+      target: { value: "GBDEMRSGIZDEMRSGIZDEMRSGIZDEMRSGIZDEMRSGIZDEMRSGIZDEMGSF" },
     });
     fireEvent.change(screen.getByLabelText("Arbiter Address"), {
-      target: { value: "G" + "B".repeat(55) },
+      target: { value: "GBBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEFZSP" },
     });
     fireEvent.change(screen.getByLabelText("Milestone 1 amount in stroops"), {
       target: { value: "100" },

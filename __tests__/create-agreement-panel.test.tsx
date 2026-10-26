@@ -53,14 +53,14 @@ describe("Create Job agreement panel (#669)", () => {
 
     // Change the arbiter and auto-release days, then verify the panel reflects them.
     fireEvent.change(screen.getByLabelText("Arbiter Address"), {
-      target: { value: "G" + "B".repeat(55) },
+      target: { value: "GBBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEFZSP" },
     });
     fireEvent.change(screen.getByLabelText("Response Deadline (days)"), {
       target: { value: "14" },
     });
 
     expect(within(panel).getByText(/14 days/)).toBeInTheDocument();
-    expect(within(panel).getByText(/GBBBBBBBBB/)).toBeInTheDocument();
+    expect(within(panel).getByText(/GBBEEQSCIJ/)).toBeInTheDocument();
   });
 
   it("keeps Create disabled until the agreement checkbox is ticked", async () => {
@@ -68,10 +68,10 @@ describe("Create Job agreement panel (#669)", () => {
 
     // Fill in all required fields so the only remaining gate is the checkbox.
     fireEvent.change(screen.getByLabelText("Freelancer Address"), {
-      target: { value: "G" + "F".repeat(55) },
+      target: { value: "GBDEMRSGIZDEMRSGIZDEMRSGIZDEMRSGIZDEMRSGIZDEMRSGIZDEMGSF" },
     });
     fireEvent.change(screen.getByLabelText("Arbiter Address"), {
-      target: { value: "G" + "B".repeat(55) },
+      target: { value: "GBBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEFZSP" },
     });
 
     await screen.findByRole("option", { name: "USDC" });
@@ -101,10 +101,10 @@ describe("Create Job agreement panel (#669)", () => {
     render(<CreateJob />);
 
     fireEvent.change(screen.getByLabelText("Freelancer Address"), {
-      target: { value: "G" + "F".repeat(55) },
+      target: { value: "GBDEMRSGIZDEMRSGIZDEMRSGIZDEMRSGIZDEMRSGIZDEMRSGIZDEMGSF" },
     });
     fireEvent.change(screen.getByLabelText("Arbiter Address"), {
-      target: { value: "G" + "B".repeat(55) },
+      target: { value: "GBBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEEQSCIJBEFZSP" },
     });
 
     await screen.findByRole("option", { name: "USDC" });

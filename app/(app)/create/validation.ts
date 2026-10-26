@@ -5,6 +5,7 @@
  */
 import { validateMilestoneAmount } from "@/app/lib/milestone_amount_validation";
 import type { TokenValidationResult } from "@/app/lib/token_validation";
+import { StrKey } from "@stellar/stellar-sdk";
 
 export const STELLAR_ACCOUNT_PATTERN = /^G[A-Z2-7]{55}$/;
 export const TOKEN_CONTRACT_PATTERN = /^C[A-Z2-7]{55}$/;
@@ -14,14 +15,24 @@ export const MAX_DEADLINE_DAYS = 365;
 
 export type Milestone = { amount: string };
 
-/** Error for a freelancer/arbiter field, or "" when it's empty or valid. */
+/**
+ * Error for the freelancer field, or "" when it's empty or valid. Uses the
+ * StrKey checksum (#579), so a mistyped character is caught before signing.
+ */
 export function validateAccountAddress(value: string): string {
-  return value && !STELLAR_ACCOUNT_PATTERN.test(value) ? "Invalid Stellar public key format" : "";
+  return value && !StrKey.isValidEd25519PublicKey(value) ? "Invalid Stellar public key format" : "";
+}
+
+/** Error for the arbiter field: an account (G…) or a contract (C…) address. */
+export function validateArbiterAddress(value: string): string {
+  return value && !(StrKey.isValidEd25519PublicKey(value) || StrKey.isValidContract(value))
+    ? "Invalid Stellar public key or contract address format"
+    : "";
 }
 
 /** Error for the token field, or "" when it's empty or valid. */
 export function validateTokenAddress(value: string): string {
-  return value && !TOKEN_CONTRACT_PATTERN.test(value) ? "Invalid Soroban contract ID format" : "";
+  return value && !StrKey.isValidContract(value) ? "Invalid Soroban contract ID format" : "";
 }
 
 /** Error for the response deadline (whole days), or null when valid. */
@@ -155,12 +166,17 @@ export function checkSubmission(input: SubmissionInput): SubmissionCheck {
   }
 
   const { freelancer, arbiter } = input;
-  if (!STELLAR_ACCOUNT_PATTERN.test(freelancer) || !STELLAR_ACCOUNT_PATTERN.test(arbiter)) {
+  if (
+    validateAccountAddress(freelancer) ||
+    validateArbiterAddress(arbiter) ||
+    !freelancer ||
+    !arbiter
+  ) {
     return {
       ok: false,
       message: "Please fix the address fields before creating a job.",
       freelancerError: freelancer ? validateAccountAddress(freelancer) : "This field is required.",
-      arbiterError: arbiter ? validateAccountAddress(arbiter) : "This field is required.",
+      arbiterError: arbiter ? validateArbiterAddress(arbiter) : "This field is required.",
     };
   }
 
