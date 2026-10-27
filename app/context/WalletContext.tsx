@@ -212,9 +212,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "";
       const wcModules = [];
       if (walletConnectProjectId) {
-        const { WalletConnectModule, WalletConnectTargetChain } = await import(
-          "@creit.tech/stellar-wallets-kit/modules/wallet-connect"
-        );
+        const { WalletConnectModule, WalletConnectTargetChain } =
+          await import("@creit.tech/stellar-wallets-kit/modules/wallet-connect");
         // Derive the WalletConnect chain from the build-time passphrase so a
         // mainnet build registers "stellar:pubnet" instead of "stellar:testnet".
         const wcChain =

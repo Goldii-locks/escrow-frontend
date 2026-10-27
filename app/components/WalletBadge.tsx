@@ -293,9 +293,9 @@ export default function WalletBadge({
   const missingAddress = address == null;
   const isEmptyState = Boolean(
     showEmptyPlaceholder ||
-      emptyList ||
-      blankAddress ||
-      (missingAddress && (emptyText || emptyPlaceholder))
+    emptyList ||
+    blankAddress ||
+    (missingAddress && (emptyText || emptyPlaceholder))
   );
   const placeholderText = emptyText ?? "Not Connected";
   const emptyListText =

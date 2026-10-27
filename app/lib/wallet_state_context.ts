@@ -451,12 +451,7 @@ export function createStellarEnvelopeParser(
 // =============================================================
 
 export type WalletTxPhase =
-  | "idle"
-  | "connecting"
-  | "signing"
-  | "disconnecting"
-  | "success"
-  | "error";
+  "idle" | "connecting" | "signing" | "disconnecting" | "success" | "error";
 
 export interface WalletTxTrackEntry {
   txId: string;

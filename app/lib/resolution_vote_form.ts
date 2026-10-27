@@ -339,8 +339,7 @@ export interface VoteDraft {
 }
 
 export type VoteDraftResult =
-  | { ok: true; submission: ResolutionVoteSubmission }
-  | { ok: false; error: string };
+  { ok: true; submission: ResolutionVoteSubmission } | { ok: false; error: string };
 
 export const VOTE_OPTION_REQUIRED_ERROR = "Select a split before submitting your vote.";
 export const VOTE_CUSTOM_SPLIT_ERROR = `Enter a client share between 0 and ${RESOLUTION_BPS_SCALE} bps.`;

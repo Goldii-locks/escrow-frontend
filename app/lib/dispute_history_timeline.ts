@@ -18,12 +18,7 @@ import type { ToastType } from "@/app/context/ToastContext";
  */
 
 export type DisputeHistoryEventType =
-  | "raised"
-  | "evidence_submitted"
-  | "response"
-  | "arbiter_assigned"
-  | "note"
-  | "resolved";
+  "raised" | "evidence_submitted" | "response" | "arbiter_assigned" | "note" | "resolved";
 
 export interface DisputeHistoryEvent {
   id: string;
@@ -110,11 +105,7 @@ const LOG_PREFIX = "[dispute_history_timeline]";
 // =============================================================
 
 export type DisputeTimelineStatus =
-  | "pending"
-  | "under_review"
-  | "escalated"
-  | "resolved"
-  | "rejected";
+  "pending" | "under_review" | "escalated" | "resolved" | "rejected";
 
 /** A timeline event that carries a workflow status. */
 export type DisputeTimelineEvent = DisputeHistoryEvent & {

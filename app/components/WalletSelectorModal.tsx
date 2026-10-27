@@ -33,12 +33,7 @@ export function isWalletSelectable(wallet: { id: string }): boolean {
 // ---------------------------------------------------------------------------
 
 export type WalletSelectorModalStatus =
-  | "idle"
-  | "connecting"
-  | "signing"
-  | "rejected"
-  | "error"
-  | "unavailable";
+  "idle" | "connecting" | "signing" | "rejected" | "error" | "unavailable";
 
 export type WalletSelectorWalletId = SupportedWalletId;
 
