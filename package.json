@@ -40,9 +40,9 @@
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.7.1",
-    "@stellar/stellar-sdk": "^13.3.0",
+    "@stellar/stellar-sdk": "^17.3.0",
     "@storybook/blocks": "^8.6.19",
-    "@storybook/react": "^8.6.19",
+    "@storybook/react": "^10.6.3",
     "next": "16.4.3",
     "react": "19.3.1",
     "react-dom": "19.3.1",
@@ -60,7 +60,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.1.2",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^5.0.5",
     "axe-core": "^4.14.0",
     "eslint": "^10",
     "eslint-config-next": "16.4.3",
@@ -68,6 +68,6 @@
     "prettier": "3.9.10",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.9"
+    "vitest": "^5.0.5"
   }
 }

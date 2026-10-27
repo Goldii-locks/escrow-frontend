@@ -25,9 +25,12 @@ describe("validateTokenContract (#668)", () => {
 
   it("calls symbol() and decimals() with no arguments and returns the token info", async () => {
     simulateTransaction.mockImplementation(async (tx: Transaction) => {
-      const call = invokedFunction(tx).func.invokeContract();
-      expect(call.args()).toHaveLength(0);
-      const method = call.functionName().toString();
+      const func = invokedFunction(tx).func;
+      if (func.type !== "hostFunctionTypeInvokeContract")
+        throw new Error(`unexpected ${func.type}`);
+      const call = func.invokeContract;
+      expect(call.args).toHaveLength(0);
+      const method = call.functionName.toString();
       return {
         result: {
           retval:

@@ -193,13 +193,13 @@ async function renderAndAxe(ui: React.ReactElement) {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe.sequential("axe accessibility — landing page (/)", () => {
+describe("axe accessibility — landing page (/)", { concurrent: false }, () => {
   it("has no axe violations", async () => {
     await renderAndAxe(<Home />);
   });
 });
 
-describe.sequential("axe accessibility — dashboard (/dashboard)", () => {
+describe("axe accessibility — dashboard (/dashboard)", { concurrent: false }, () => {
   it("has no axe violations with fixture jobs", async () => {
     vi.stubGlobal(
       "fetch",
@@ -225,7 +225,7 @@ describe.sequential("axe accessibility — dashboard (/dashboard)", () => {
   });
 });
 
-describe.sequential("axe accessibility — create page (/create)", () => {
+describe("axe accessibility — create page (/create)", { concurrent: false }, () => {
   beforeEach(() => {
     vi.stubGlobal(
       "fetch",
@@ -244,7 +244,7 @@ describe.sequential("axe accessibility — create page (/create)", () => {
   });
 });
 
-describe.sequential("axe accessibility — admin page (/admin)", () => {
+describe("axe accessibility — admin page (/admin)", { concurrent: false }, () => {
   it("has no axe violations with whitelist loaded", async () => {
     vi.stubGlobal(
       "fetch",
