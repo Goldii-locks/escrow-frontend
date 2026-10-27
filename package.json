@@ -42,7 +42,7 @@
     "@creit.tech/stellar-wallets-kit": "^2.7.1",
     "@stellar/stellar-sdk": "^13.3.0",
     "@storybook/blocks": "^8.6.19",
-    "@storybook/react": "^8.6.19",
+    "@storybook/react": "^10.6.3",
     "next": "16.4.3",
     "react": "19.3.1",
     "react-dom": "19.3.1",
