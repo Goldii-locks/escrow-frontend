@@ -40,7 +40,7 @@
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.7.1",
-    "@stellar/stellar-sdk": "^13.3.0",
+    "@stellar/stellar-sdk": "^17.3.0",
     "@storybook/blocks": "^8.6.19",
     "@storybook/react": "^8.6.19",
     "next": "16.4.3",
