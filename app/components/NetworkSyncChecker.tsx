@@ -13,12 +13,7 @@ import NetworkSyncNetworkWarningBar from "./NetworkSyncNetworkWarningBar";
 import NetworkSyncWalletWarningBanner from "./NetworkSyncWalletWarningBanner";
 
 export type NetworkSyncProbeStatus =
-  | "idle"
-  | "checking"
-  | "synced"
-  | "cancelled"
-  | "blocked"
-  | "error";
+  "idle" | "checking" | "synced" | "cancelled" | "blocked" | "error";
 
 export interface NetworkSyncCheckerProps {
   walletNetwork: SyncNetwork;

@@ -10,8 +10,7 @@ export type ContractPauseRole = "admin" | "arbiter" | "user" | "none";
 export const CONTRACT_PAUSE_ALLOWED_ROLES: readonly ContractPauseRole[] = ["admin"];
 
 export type ContractPauseAccess =
-  | { allowed: true; reason: null }
-  | { allowed: false; reason: "no_wallet" | "unauthorized" };
+  { allowed: true; reason: null } | { allowed: false; reason: "no_wallet" | "unauthorized" };
 
 export const CONTRACT_PAUSE_NO_WALLET_MESSAGE =
   "Connect an admin wallet to access the emergency freeze switch.";
