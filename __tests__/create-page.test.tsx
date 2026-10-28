@@ -26,6 +26,8 @@ vi.mock("@/app/context/ToastContext", () => ({
 
 vi.mock("@/app/lib/transactions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/app/lib/transactions")>()),
+  // Escrows are created through the configured escrow factory.
+  FACTORY_CONTRACT_ID: "C" + "F".repeat(55),
   submitContractTransaction: (...args: unknown[]) => mockSubmitContractTransaction(...args),
 }));
 
@@ -172,6 +174,9 @@ describe("Create page", () => {
     ).toHaveAttribute("href", "https://stellar.expert/explorer/testnet/tx/ABC123TXHASH");
     expect(screen.getByRole("button", { name: "Go to Dashboard" })).toBeInTheDocument();
     expect(mockShowToast).toHaveBeenCalledWith("Job created successfully!", "success");
+    expect(mockSubmitContractTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ contractId: "C" + "F".repeat(55), method: "create_escrow" })
+    );
     expect(alertSpy).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
     alertSpy.mockRestore();

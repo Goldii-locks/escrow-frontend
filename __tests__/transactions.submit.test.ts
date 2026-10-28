@@ -134,6 +134,28 @@ describe("submitContractTransaction against real backend response shapes (#686)"
       expect(signTransaction).toHaveBeenCalledWith(buildTxSuccess.xdr);
     });
 
+    it("sends build-tx to the given contractId (a job's own escrow, or the factory)", async () => {
+      mockHappyPath();
+      const jobContract = "C" + "J".repeat(55);
+
+      await submitContractTransaction({
+        ...BASE_TX,
+        contractId: jobContract,
+        signTransaction: async () => "SIGNED_XDR_BASE64",
+      });
+
+      expect(bodyOf(calls[0])).toMatchObject({ contractId: jobContract });
+    });
+
+    it("signs the XDR from build-tx's data envelope", async () => {
+      const signTransaction = vi.fn(async () => "SIGNED_XDR_BASE64");
+      mockHappyPath({ success: true, data: { xdr: "ENVELOPED_XDR" } });
+
+      await submitContractTransaction({ ...BASE_TX, signTransaction });
+
+      expect(signTransaction).toHaveBeenCalledWith("ENVELOPED_XDR");
+    });
+
     it("still reads a pre-envelope flat hash for an un-migrated backend", async () => {
       mockHappyPath(buildTxSuccess, submitSuccessLegacyFlatHash);
 

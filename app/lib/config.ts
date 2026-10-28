@@ -20,7 +20,7 @@
  */
 
 import type { Server } from "@stellar/stellar-sdk/rpc";
-import { CONTRACT_ID, NETWORK_PASSPHRASE } from "./network_config";
+import { CONTRACT_ID, FACTORY_CONTRACT_ID, NETWORK_PASSPHRASE } from "./network_config";
 
 /** Soroban JSON-RPC endpoint used for any *client-side* RPC call. */
 export const RPC_URL =
@@ -30,7 +30,7 @@ export const RPC_URL =
  * Network passphrase and contract ID come from `network_config`, which has no
  * SDK dependency so the landing page can read them cheaply (#645).
  */
-export { CONTRACT_ID, NETWORK_PASSPHRASE };
+export { CONTRACT_ID, FACTORY_CONTRACT_ID, NETWORK_PASSPHRASE };
 
 /** Default per-request timeout applied by the shared fetch helpers. */
 export const API_REQUEST_TIMEOUT_MS = 15_000;

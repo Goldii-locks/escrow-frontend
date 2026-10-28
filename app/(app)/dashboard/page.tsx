@@ -558,16 +558,20 @@ export default function Dashboard() {
 
   const executeTx = useCallback(
     async (actionKey: string, method: string, args: { type: string; value: unknown }[]) => {
-      if (!address) return null;
+      if (!address || !expandedJobId) return null;
+      // Every action targets the expanded job's own contract: each escrow
+      // created through the factory is a separate contract.
+      const contractId = expandedJobId;
 
       // Stage the action so the global signature-timeout alert can rebuild
       // and re-sign it with a fresh XDR (#676).
-      registerPendingAction({ method, args, sourceAddress: address });
+      registerPendingAction({ contractId, method, args, sourceAddress: address });
 
       const txHash = await runContractAction(
         actionKey,
         (onPhase) =>
           submitContractTransaction({
+            contractId,
             method,
             args,
             sourceAddress: address,

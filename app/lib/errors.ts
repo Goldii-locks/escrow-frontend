@@ -181,6 +181,27 @@ export function parseContractErrorCode(message: string): number | null {
 }
 
 /**
+ * Messages for the escrow-factory `Error` codes `create_escrow` can return
+ * (`escrow-contract/contracts/escrow-factory/src/lib.rs`). They overlap the
+ * escrow's codes, so the create flow checks these first; any other code comes
+ * from the new escrow's constructor and keeps its {@link ERROR_MESSAGES} text.
+ */
+export const FACTORY_ERROR_MESSAGES: Record<number, string> = {
+  1: "Escrow creation isn't set up yet: the escrow factory hasn't been initialized.",
+  4: "This token isn't accepted for new escrows. Pick one of the listed tokens.",
+  5: "Add at least one milestone with a valid amount.",
+};
+
+/** {@link formatTxError} for `create_escrow`, reading factory error codes first. */
+export function formatCreateEscrowError(err: unknown, walletId?: string): string {
+  if (err instanceof Error) {
+    const code = parseContractErrorCode(err.message);
+    if (code !== null && FACTORY_ERROR_MESSAGES[code]) return FACTORY_ERROR_MESSAGES[code];
+  }
+  return formatTxError(err, walletId);
+}
+
+/**
  * Formats a transaction error into a user-friendly string.
  *
  * Resolution order:

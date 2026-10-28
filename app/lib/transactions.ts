@@ -1,13 +1,13 @@
-import { BACKEND_URL, CONTRACT_ID } from "@/app/lib/config";
+import { BACKEND_URL, CONTRACT_ID, FACTORY_CONTRACT_ID } from "@/app/lib/config";
 import { formatTxError, WalletRejectedError } from "@/app/lib/errors";
 import type { WalletSimulationResult } from "@/app/lib/wallet_session";
 
 /**
- * `BACKEND_URL` and `CONTRACT_ID` are deployment settings and live in
- * `app/lib/config.ts`; they are re-exported here because every caller already
- * imports this module and tests mock it.
+ * `BACKEND_URL`, `CONTRACT_ID` and `FACTORY_CONTRACT_ID` are deployment
+ * settings and live in `app/lib/config.ts`; they are re-exported here because
+ * every caller already imports this module and tests mock it.
  */
-export { BACKEND_URL, CONTRACT_ID };
+export { BACKEND_URL, CONTRACT_ID, FACTORY_CONTRACT_ID };
 
 export type ContractArg = { type: string; value: unknown };
 
@@ -212,6 +212,7 @@ async function parseErrorResponse(res: Response, fallback: string): Promise<stri
 }
 
 export async function submitContractTransaction({
+  contractId = CONTRACT_ID,
   method,
   args,
   sourceAddress,
@@ -219,6 +220,12 @@ export async function submitContractTransaction({
   onPhase,
   setSimulationResult,
 }: {
+  /**
+   * Contract to call. Defaults to the configured `CONTRACT_ID`; each escrow
+   * created through the factory is its own contract, so job actions pass the
+   * job's id, and the create flow passes `FACTORY_CONTRACT_ID`.
+   */
+  contractId?: string;
   method: string;
   args: ContractArg[];
   sourceAddress: string;
@@ -233,7 +240,7 @@ export async function submitContractTransaction({
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      contractId: CONTRACT_ID,
+      contractId,
       method,
       args,
       sourceAddress,
@@ -249,7 +256,10 @@ export async function submitContractTransaction({
   }
 
   const buildTxBody: unknown = await buildTxRes.json();
-  const xdr = isRecord(buildTxBody) ? firstString(buildTxBody.xdr) : null;
+  // The standard `data` envelope first, then the deprecated top-level copy.
+  const xdr = isRecord(buildTxBody)
+    ? firstString(isRecord(buildTxBody.data) ? buildTxBody.data.xdr : undefined, buildTxBody.xdr)
+    : null;
 
   if (!xdr) {
     throw new Error("We could not prepare your transaction. Please try again.");

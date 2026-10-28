@@ -100,6 +100,7 @@ jobs:
           build-args: |
             NEXT_PUBLIC_BACKEND_URL=${{ vars.PUBLIC_ORIGIN }}
             NEXT_PUBLIC_CONTRACT_ID=${{ steps.contract.outputs.id }}
+            NEXT_PUBLIC_FACTORY_CONTRACT_ID=${{ vars.FACTORY_CONTRACT_ID }}
             NEXT_PUBLIC_SOROBAN_RPC_URL=${{ vars.SOROBAN_RPC_URL }}
             NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=${{ vars.SOROBAN_NETWORK_PASSPHRASE }}
           tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.tag }}

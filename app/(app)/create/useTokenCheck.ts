@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CONTRACT_ID } from "@/app/lib/transactions";
+import { CONTRACT_ID, FACTORY_CONTRACT_ID } from "@/app/lib/transactions";
 import { fetchWhitelistedTokens, type WhitelistToken } from "@/app/lib/whitelist";
 import { validateTokenContract, type TokenValidationResult } from "@/app/lib/token_validation";
 import { TOKEN_CONTRACT_PATTERN, type TokenStatus } from "./validation";
@@ -9,7 +9,8 @@ import { TOKEN_CONTRACT_PATTERN, type TokenStatus } from "./validation";
 const TOKEN_VALIDATION_DEBOUNCE_MS = 500;
 
 /**
- * Loads the accepted-token whitelist and, for a well-formed token that isn't
+ * Loads the accepted-token whitelist (the escrow factory's allowed tokens when
+ * one is configured) and, for a well-formed token that isn't
  * on it, validates the contract as SEP-41 and tracks the user's explicit
  * confirmation (#668).
  */
@@ -29,7 +30,9 @@ export function useTokenCheck(token: string) {
     const controller = new AbortController();
     (async () => {
       try {
-        const tokens = await fetchWhitelistedTokens(CONTRACT_ID, {
+        // New escrows are created through the factory, which only accepts
+        // its own allowed tokens.
+        const tokens = await fetchWhitelistedTokens(FACTORY_CONTRACT_ID || CONTRACT_ID, {
           signal: controller.signal,
         });
         if (controller.signal.aborted) return;

@@ -1,8 +1,17 @@
 /**
- * The one place the create flow builds `initialize` contract arguments
+ * The one place the create flow builds escrow-creation contract arguments
  * (#621). Inputs are expected to have passed checkSubmission already.
+ *
+ * Escrows are created through escrow-factory's `create_escrow`, which deploys
+ * a new escrow contract and runs its constructor in the same call; the
+ * escrow contract itself has no `initialize` in release builds.
  */
-import { submitContractTransaction, type ContractArg, type TxPhase } from "@/app/lib/transactions";
+import {
+  FACTORY_CONTRACT_ID,
+  submitContractTransaction,
+  type ContractArg,
+  type TxPhase,
+} from "@/app/lib/transactions";
 import { validateMilestoneAmount } from "@/app/lib/milestone_amount_validation";
 import { parseDecimalToBaseUnits } from "@/app/lib/amounts";
 import type { Milestone } from "./validation";
@@ -35,23 +44,55 @@ export function toMilestoneAmounts(milestones: Milestone[]): string[] {
   });
 }
 
-export function buildInitializeArgs(params: CreateJobParams): ContractArg[] {
+/** The contract's DISPUTE_TIMEOUT_SECONDS: 30 days for the arbiter to rule. */
+const DISPUTE_TIMEOUT_SECONDS = BigInt(30) * SECONDS_PER_DAY;
+
+/**
+ * No milestone spec is committed yet: the form only collects amounts, so
+ * each milestone's 32-byte `spec_hash` is all zeroes.
+ */
+const EMPTY_SPEC_HASH = "00".repeat(32);
+
+/** 32 random bytes, hex: `create_escrow` derives the escrow address from it. */
+export function randomSaltHex(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** `create_escrow` arguments, in contract order. */
+export function buildCreateEscrowArgs(params: CreateJobParams, salt: string): ContractArg[] {
   const autoReleaseSeconds = BigInt(params.autoReleaseDays) * SECONDS_PER_DAY;
+  const amounts = toMilestoneAmounts(params.milestones);
   return [
-    { type: "address", value: params.client },
     { type: "address", value: params.client },
     { type: "address", value: params.freelancer },
     { type: "address", value: params.arbiter },
     { type: "address", value: params.token },
     { type: "u64", value: autoReleaseSeconds.toString() },
+    { type: "vec", value: amounts.map((value) => ({ type: "i128", value })) },
+    { type: "vec", value: amounts.map(() => ({ type: "bytes", value: EMPTY_SPEC_HASH })) },
     {
-      type: "vec",
-      value: toMilestoneAmounts(params.milestones).map((value) => ({ type: "i128", value })),
+      // EscrowSettings: upfront funding, the standard dispute timeout, and
+      // no arbiter fee.
+      type: "struct",
+      value: {
+        funding_mode: { type: "enum", value: "Upfront" },
+        dispute_timeout_seconds: { type: "u64", value: DISPUTE_TIMEOUT_SECONDS.toString() },
+        arbiter_fee_bps: { type: "u32", value: 0 },
+      },
     },
+    { type: "bytes", value: salt },
   ];
 }
 
-/** Builds, signs and submits `initialize`; resolves with the transaction hash. */
+/** Message shown when the deployment has no escrow factory configured. */
+export const FACTORY_NOT_CONFIGURED =
+  "Creating escrows isn't available yet: no escrow factory is configured for this deployment.";
+
+/**
+ * Builds, signs and submits `create_escrow` on the factory; resolves with the
+ * transaction hash.
+ */
 export function submitCreateJob(
   params: CreateJobParams,
   {
@@ -65,9 +106,11 @@ export function submitCreateJob(
     setSimulationResult?: (result: WalletSimulationResult | null) => void;
   }
 ): Promise<string> {
+  if (!FACTORY_CONTRACT_ID) return Promise.reject(new Error(FACTORY_NOT_CONFIGURED));
   return submitContractTransaction({
-    method: "initialize",
-    args: buildInitializeArgs(params),
+    contractId: FACTORY_CONTRACT_ID,
+    method: "create_escrow",
+    args: buildCreateEscrowArgs(params, randomSaltHex()),
     sourceAddress: params.client,
     signTransaction,
     onPhase,
