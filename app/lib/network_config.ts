@@ -12,3 +12,8 @@ export const NETWORK_PASSPHRASES = {
 export const NETWORK_PASSPHRASE =
   process.env.NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE || NETWORK_PASSPHRASES.TESTNET;
 export const CONTRACT_ID = process.env.NEXT_PUBLIC_CONTRACT_ID || "";
+/**
+ * escrow-factory instance new escrows are created through (`create_escrow`).
+ * Empty when the deployment has no factory yet; the create page then says so.
+ */
+export const FACTORY_CONTRACT_ID = process.env.NEXT_PUBLIC_FACTORY_CONTRACT_ID || "";

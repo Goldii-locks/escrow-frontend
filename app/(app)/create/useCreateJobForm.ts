@@ -4,7 +4,7 @@ import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { useToast } from "@/app/context/ToastContext";
 import { useWallet } from "@/app/context/WalletContext";
 import { getDefaultArbiter } from "@/app/lib/default_arbiter";
-import { formatTxError } from "@/app/lib/errors";
+import { formatCreateEscrowError } from "@/app/lib/errors";
 import { isMilestoneCapReached } from "@/app/lib/milestone_limits";
 import type { TxPhase } from "@/app/lib/transactions";
 import {
@@ -224,7 +224,7 @@ export function useCreateJobForm() {
       showToast("Job created successfully!", "success");
     } catch (err: unknown) {
       setPhase("error");
-      setError(formatTxError(err));
+      setError(formatCreateEscrowError(err));
     } finally {
       setLoading(false);
     }

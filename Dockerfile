@@ -21,6 +21,9 @@ COPY . .
 # environment, and a contract redeploy means a rebuild, not a restart.
 ARG NEXT_PUBLIC_BACKEND_URL
 ARG NEXT_PUBLIC_CONTRACT_ID
+# escrow-factory instance new escrows are created through. Optional: without
+# it the create page says escrow creation isn't available yet.
+ARG NEXT_PUBLIC_FACTORY_CONTRACT_ID
 # No defaults for the network pair: a mainnet build that forgot them would
 # otherwise silently ship a testnet-wired bundle.
 ARG NEXT_PUBLIC_SOROBAN_RPC_URL
@@ -28,6 +31,7 @@ ARG NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE
 
 ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL \
     NEXT_PUBLIC_CONTRACT_ID=$NEXT_PUBLIC_CONTRACT_ID \
+    NEXT_PUBLIC_FACTORY_CONTRACT_ID=$NEXT_PUBLIC_FACTORY_CONTRACT_ID \
     NEXT_PUBLIC_SOROBAN_RPC_URL=$NEXT_PUBLIC_SOROBAN_RPC_URL \
     NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=$NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE
 

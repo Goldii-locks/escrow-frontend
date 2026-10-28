@@ -23,7 +23,11 @@ vi.mock("@/app/context/WalletContext", () => ({
 
 vi.mock("@/app/lib/transactions", async () => {
   const actual = await vi.importActual<Record<string, unknown>>("@/app/lib/transactions");
-  return { ...actual, submitContractTransaction: (...args: unknown[]) => mockSubmit(...args) };
+  return {
+    ...actual,
+    FACTORY_CONTRACT_ID: "C" + "F".repeat(55),
+    submitContractTransaction: (...args: unknown[]) => mockSubmit(...args),
+  };
 });
 
 async function fillForm() {

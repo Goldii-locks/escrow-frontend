@@ -22,6 +22,7 @@ vi.mock("@/app/context/WalletContext", () => ({
 
 vi.mock("@/app/lib/transactions", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/app/lib/transactions")>()),
+  FACTORY_CONTRACT_ID: "C" + "F".repeat(55),
   submitContractTransaction: mockSubmit,
 }));
 
@@ -38,8 +39,9 @@ async function fillRequiredFields() {
   });
 }
 
+/** create_escrow takes (client, freelancer, arbiter, ...). */
 function submittedArbiter() {
-  return mockSubmit.mock.calls[0][0].args[3].value;
+  return mockSubmit.mock.calls[0][0].args[2].value;
 }
 
 describe("Create form arbiter selector (Issue #658)", () => {

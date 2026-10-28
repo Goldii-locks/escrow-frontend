@@ -94,6 +94,8 @@ interface KitSignResult {
 }
 
 interface PendingContractAction {
+  /** The job's contract; omitted means the configured `CONTRACT_ID`. */
+  contractId?: string;
   method: string;
   args: ContractArg[];
   sourceAddress: string;
@@ -589,6 +591,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setLastPendingAction(null);
     try {
       return await submitContractTransaction({
+        contractId: action.contractId,
         method: action.method,
         args: action.args,
         sourceAddress: action.sourceAddress,

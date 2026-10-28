@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  ERROR_MESSAGES,
+  FACTORY_ERROR_MESSAGES,
+  formatCreateEscrowError,
   formatTxError,
   isWalletAvailabilityError,
   WalletRejectedError,
@@ -99,6 +102,25 @@ describe("formatTxError — per-wallet install links (#687)", () => {
 
   it("still handles WalletRejectedError unchanged", () => {
     expect(formatTxError(new WalletRejectedError())).toBe(
+      "You declined the transaction in your wallet."
+    );
+  });
+});
+
+describe("formatCreateEscrowError", () => {
+  const reverted = (code: number) => new Error(`Contract execution reverted (error code ${code})`);
+
+  it("reads escrow-factory codes for create_escrow, not the escrow's", () => {
+    expect(formatCreateEscrowError(reverted(4))).toBe(FACTORY_ERROR_MESSAGES[4]);
+    expect(formatTxError(reverted(4))).toBe(ERROR_MESSAGES[4]);
+  });
+
+  it("falls back to the escrow's messages for errors from the new escrow's constructor", () => {
+    expect(formatCreateEscrowError(reverted(12))).toBe(ERROR_MESSAGES[12]);
+  });
+
+  it("keeps wallet handling", () => {
+    expect(formatCreateEscrowError(new WalletRejectedError())).toBe(
       "You declined the transaction in your wallet."
     );
   });
