@@ -39,10 +39,10 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,mts,json,css,md}\""
   },
   "dependencies": {
-    "@creit.tech/stellar-wallets-kit": "^2.7.1",
+    "@creit.tech/stellar-wallets-kit": "^2.8.0",
     "@stellar/stellar-sdk": "^17.3.0",
     "@storybook/blocks": "^8.6.19",
-    "@storybook/react": "^10.6.3",
+    "@storybook/react": "^10.6.5",
     "next": "16.4.3",
     "react": "19.3.1",
     "react-dom": "19.3.1",
