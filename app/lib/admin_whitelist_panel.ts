@@ -158,6 +158,7 @@ export function getTokenStatusBadge(state: { phase: TxPhase; error: string | nul
     case "building":
     case "signing":
     case "submitting":
+    case "confirming":
       return STATUS_BADGES.removing;
     case "success":
       return STATUS_BADGES.removed;
@@ -174,6 +175,7 @@ export function getAddStatusBadge(phase: TxPhase): StatusBadge | null {
     case "building":
     case "signing":
     case "submitting":
+    case "confirming":
       return STATUS_BADGES.adding;
     case "success":
       return STATUS_BADGES.active;
