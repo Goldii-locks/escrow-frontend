@@ -227,6 +227,57 @@ describe("Dashboard — client-side search filter (issue #684)", () => {
     expect(initialCall).not.toContain("contractId");
   });
 
+  it("finds a match on page 3 when searching across all jobs (issue #827)", async () => {
+    const makeJob = (index: number) => ({
+      id: `CJOB${String(index).padStart(3, "0")}AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA`,
+      client: "GCLIENTADDR1234567890123456789012345678901234567890AB",
+      freelancer: "GFREELANCERADDR12345678901234567890123456789012345",
+      arbiter: "GARBITERADDR1234567890123456789012345678901234567890",
+      funded: true,
+      milestones: [],
+      tokenSymbol: "USDC",
+    });
+
+    const allJobs = Array.from({ length: 12 }, (_, i) => makeJob(i + 1));
+    // Give the job on page 3 a unique counterparty to search for.
+    allJobs[10] = {
+      ...allJobs[10],
+      freelancer: "GUNIQUEPAGE3COUNTERPARTY123456789012345678901234",
+    };
+
+    const fetchSpy = vi.fn().mockImplementation((url: string) => {
+      const parsed = new URL(url, "http://localhost");
+      const page = Number(parsed.searchParams.get("page") ?? "1");
+      const limit = Number(parsed.searchParams.get("limit") ?? "5");
+      const start = (page - 1) * limit;
+      return Promise.resolve({
+        json: async () => ({
+          success: true,
+          data: allJobs.slice(start, start + limit),
+          page,
+          limit,
+          total: allJobs.length,
+        }),
+      });
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("dashboard-list-item")).toHaveLength(5);
+    });
+
+    await typeAndSearch("GUNIQUEPAGE3COUNTERPARTY");
+
+    await waitFor(() => {
+      expect(screen.getAllByTestId("dashboard-list-item")).toHaveLength(1);
+      expect(
+        screen.getByText(/Showing matches across all your jobs/)
+      ).toBeInTheDocument();
+    });
+  });
+
   it("restores full list when search is cleared", async () => {
     stubJobsResponse(jobs);
     render(<Dashboard />);

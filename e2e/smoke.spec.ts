@@ -57,3 +57,17 @@ test("unknown routes return a real 404", async ({ page }) => {
   const res = await page.goto("/nonsense");
   expect(res?.status()).toBe(404);
 });
+
+test("favicon is not the Create Next App default", async ({ page }) => {
+  const res = await page.goto("/favicon.ico");
+  expect(res?.status()).toBe(200);
+  const body = await res!.body();
+  expect(body.length).toBeGreaterThan(0);
+  // The Create Next App default favicon.ico is a 25,931-byte file whose
+  // SHA-256 is fixed; the product icon must not match it.
+  const DEFAULT_FAVICON_SHA256 =
+    "c30c7d42707a47a3f4591831641e50dc29b47367dd8c81e3f9c5b0e6f0e1a4a1";
+  const { createHash } = await import("node:crypto");
+  const sha256 = createHash("sha256").update(body).digest("hex");
+  expect(sha256).not.toBe(DEFAULT_FAVICON_SHA256);
+});

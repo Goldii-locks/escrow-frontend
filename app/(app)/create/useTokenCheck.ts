@@ -78,6 +78,12 @@ export function useTokenCheck(token: string) {
 
   const status: TokenStatus = { token, whitelisted, validating, validation, confirmed };
 
+  // Decimals (and symbol) are only known once the SEP-41 validation for the
+  // current token has succeeded. Keying off `validation` means a token change
+  // clears them until the new token is validated.
+  const decimals = validation?.valid ? validation.decimals : undefined;
+  const symbol = validation?.valid ? validation.symbol : undefined;
+
   return {
     whitelist,
     whitelistLoading,
@@ -85,6 +91,10 @@ export function useTokenCheck(token: string) {
     /** The token appears in the whitelist, whatever its load state. */
     listed,
     status,
+    /** Decimals reported by the validated token, or undefined until known. */
+    decimals,
+    /** Symbol reported by the validated token, or undefined until known. */
+    symbol,
     setConfirmed: (value: boolean) => setConfirmedToken(value ? token : null),
   };
 }

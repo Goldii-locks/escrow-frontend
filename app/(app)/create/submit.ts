@@ -25,6 +25,8 @@ export interface CreateJobParams {
   freelancer: string;
   arbiter: string;
   token: string;
+  /** The token's `decimals()`, as validated by the token check (#812). */
+  decimals: number;
   /** Whole days, as entered. */
   autoReleaseDays: string;
   milestones: Milestone[];
@@ -32,15 +34,16 @@ export interface CreateJobParams {
 
 /**
  * Milestone amounts as i128 base-unit strings; throws on any invalid row.
- * Inputs are decimal token amounts (#574), converted at 7 decimals.
+ * Inputs are decimal token amounts (#574), converted at the token's own
+ * `decimals` (#812).
  */
-export function toMilestoneAmounts(milestones: Milestone[]): string[] {
+export function toMilestoneAmounts(milestones: Milestone[], decimals: number): string[] {
   return milestones.map((m) => {
     const trimmed = m.amount.trim();
     if (trimmed === "" || validateMilestoneAmount(trimmed) !== null) {
       throw new Error("Invalid milestone amount");
     }
-    return parseDecimalToBaseUnits(trimmed, 7).toString();
+    return parseDecimalToBaseUnits(trimmed, decimals).toString();
   });
 }
 
@@ -62,7 +65,7 @@ export function randomSaltHex(): string {
 /** `create_escrow` arguments, in contract order. */
 export function buildCreateEscrowArgs(params: CreateJobParams, salt: string): ContractArg[] {
   const autoReleaseSeconds = BigInt(params.autoReleaseDays) * SECONDS_PER_DAY;
-  const amounts = toMilestoneAmounts(params.milestones);
+  const amounts = toMilestoneAmounts(params.milestones, params.decimals);
   return [
     { type: "address", value: params.client },
     { type: "address", value: params.freelancer },

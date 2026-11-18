@@ -114,6 +114,14 @@ function parsePageResponse(payload: ReturnType<typeof JobListResponseSchema.pars
   };
 }
 
+/**
+ * Issue #827: search fetches the wallet's full job list in pages of
+ * SEARCH_PAGE_LIMIT, up to SEARCH_FETCH_CAP jobs (SEARCH_MAX_PAGES pages).
+ */
+const SEARCH_PAGE_LIMIT = 50;
+const SEARCH_MAX_PAGES = 20;
+const SEARCH_FETCH_CAP = SEARCH_PAGE_LIMIT * SEARCH_MAX_PAGES;
+
 const roleFilterLabels: Array<{ id: RoleFilter; label: string }> = [
   { id: "all", label: "All" },
   { id: "client", label: "As Client" },
@@ -137,6 +145,14 @@ export default function Dashboard() {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  /**
+   * Issue #827: when a search query is active we fetch *all* of the wallet's
+   * jobs (up to SEARCH_FETCH_CAP) so matches on other pages are found.
+   */
+  const [searchJobs, setSearchJobs] = useState<Job[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchTruncated, setSearchTruncated] = useState(false);
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
   const [disputeMilestoneIndex, setDisputeMilestoneIndex] = useState<number | null>(null);
 
@@ -169,25 +185,31 @@ export default function Dashboard() {
   const jobsResponseHistory = useRef<string[]>([]);
   /** Current poll interval multiplier (1 = 30 s, 2 = 60 s, 3 = 90 s, cap 4 = 120 s). */
   const pollBackoffRef = useRef(1);
+  /** AbortController for the in-flight search (all-jobs) request. */
+  const searchAbortRef = useRef<AbortController | null>(null);
+  /** Monotonic counter so stale search responses are dropped. */
+  const searchRequestIdRef = useRef(0);
   // ─────────────────────────────────────────────────────────────────────────
 
   const totalPages = Math.max(1, Math.ceil((total || jobs.length || 1) / limit));
 
   /**
-   * Client-side search filter (#684). Filters the loaded jobs by substring
-   * across contract ID, counterparty addresses, and token symbol. The
-   * backend ignored the old contractId param, so we do this here instead.
+   * Client-side search filter (#684, #827). Filters jobs by substring across
+   * contract ID, counterparty addresses, and token symbol. When a query is
+   * active we filter the full wallet job set (see `searchJobs`) rather than
+   * just the current page.
    */
   const filteredJobs = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return jobs;
-    return jobs.filter((job) => {
+    const source = searchJobs;
+    return source.filter((job) => {
       const haystack = [job.id, job.client, job.freelancer, job.arbiter, job.tokenSymbol ?? ""]
         .join(" ")
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [jobs, searchQuery]);
+  }, [jobs, searchJobs, searchQuery]);
 
   const isFiltering = searchQuery.trim().length > 0;
 
@@ -301,6 +323,102 @@ export default function Dashboard() {
       }
     }
   }, [address, page, limit, roleFilter]);
+
+  /**
+   * Issue #827: fetch every job for the wallet (paged, capped) so search can
+   * match jobs that are not on the currently displayed page.
+   */
+  const fetchAllJobsForSearch = useCallback(async () => {
+    if (!address) {
+      setSearchJobs([]);
+      setSearchTruncated(false);
+      return;
+    }
+
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+
+    searchRequestIdRef.current += 1;
+    const requestId = searchRequestIdRef.current;
+
+    setSearchLoading(true);
+    setSearchError(null);
+
+    const collected: Job[] = [];
+    let truncated = false;
+
+    try {
+      for (let p = 1; p <= SEARCH_MAX_PAGES; p += 1) {
+        const params = new URLSearchParams({
+          page: String(p),
+          limit: String(SEARCH_PAGE_LIMIT),
+        });
+        if (roleFilter !== "all") {
+          params.set("role", roleFilter);
+        }
+
+        const res = await fetch(
+          `${BACKEND_URL}/api/jobs/by-wallet/${encodeURIComponent(address)}?${params.toString()}`,
+          { signal: controller.signal }
+        );
+
+        if (requestId !== searchRequestIdRef.current) return;
+
+        reportApiResponse(res, "/api/jobs/by-wallet/:address");
+        if (res.status === 429) {
+          throw new Error("You're doing that too fast. Please wait a moment and try again.");
+        }
+        if (!res.ok) {
+          throw new Error(`Failed to search jobs: HTTP ${res.status}`);
+        }
+
+        const rawData: unknown = await res.json();
+        if (requestId !== searchRequestIdRef.current) return;
+
+        const data = validateResponse(
+          JobListResponseSchema,
+          rawData,
+          `/api/jobs/by-wallet/${address}`
+        );
+        if (data.success === false) {
+          throw new Error(data.error || "Failed to search jobs");
+        }
+
+        const parsed = parsePageResponse(data);
+        for (const job of parsed.jobs) {
+          if (collected.length >= SEARCH_FETCH_CAP) {
+            truncated = true;
+            break;
+          }
+          collected.push(job);
+        }
+
+        const pageSize = parsed.limit || SEARCH_PAGE_LIMIT;
+        const reachedEnd =
+          parsed.jobs.length === 0 ||
+          parsed.jobs.length < pageSize ||
+          (parsed.total > 0 && collected.length >= parsed.total);
+
+        if (truncated || reachedEnd) break;
+      }
+
+      if (requestId !== searchRequestIdRef.current) return;
+
+      setSearchJobs(collected);
+      setSearchTruncated(truncated);
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      if (requestId !== searchRequestIdRef.current) return;
+      setSearchError(err instanceof Error ? err.message : "Failed to search jobs");
+      setSearchJobs([]);
+      setSearchTruncated(false);
+    } finally {
+      if (requestId === searchRequestIdRef.current) {
+        setSearchLoading(false);
+      }
+    }
+  }, [address, roleFilter]);
 
   const fetchJobDetails = useCallback(
     async (jobId: string, force = false) => {
@@ -454,6 +572,22 @@ export default function Dashboard() {
       active = false;
     };
   }, [expandedJobId, fetchJobDetails]);
+
+  // Issue #827: whenever a search query is active, load the full job set so
+  // matches outside the current page are found.
+  useEffect(() => {
+    let active = true;
+
+    Promise.resolve().then(() => {
+      if (active && isFiltering) {
+        void fetchAllJobsForSearch();
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [isFiltering, searchQuery, fetchAllJobsForSearch]);
 
   useEffect(() => {
     if (!address) return;
@@ -697,7 +831,8 @@ export default function Dashboard() {
 
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault();
-    setPage(1);
+    // Issue #827: don't reset the page — search now spans all of the wallet's
+    // jobs, so jumping to page 1 would only hide the page the user was on.
     setSearchQuery(searchInput.trim());
   };
 
@@ -822,12 +957,35 @@ export default function Dashboard() {
                 icon="briefcase"
                 badges={["Client", "Freelancer", "Arbiter"]}
               />
+            ) : isFiltering && searchLoading ? (
+              <LoadingSkeleton />
+            ) : isFiltering && searchError ? (
+              <EmptyStateCard
+                testId="dashboard-search-error"
+                ariaLabel="Error searching jobs"
+                title="Error searching jobs"
+                description={searchError}
+                icon="briefcase"
+                className="border-red-800 bg-red-950/20 animate-shake"
+                action={
+                  <button
+                    type="button"
+                    onClick={() => void fetchAllJobsForSearch()}
+                    disabled={searchLoading}
+                    data-testid="dashboard-search-retry-button"
+                    aria-label="Retry searching jobs"
+                    className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {searchLoading ? "Retrying…" : "Retry"}
+                  </button>
+                }
+              />
             ) : filteredJobs.length === 0 ? (
               <EmptyStateCard
                 testId="dashboard-filter-empty-state"
                 ariaLabel="No matching jobs"
                 title="No matching jobs"
-                description="No jobs on this page match your search. Try a different contract ID, address, or token symbol."
+                description="No jobs match your search. Try a different contract ID, address, or token symbol."
                 icon="briefcase"
               />
             ) : (
@@ -839,7 +997,9 @@ export default function Dashboard() {
                     role="status"
                     aria-live="polite"
                   >
-                    Filtering this page ({filteredJobs.length} of {jobs.length})
+                    Showing matches across all your jobs ({filteredJobs.length} of{" "}
+                    {searchJobs.length}
+                    {searchTruncated ? `, first ${SEARCH_FETCH_CAP}` : ""})
                   </p>
                 )}
                 <div

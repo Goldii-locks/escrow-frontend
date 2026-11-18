@@ -16,7 +16,6 @@ import WhitelistConfirmModal from "@/app/components/WhitelistConfirmModal";
 import AdminContractHeader from "@/app/components/AdminContractHeader";
 import { fetchEscrowFunded } from "@/app/lib/admin";
 import {
-  containsCodeTags,
   downloadWhitelistCsv,
   getAddStatusBadge,
   getTokenStatusBadge,
@@ -39,6 +38,8 @@ import {
   runContractAction,
   submitContractTransaction,
 } from "@/app/lib/transactions";
+import { validateTokenContract } from "@/app/lib/token_validation";
+import { StrKey } from "@stellar/stellar-sdk";
 import ContractPauseSwitch from "@/app/components/ContractPauseSwitch";
 import {
   contractPauseErrorToast,
@@ -49,6 +50,12 @@ export default function AdminPage() {
   const { address, signTransaction } = useWallet();
   const { loading: adminCheckLoading, isAdminUser } = useIsAdmin(address);
   const [tokenAddress, setTokenAddress] = useState("");
+  const [tokenValidation, setTokenValidation] = useState<
+    | { status: "idle" }
+    | { status: "checking" }
+    | { status: "valid"; symbol: string; decimals: number }
+    | { status: "invalid"; message: string }
+  >({ status: "idle" });
   const [whitelist, setWhitelist] = useState<WhitelistEntry[]>([]);
   const [pendingAction, setPendingAction] = useState<WhitelistAction | null>(null);
   const [listLoading, setListLoading] = useState(true);
@@ -196,17 +203,54 @@ export default function AdminPage() {
 
   const whitelistLocked = escrowFunded === true;
 
-  // Input containing code tags is ignored; the field keeps its previous value.
   const handleTokenAddressChange = (raw: string) => {
-    if (containsCodeTags(raw)) return;
     setTokenAddress(sanitizeTokenAddress(raw));
   };
+
+  useEffect(() => {
+    const token = sanitizeTokenAddress(tokenAddress);
+    if (!token) {
+      setTokenValidation({ status: "idle" });
+      return;
+    }
+    if (!StrKey.isValidContract(token)) {
+      setTokenValidation({
+        status: "invalid",
+        message: "Invalid token contract address.",
+      });
+      return;
+    }
+
+    let active = true;
+    setTokenValidation({ status: "checking" });
+    void validateTokenContract(token).then((result) => {
+      if (!active) return;
+      if (result.valid) {
+        setTokenValidation({
+          status: "valid",
+          symbol: result.symbol,
+          decimals: result.decimals,
+        });
+      } else {
+        setTokenValidation({
+          status: "invalid",
+          message: "This contract is not a SEP-41 token.",
+        });
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [tokenAddress]);
+
+  const tokenIsValid = tokenValidation.status === "valid";
 
   // Submitting only opens the confirmation dialog; nothing is signed yet.
   const handleAddToken = (e: React.FormEvent) => {
     e.preventDefault();
     const token = sanitizeTokenAddress(tokenAddress);
-    if (!address || !token || whitelistLocked) return;
+    if (!address || !token || whitelistLocked || !tokenIsValid) return;
     setPendingAction({ kind: "add", token });
   };
 
@@ -301,10 +345,23 @@ export default function AdminPage() {
                     required
                     disabled={addPending}
                   />
+                  {tokenValidation.status === "invalid" && (
+                    <p role="alert" className="mt-1 text-sm text-red-400">
+                      {tokenValidation.message}
+                    </p>
+                  )}
+                  {tokenValidation.status === "checking" && (
+                    <p className="mt-1 text-sm text-text-muted">Checking token contract...</p>
+                  )}
+                  {tokenValidation.status === "valid" && (
+                    <p data-testid="token-validation-result" className="mt-1 text-sm text-green-400">
+                      {tokenValidation.symbol} ({tokenValidation.decimals} decimals)
+                    </p>
+                  )}
                 </div>
                 <button
                   type="submit"
-                  disabled={addPending || whitelistLocked || !tokenAddress.trim()}
+                  disabled={addPending || whitelistLocked || !tokenIsValid}
                   className="w-full inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-text-primary font-medium py-3 rounded-lg transition"
                 >
                   {addPending && <ButtonSpinner className="h-4 w-4" />}

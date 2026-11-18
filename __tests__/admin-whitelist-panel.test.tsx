@@ -3,7 +3,6 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AdminPage from "@/app/(app)/admin/page";
 import {
-  containsCodeTags,
   getAddStatusBadge,
   getTokenStatusBadge,
   mapWhitelistResponse,
@@ -12,6 +11,11 @@ import {
 } from "@/app/lib/admin_whitelist_panel";
 
 const mockSubmit = vi.hoisted(() => vi.fn());
+const mockValidateTokenContract = vi.hoisted(() => vi.fn());
+
+vi.mock("@/app/lib/token_validation", () => ({
+  validateTokenContract: mockValidateTokenContract,
+}));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/app/components/Navbar", () => ({ default: () => <div /> }));
@@ -40,29 +44,64 @@ function stubFetch(body: unknown, ok = true) {
 }
 
 describe("sanitization (#432)", () => {
-  it("detects code tags", () => {
-    expect(containsCodeTags("<script>alert(1)</script>")).toBe(true);
-    expect(containsCodeTags("<img src=x onerror=alert(1)")).toBe(true);
-    expect(containsCodeTags("javascript:alert(1)")).toBe(true);
-    expect(containsCodeTags("CABC123")).toBe(false);
-  });
-
-  it("ignores input with code tags and strips stray characters", () => {
-    expect(sanitizeTokenAddress("<script>alert(1)</script>")).toBe("");
+  it("strips stray characters", () => {
     expect(sanitizeTokenAddress(" CAB C-12$3 ")).toBe("CABC123");
     expect(sanitizeDisplayText("<b>USDC</b>\u0000")).toBe("USDC");
   });
+});
 
-  it("form ignores typed/pasted code tags", () => {
+describe("token address validation (#873)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockValidateTokenContract.mockResolvedValue({
+      valid: true,
+      symbol: "USDC",
+      decimals: 7,
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("rejects an invalid-checksum contract address inline", async () => {
     stubFetch({ success: true, data: [] });
     render(<AdminPage />);
-    const input = screen.getByLabelText(/token contract address/i);
-    return waitFor(() => expect(input).toBeEnabled()).then(() => {
-      fireEvent.change(input, { target: { value: "CABC" } });
-      fireEvent.change(input, { target: { value: "CABC<script>x</script>" } });
-      expect(input).toHaveValue("CABC");
-      expect(screen.getByRole("button", { name: /add to whitelist/i })).toBeEnabled();
+
+    const input = await screen.findByLabelText(/token contract address/i);
+    fireEvent.change(input, { target: { value: "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" } });
+
+    expect(await screen.findByText(/invalid contract address/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /add to whitelist/i })).toBeDisabled();
+    expect(mockValidateTokenContract).not.toHaveBeenCalled();
+  });
+
+  it("shows a warning and blocks submit for a non-token contract", async () => {
+    mockValidateTokenContract.mockResolvedValue({
+      valid: false,
+      error: "Not a SEP-41 token",
     });
+    stubFetch({ success: true, data: [] });
+    render(<AdminPage />);
+
+    const input = await screen.findByLabelText(/token contract address/i);
+    fireEvent.change(input, {
+      target: { value: "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4" },
+    });
+
+    expect(await screen.findByText(/not a sep-41 token/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /add to whitelist/i })).toBeDisabled();
+    expect(mockSubmit).not.toHaveBeenCalled();
+  });
+
+  it("shows symbol and decimals before enabling Add", async () => {
+    stubFetch({ success: true, data: [] });
+    render(<AdminPage />);
+
+    const input = await screen.findByLabelText(/token contract address/i);
+    fireEvent.change(input, {
+      target: { value: "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4" },
+    });
+
+    expect(await screen.findByText(/USDC \(7 decimals\)/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /add to whitelist/i })).toBeEnabled();
   });
 });
 
@@ -127,7 +166,14 @@ describe("status badges (#434)", () => {
 });
 
 describe("confirmation modal (#435)", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockValidateTokenContract.mockResolvedValue({
+      valid: true,
+      symbol: "NEW",
+      decimals: 7,
+    });
+  });
   afterEach(() => vi.unstubAllGlobals());
 
   it("blocks add submit until the dialog is acknowledged and confirmed", async () => {
@@ -136,12 +182,16 @@ describe("confirmation modal (#435)", () => {
     render(<AdminPage />);
 
     fireEvent.change(await screen.findByLabelText(/token contract address/i), {
-      target: { value: "CNEWTOKEN" },
+      target: { value: "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /add to whitelist/i }));
+    const addButton = screen.getByRole("button", { name: /add to whitelist/i });
+    await waitFor(() => expect(addButton).toBeEnabled());
+    fireEvent.click(addButton);
 
     expect(screen.getByTestId("whitelist-confirm-modal")).toBeInTheDocument();
-    expect(screen.getByTestId("whitelist-confirm-token")).toHaveTextContent("CNEWTOKEN");
+    expect(screen.getByTestId("whitelist-confirm-token")).toHaveTextContent(
+      "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4"
+    );
     expect(mockSubmit).not.toHaveBeenCalled();
 
     const confirm = screen.getByRole("button", { name: /confirm & sign/i });
@@ -155,7 +205,7 @@ describe("confirmation modal (#435)", () => {
       method: "add_whitelisted_token",
       args: [
         { type: "address", value: "GADMIN123" },
-        { type: "address", value: "CNEWTOKEN" },
+        { type: "address", value: "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSC4" },
       ],
     });
   });

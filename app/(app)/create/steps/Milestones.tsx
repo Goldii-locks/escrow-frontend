@@ -103,6 +103,19 @@ export default function Milestones({ form }: { form: CreateJobForm }) {
   const onFocus = () => setActiveSection("milestones");
   const showPartialWarning = s.hasPartialMilestones && !s.hasNoMilestones;
 
+  // The token's decimals() drive amount conversion and precision hints. Until
+  // the token check resolves them, milestone inputs stay disabled so amounts
+  // are never interpreted with the wrong scale.
+  const decimals = s.tokenDecimals;
+  const decimalsKnown = typeof decimals === "number" && Number.isInteger(decimals) && decimals >= 0;
+  const step = decimalsKnown ? (decimals === 0 ? "1" : `0.${"0".repeat(decimals - 1)}1`) : undefined;
+  const precisionHint = decimalsKnown
+    ? decimals === 0
+      ? "Whole token amounts only (0 decimal places)"
+      : `Up to ${decimals} decimal place${decimals === 1 ? "" : "s"}`
+    : "Checking token decimals…";
+  const milestonesDisabled = loading || !decimalsKnown;
+
   return (
     <StepPanel
       id="milestones"
@@ -161,7 +174,7 @@ export default function Milestones({ form }: { form: CreateJobForm }) {
               type="button"
               onClick={s.addMilestone}
               aria-label="Add milestone"
-              disabled={isMilestoneCapReached(s.milestoneCount)}
+              disabled={isMilestoneCapReached(s.milestoneCount) || !decimalsKnown}
               className={`${addButtonClassName} disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               + Add Milestone
@@ -169,6 +182,9 @@ export default function Milestones({ form }: { form: CreateJobForm }) {
           </div>
           <p className="mb-2 text-xs text-text-muted" data-testid="milestone-limit-hint">
             {milestoneLimitHint()}
+          </p>
+          <p className="mb-2 text-xs text-text-muted" data-testid="milestone-precision-hint">
+            {precisionHint}
           </p>
           {s.hasNoMilestones ? (
             <EmptyCollectionState
@@ -202,15 +218,16 @@ export default function Milestones({ form }: { form: CreateJobForm }) {
                       inputMode="decimal"
                       required
                       pattern="^[0-9]+(\.[0-9]+)?$"
+                      step={step}
                       aria-invalid={amountError !== null}
-                      disabled={loading}
+                      disabled={milestonesDisabled}
                     />
                     <button
                       type="button"
                       onClick={() => s.removeMilestone(i)}
                       aria-label={`Remove milestone ${i + 1}`}
                       className={removeButtonClassName}
-                      disabled={loading}
+                      disabled={milestonesDisabled}
                     >
                       ✕
                     </button>

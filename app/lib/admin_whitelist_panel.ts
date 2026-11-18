@@ -10,29 +10,59 @@ import type { ToastType } from "@/app/context/ToastContext";
  */
 
 import type { TxPhase } from "@/app/lib/transactions";
+import { StrKey } from "@stellar/stellar-sdk";
+import { validateTokenContract } from "@/app/lib/token_validation";
 
 // =============================================================
 // Input sanitization (#432)
 // =============================================================
 
-/** Matches anything that looks like an HTML/script tag or a script URL payload. */
-const CODE_TAG_PATTERN = /<[^>]*>?|[<>]|javascript:/i;
-
-/** True when the value contains markup that could carry an injected payload. */
-export function containsCodeTags(value: string): boolean {
-  return CODE_TAG_PATTERN.test(value);
+/** Result of validating a token address typed into the add form. */
+export interface TokenAddressValidation {
+  /** Trimmed address, or `""` when the input is empty. */
+  address: string;
+  /** Inline error to show under the input, or `null` when the address is valid. */
+  error: string | null;
 }
 
 /**
- * Sanitize a token contract address typed into the add form.
+ * Validate a token contract address typed into the add form.
  *
- * Input containing code tags is ignored outright (returns `""`); otherwise
- * whitespace and every non-alphanumeric character is dropped, since contract
- * addresses are base32 strings.
+ * The input is trimmed and checked as a contract StrKey, so lowercase or
+ * mistyped IDs are rejected inline instead of failing later in `build-tx`.
  */
-export function sanitizeTokenAddress(raw: string): string {
-  if (containsCodeTags(raw)) return "";
-  return raw.replace(/[^A-Za-z0-9]/g, "");
+export function sanitizeTokenAddress(raw: string): TokenAddressValidation {
+  const address = raw.trim();
+  if (!address) return { address, error: null };
+  if (!StrKey.isValidContract(address)) {
+    return { address, error: "Invalid token address: not a valid contract ID." };
+  }
+  return { address, error: null };
+}
+
+/** Result of checking that an address is a SEP-41 token contract. */
+export interface TokenContractCheck {
+  /** Display label, e.g. `"USDC (7 decimals)"`, or `null` when unknown. */
+  label: string | null;
+  /** Warning to show when the contract is not a SEP-41 token, or `null`. */
+  error: string | null;
+}
+
+/**
+ * Check that a contract address is a SEP-41 token and format its metadata as
+ * `"<symbol> (<decimals> decimals)"` for display.
+ */
+export async function checkTokenContract(address: string): Promise<TokenContractCheck> {
+  const result = await validateTokenContract(address);
+  if (!result.valid) {
+    return {
+      label: null,
+      error: result.error ?? "This contract is not a SEP-41 token.",
+    };
+  }
+  const symbol = sanitizeDisplayText(result.symbol ?? "");
+  const label = `${symbol || "Token"} (${result.decimals} decimals)`;
+  return { label, error: null };
 }
 
 /** Strip tags and control characters from free-form backend text (symbol/name). */
@@ -83,14 +113,14 @@ export function mapWhitelistResponse(body: unknown): WhitelistEntry[] | null {
 
 function toEntry(item: unknown): WhitelistEntry | null {
   if (typeof item === "string") {
-    const address = sanitizeTokenAddress(item);
+    const { address } = sanitizeTokenAddress(item);
     return address ? { address } : null;
   }
   if (!item || typeof item !== "object") return null;
 
   const o = item as Record<string, unknown>;
   const rawAddress = [o.address, o.token, o.id].find((v): v is string => typeof v === "string");
-  const address = rawAddress ? sanitizeTokenAddress(rawAddress) : "";
+  const address = rawAddress ? sanitizeTokenAddress(rawAddress).address : "";
   if (!address) return null;
 
   const symbol = typeof o.symbol === "string" ? sanitizeDisplayText(o.symbol) : "";

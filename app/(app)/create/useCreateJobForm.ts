@@ -170,6 +170,9 @@ export function useCreateJobForm() {
   const milestoneSummary = summarizeMilestones(milestones);
   const { hasNoMilestones, hasPartialMilestones } = milestoneSummary;
   const hasValidationErrors = !!freelancerError || !!arbiterError || !!tokenError;
+  // Decimals come from the token's own `decimals()` (see token_validation.ts);
+  // classic assets use 7, but any Soroban token may differ (#812).
+  const decimals = tokenCheck.status.validation?.decimals;
   const isSubmitDisabled =
     loading ||
     !address ||
@@ -177,6 +180,7 @@ export function useCreateJobForm() {
     hasPartialMilestones ||
     hasValidationErrors ||
     hasTokenIssue(tokenCheck.status) ||
+    decimals === undefined ||
     !agreed;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -198,6 +202,10 @@ export function useCreateJobForm() {
       setError(check.message);
       return;
     }
+    if (decimals === undefined) {
+      setError("Token decimals are not known yet. Please wait for the token check to finish.");
+      return;
+    }
     setFreelancerError("");
     setArbiterError("");
 
@@ -213,6 +221,7 @@ export function useCreateJobForm() {
           freelancer,
           arbiter: effectiveArbiter,
           token,
+          decimals,
           autoReleaseDays,
           milestones: milestoneSummary.milestones,
         },
@@ -288,6 +297,7 @@ export function useCreateJobForm() {
       agreed,
       setAgreed,
     },
+    decimals,
     hasValidationErrors,
     isSubmitDisabled,
     handleSubmit,

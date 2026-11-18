@@ -12,20 +12,24 @@ const TOKEN = "C" + "A".repeat(55);
 
 describe("toMilestoneAmounts", () => {
   it("converts decimal token amounts to base units at 7 decimals (#574)", () => {
-    expect(toMilestoneAmounts([{ amount: " 150 " }, { amount: "12.5" }])).toEqual([
+    expect(toMilestoneAmounts([{ amount: " 150 " }, { amount: "12.5" }], 7)).toEqual([
       "1500000000",
       "125000000",
     ]);
   });
 
+  it("converts using the token's decimals, e.g. 6 decimals (#812)", () => {
+    expect(toMilestoneAmounts([{ amount: "1.5" }], 6)).toEqual(["1500000"]);
+  });
+
   it("keeps values beyond Number.MAX_SAFE_INTEGER exact", () => {
-    expect(toMilestoneAmounts([{ amount: "9007199254740993" }])).toEqual([
+    expect(toMilestoneAmounts([{ amount: "9007199254740993" }], 7)).toEqual([
       "90071992547409930000000",
     ]);
   });
 
   it.each(["", "  ", "-3", "1.12345678"])("throws on %j", (amount) => {
-    expect(() => toMilestoneAmounts([{ amount }])).toThrow("Invalid milestone amount");
+    expect(() => toMilestoneAmounts([{ amount }], 7)).toThrow("Invalid milestone amount");
   });
 });
 
@@ -34,6 +38,7 @@ const PARAMS = {
   freelancer: FREELANCER,
   arbiter: ARBITER,
   token: TOKEN,
+  decimals: 7,
   autoReleaseDays: "7",
   milestones: [{ amount: "100" }, { amount: "250" }],
 };
@@ -71,6 +76,17 @@ describe("buildCreateEscrowArgs", () => {
       },
       { type: "bytes", value: SALT },
     ]);
+  });
+
+  it("scales milestone amounts by the supplied token decimals (#812)", () => {
+    const args = buildCreateEscrowArgs(
+      { ...PARAMS, decimals: 6, milestones: [{ amount: "1.5" }] },
+      SALT
+    );
+    expect(args[5]).toEqual({
+      type: "vec",
+      value: [{ type: "i128", value: "1500000" }],
+    });
   });
 });
 

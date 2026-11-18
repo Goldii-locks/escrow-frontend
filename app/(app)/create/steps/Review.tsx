@@ -1,6 +1,7 @@
 "use client";
 
 import { agreementLines } from "@/app/lib/escrow_agreement";
+import { formatBaseUnits } from "@/app/lib/token_validation";
 import type { CreateJobForm } from "../useCreateJobForm";
 import { StepPanel } from "../ui";
 
@@ -13,6 +14,9 @@ export default function Review({ form }: { form: CreateJobForm }) {
     { label: "Requirements", value: r.requirementCount },
     { label: "Milestones", value: r.milestoneCount },
   ];
+  const totalBaseUnits = r.totalBaseUnits;
+  const totalTokens =
+    r.decimals === null ? null : formatBaseUnits(totalBaseUnits, r.decimals);
 
   return (
     <StepPanel
@@ -33,6 +37,41 @@ export default function Review({ form }: { form: CreateJobForm }) {
           </div>
         ))}
       </dl>
+
+      {/*
+       * Escrow total (issue #812). Shows the sum of milestone amounts in base
+       * units and in token units, scaled with the token's own decimals(), so
+       * the user can verify the escrow value before signing.
+       */}
+      <div
+        className="mt-5 rounded-xl border border-border-subtle bg-surface-field p-4"
+        data-testid="review-total"
+      >
+        <h3 className="text-sm font-semibold text-text-primary">Escrow total</h3>
+        <dl className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+          <div>
+            <dt className="text-text-muted">Token</dt>
+            <dd className="mt-1 font-medium text-text-primary" data-testid="review-token-symbol">
+              {r.tokenSymbol || "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-text-muted">Total (tokens)</dt>
+            <dd className="mt-1 font-medium text-text-primary" data-testid="review-total-tokens">
+              {totalTokens === null ? "—" : totalTokens}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-text-muted">Total (base units)</dt>
+            <dd
+              className="mt-1 font-medium text-text-primary"
+              data-testid="review-total-base-units"
+            >
+              {totalBaseUnits.toString()}
+            </dd>
+          </div>
+        </dl>
+      </div>
 
       {/*
        * "What you're agreeing to" panel (issue #669). A plain-language summary
