@@ -1,6 +1,7 @@
 {
   "_comment": "High/critical npm advisories the CI audit gate (scripts/audit-gate.mjs) tolerates. Each entry needs a reason; remove it once the fix lands.",
   "advisories": {
-    "GHSA-mrhx-c7xc-m3w5": "zod 3: memory exhaustion on oversized constrained collections. Only fixed in zod 4, a major upgrade; zod 3 is also required by @creit.tech/stellar-wallets-kit's WalletConnect/viem stack. Here zod only validates backend API responses (app/lib/api_schemas.ts)."
+    "GHSA-mrhx-c7xc-m3w5": "zod 3: memory exhaustion on oversized constrained collections. Only fixed in zod 4, a major upgrade; zod 3 is also required by @creit.tech/stellar-wallets-kit's WalletConnect/viem stack. Here zod only validates backend API responses (app/lib/api_schemas.ts).",
+    "GHSA-fc5q-39xc-vjpf": "picomatch <=4.0.7: ReDoS through repeated extglobs. No patched release exists yet (4.0.7 is the latest). It comes in through vite, vitest, tinyglobby and @next/eslint-plugin-next (dev tooling) and the wallet kit's unstorage/anymatch, all matching developer-written glob patterns, never user input. Remove once picomatch ships a fix."
   }
 }
