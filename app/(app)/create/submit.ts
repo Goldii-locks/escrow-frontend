@@ -16,6 +16,12 @@ import { validateMilestoneAmount } from "@/app/lib/milestone_amount_validation";
 import { parseDecimalToBaseUnits } from "@/app/lib/amounts";
 import type { Milestone } from "./validation";
 import type { WalletSimulationResult } from "@/app/lib/wallet_session";
+import {
+  encodeContractArgs,
+  type CreateEscrowArgs,
+  type EscrowSettings,
+  type FundingMode,
+} from "@goldii-locks/milestone-escrow-bindings";
 
 const SECONDS_PER_DAY = BigInt(24 * 60 * 60);
 
@@ -59,30 +65,40 @@ export function randomSaltHex(): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** `create_escrow` arguments, in contract order. */
-export function buildCreateEscrowArgs(params: CreateJobParams, salt: string): ContractArg[] {
+/**
+ * `create_escrow` arguments as a typed object, in contract order. The shape
+ * comes from the generated bindings, so a signature change in the contract
+ * surfaces here as a TypeScript error (#907).
+ */
+export function buildCreateEscrowCall(params: CreateJobParams, salt: string): CreateEscrowArgs {
   const autoReleaseSeconds = BigInt(params.autoReleaseDays) * SECONDS_PER_DAY;
   const amounts = toMilestoneAmounts(params.milestones);
-  return [
-    { type: "address", value: params.client },
-    { type: "address", value: params.freelancer },
-    { type: "address", value: params.arbiter },
-    { type: "address", value: params.token },
-    { type: "u64", value: autoReleaseSeconds.toString() },
-    { type: "vec", value: amounts.map((value) => ({ type: "i128", value })) },
-    { type: "vec", value: amounts.map(() => ({ type: "bytes", value: EMPTY_SPEC_HASH })) },
-    {
-      // EscrowSettings: upfront funding, the standard dispute timeout, and
-      // no arbiter fee.
-      type: "struct",
-      value: {
-        funding_mode: { type: "enum", value: "Upfront" },
-        dispute_timeout_seconds: { type: "u64", value: DISPUTE_TIMEOUT_SECONDS.toString() },
-        arbiter_fee_bps: { type: "u32", value: 0 },
-      },
-    },
-    { type: "bytes", value: salt },
-  ];
+  // EscrowSettings: upfront funding, the standard dispute timeout, and no
+  // arbiter fee.
+  const settings: EscrowSettings = {
+    funding_mode: "Upfront" satisfies FundingMode,
+    dispute_timeout_seconds: DISPUTE_TIMEOUT_SECONDS,
+    arbiter_fee_bps: 0,
+  };
+  return {
+    client: params.client,
+    freelancer: params.freelancer,
+    arbiter: params.arbiter,
+    token: params.token,
+    auto_release_seconds: autoReleaseSeconds,
+    milestone_amounts: amounts.map((value) => BigInt(value)),
+    milestone_spec_hashes: amounts.map(() => EMPTY_SPEC_HASH),
+    settings,
+    salt,
+  };
+}
+
+/**
+ * `create_escrow` arguments in the `{ type, value }` encoding build-tx
+ * expects, derived from the typed call so the two can't drift apart.
+ */
+export function buildCreateEscrowArgs(params: CreateJobParams, salt: string): ContractArg[] {
+  return encodeContractArgs("create_escrow", buildCreateEscrowCall(params, salt));
 }
 
 /** Message shown when the deployment has no escrow factory configured. */

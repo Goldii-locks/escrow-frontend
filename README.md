@@ -119,6 +119,13 @@ docker build -t escrow-frontend \
   .
 ```
 
+## Mainnet
+
+This frontend is currently testnet-only. Before pointing it at mainnet, work
+through [`MAINNET.md`](MAINNET.md) — it lists every network-dependent setting
+and string, the build args and repo variables a mainnet build needs, the smoke
+checks to run, and an owner per item.
+
 ## Related Repos
 
 - `https://github.com/Goldii-locks/escrow-contract` — Soroban smart contract

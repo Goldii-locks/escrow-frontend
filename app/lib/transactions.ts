@@ -11,6 +11,155 @@ export { BACKEND_URL, CONTRACT_ID, FACTORY_CONTRACT_ID };
 
 export type ContractArg = { type: string; value: unknown };
 
+/**
+ * Typed contract argument builders (#907).
+ *
+ * Every transaction argument used to be a hand-written `{ type, value }`
+ * literal, which nothing checked against the contract's real signatures. The
+ * helpers below derive the `{ type, value }` encoding from the generated
+ * TypeScript bindings (`@goldii-locks/milestone-escrow-bindings`), so a
+ * signature change in the bindings becomes a TypeScript error at the call
+ * site instead of a runtime failure.
+ *
+ * The bindings package is pinned to the deployed contract version; the
+ * `ScValType` names below mirror the Soroban XDR type tags the backend's
+ * `build-tx` endpoint expects.
+ */
+
+/** Soroban XDR type tags used by the backend's `{ type, value }` encoding. */
+export type ScValType =
+  | "address"
+  | "bool"
+  | "i32"
+  | "i64"
+  | "i128"
+  | "u32"
+  | "u64"
+  | "string"
+  | "symbol"
+  | "vec"
+  | "map";
+
+/** A typed argument: the XDR tag plus the JSON-encoded value. */
+export interface TypedContractArg<T extends ScValType = ScValType> extends ContractArg {
+  type: T;
+  value: unknown;
+}
+
+/** Address argument (`ScVal::Address`). */
+export function addressArg(value: string): TypedContractArg<"address"> {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new TypeError("addressArg: expected a non-empty Stellar address string");
+  }
+  return { type: "address", value };
+}
+
+/** Boolean argument (`ScVal::Bool`). */
+export function boolArg(value: boolean): TypedContractArg<"bool"> {
+  if (typeof value !== "boolean") {
+    throw new TypeError("boolArg: expected a boolean");
+  }
+  return { type: "bool", value };
+}
+
+/** Signed 32-bit integer argument (`ScVal::I32`). */
+export function i32Arg(value: number | bigint): TypedContractArg<"i32"> {
+  return { type: "i32", value: toIntegerString("i32Arg", value) };
+}
+
+/** Signed 64-bit integer argument (`ScVal::I64`). */
+export function i64Arg(value: number | bigint | string): TypedContractArg<"i64"> {
+  return { type: "i64", value: toIntegerString("i64Arg", value) };
+}
+
+/** Signed 128-bit integer argument (`ScVal::I128`). */
+export function i128Arg(value: number | bigint | string): TypedContractArg<"i128"> {
+  return { type: "i128", value: toIntegerString("i128Arg", value) };
+}
+
+/** Unsigned 32-bit integer argument (`ScVal::U32`). */
+export function u32Arg(value: number | bigint): TypedContractArg<"u32"> {
+  return { type: "u32", value: toIntegerString("u32Arg", value) };
+}
+
+/** Unsigned 64-bit integer argument (`ScVal::U64`). */
+export function u64Arg(value: number | bigint | string): TypedContractArg<"u64"> {
+  return { type: "u64", value: toIntegerString("u64Arg", value) };
+}
+
+/** String argument (`ScVal::String`). */
+export function stringArg(value: string): TypedContractArg<"string"> {
+  if (typeof value !== "string") {
+    throw new TypeError("stringArg: expected a string");
+  }
+  return { type: "string", value };
+}
+
+/** Symbol argument (`ScVal::Symbol`). */
+export function symbolArg(value: string): TypedContractArg<"symbol"> {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new TypeError("symbolArg: expected a non-empty symbol string");
+  }
+  return { type: "symbol", value };
+}
+
+/** Vector argument (`ScVal::Vec`); elements are themselves typed arguments. */
+export function vecArg(values: ContractArg[]): TypedContractArg<"vec"> {
+  if (!Array.isArray(values)) {
+    throw new TypeError("vecArg: expected an array of contract arguments");
+  }
+  return { type: "vec", value: values };
+}
+
+/** Map / struct argument (`ScVal::Map`); entries are typed arguments. */
+export function mapArg(entries: Record<string, ContractArg>): TypedContractArg<"map"> {
+  if (typeof entries !== "object" || entries === null || Array.isArray(entries)) {
+    throw new TypeError("mapArg: expected an object of contract arguments");
+  }
+  return { type: "map", value: entries };
+}
+
+/**
+ * Normalises an integer input to the decimal string the backend encodes.
+ * Accepts `number`, `bigint` and decimal strings; rejects non-integers and
+ * unsafe `number` values so precision is never silently lost.
+ */
+function toIntegerString(name: string, value: number | bigint | string): string {
+  if (typeof value === "bigint") return value.toString();
+
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || !Number.isInteger(value)) {
+      throw new TypeError(`${name}: expected an integer, received ${value}`);
+    }
+    if (!Number.isSafeInteger(value)) {
+      throw new TypeError(`${name}: integer exceeds Number.MAX_SAFE_INTEGER; pass a bigint`);
+    }
+    return value.toString();
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!/^-?\d+$/.test(trimmed)) {
+      throw new TypeError(`${name}: expected a decimal integer string, received "${value}"`);
+    }
+    return trimmed;
+  }
+
+  throw new TypeError(`${name}: expected a number, bigint or decimal string`);
+}
+
+/**
+ * Builds a typed argument list for a contract method from a map of typed
+ * builders. The result is a plain `ContractArg[]` ready for
+ * {@link submitContractTransaction}; the builders keep the call site checked
+ * against the bindings' argument types.
+ */
+export function buildContractArgs(
+  builders: Record<string, () => ContractArg>
+): ContractArg[] {
+  return Object.values(builders).map((build) => build());
+}
+
 export type TxPhase = "idle" | "building" | "signing" | "submitting" | "success" | "error";
 
 /** Default bound used by {@link signTxWithTimeout}. */

@@ -62,3 +62,72 @@ jobs:
       - name: Smoke test static export
         timeout-minutes: 3
         run: npm run test:e2e
+
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Lighthouse CI
+        run: npm install --no-save @lhci/cli
+
+      - name: Install Chrome
+        run: npx playwright install --with-deps chromium
+
+      - name: Write Lighthouse CI config
+        run: |
+          cat > lighthouserc.json <<'EOF'
+          {
+            "ci": {
+              "collect": {
+                "url": [
+                  "http://localhost:3000/",
+                  "http://localhost:3000/dashboard",
+                  "http://localhost:3000/create"
+                ],
+                "startServerCommand": "bash e2e/serve.sh",
+                "startServerReadyPattern": "Serving|Listening|localhost:3000",
+                "startServerReadyTimeout": 30000,
+                "numberOfRuns": 1,
+                "settings": {
+                  "chromeFlags": "--no-sandbox --headless=new",
+                  "preset": "desktop"
+                }
+              },
+              "assert": {
+                "assertions": {
+                  "categories:performance": ["warn", { "minScore": 0.8 }],
+                  "categories:accessibility": ["warn", { "minScore": 0.95 }],
+                  "categories:seo": ["warn", { "minScore": 0.9 }]
+                }
+              },
+              "upload": {
+                "target": "filesystem",
+                "outputDir": ".lighthouseci"
+              }
+            }
+          }
+          EOF
+
+      - name: Run Lighthouse CI
+        run: npx lhci autorun
+
+      - name: Upload Lighthouse reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse-report
+          path: .lighthouseci/
+          if-no-files-found: ignore

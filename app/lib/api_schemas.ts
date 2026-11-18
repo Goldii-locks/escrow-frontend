@@ -13,7 +13,111 @@
  * than rendering partial data.
  */
 
-import { z } from "zod";
+import { describe, expect, it } from "vitest";
+
+import {
+  ApiShapeError,
+  NotificationPreferencesResponseSchema,
+  NotificationSubscribeResponseSchema,
+  NotificationUnsubscribeResponseSchema,
+  validateResponse,
+} from "../api_schemas";
+
+describe("notification preference schemas (#906)", () => {
+  it("accepts a fully populated preferences payload", () => {
+    const parsed = validateResponse(
+      NotificationPreferencesResponseSchema,
+      {
+        success: true,
+        data: {
+          email: "user@example.com",
+          confirmed: true,
+          preferences: {
+            client: ["delivery", "approval"],
+            freelancer: ["deadline_approaching", "funds_credited"],
+            arbiter: ["dispute"],
+          },
+        },
+      },
+      "/api/notifications/preferences"
+    );
+
+    expect(parsed.data.email).toBe("user@example.com");
+    expect(parsed.data.confirmed).toBe(true);
+    expect(parsed.data.preferences.client).toEqual(["delivery", "approval"]);
+    expect(parsed.data.preferences.arbiter).toEqual(["dispute"]);
+  });
+
+  it("treats a missing email as not opted in and defaults the rest", () => {
+    const parsed = validateResponse(
+      NotificationPreferencesResponseSchema,
+      { success: true, data: { email: null } },
+      "/api/notifications/preferences"
+    );
+
+    expect(parsed.data.email).toBeNull();
+    expect(parsed.data.confirmed).toBe(false);
+    expect(parsed.data.preferences).toEqual({});
+  });
+
+  it("rejects an unknown notification event", () => {
+    expect(() =>
+      validateResponse(
+        NotificationPreferencesResponseSchema,
+        {
+          success: true,
+          data: {
+            email: "user@example.com",
+            confirmed: false,
+            preferences: { client: ["not_a_real_event"] },
+          },
+        },
+        "/api/notifications/preferences"
+      )
+    ).toThrow(ApiShapeError);
+  });
+
+  it("rejects a payload without the success envelope", () => {
+    expect(() =>
+      validateResponse(
+        NotificationPreferencesResponseSchema,
+        { data: { email: "user@example.com" } },
+        "/api/notifications/preferences"
+      )
+    ).toThrow(ApiShapeError);
+  });
+
+  it("parses the subscribe (confirmation-pending) response", () => {
+    const parsed = validateResponse(
+      NotificationSubscribeResponseSchema,
+      { success: true, data: { email: "user@example.com", confirmed: false } },
+      "/api/notifications/subscribe"
+    );
+
+    expect(parsed.data.email).toBe("user@example.com");
+    expect(parsed.data.confirmed).toBe(false);
+  });
+
+  it("parses the unsubscribe response", () => {
+    const parsed = validateResponse(
+      NotificationUnsubscribeResponseSchema,
+      { success: true, data: { unsubscribed: true } },
+      "/api/notifications/unsubscribe"
+    );
+
+    expect(parsed.data.unsubscribed).toBe(true);
+  });
+
+  it("rejects an unsubscribe response missing the flag", () => {
+    expect(() =>
+      validateResponse(
+        NotificationUnsubscribeResponseSchema,
+        { success: true, data: {} },
+        "/api/notifications/unsubscribe"
+      )
+    ).toThrow(ApiShapeError);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Custom error type
@@ -230,6 +334,96 @@ export const AutoReleaseResponseSchema = z.object({
 });
 
 export type AutoReleaseResponse = z.infer<typeof AutoReleaseResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Notification preferences (#906)
+// ---------------------------------------------------------------------------
+
+/**
+ * The notification events a user can opt into, per role.  Kept as a Zod enum
+ * so an unknown event from the backend is a shape error rather than a silent
+ * no-op toggle.
+ */
+export const NotificationEventSchema = z.enum([
+  "delivery",
+  "approval",
+  "dispute",
+  "deadline_approaching",
+  "funds_credited",
+]);
+
+export type NotificationEvent = z.infer<typeof NotificationEventSchema>;
+
+/** The roles a user can hold in an escrow job. */
+export const NotificationRoleSchema = z.enum(["client", "freelancer", "arbiter"]);
+
+export type NotificationRole = z.infer<typeof NotificationRoleSchema>;
+
+/**
+ * Per-role event toggles.  Every role is optional so a partial payload from
+ * the backend (e.g. a user who has only ever been a client) still validates;
+ * callers treat a missing role as "no events enabled".
+ */
+export const NotificationPreferencesSchema = z.object({
+  client: z.array(NotificationEventSchema).optional(),
+  freelancer: z.array(NotificationEventSchema).optional(),
+  arbiter: z.array(NotificationEventSchema).optional(),
+});
+
+export type NotificationPreferences = z.infer<typeof NotificationPreferencesSchema>;
+
+/**
+ * Exact body of `GET /api/notifications/preferences` and
+ * `PUT /api/notifications/preferences` (the backend's `sendSuccess`):
+ * `{ success: true, data: { email, confirmed, preferences } }`.
+ *
+ * `email` is `null` when the user has not opted in yet, and `confirmed` is
+ * `false` while the double opt-in confirmation email is pending.
+ */
+export const NotificationPreferencesResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.object({
+    email: z
+      .string()
+      .nullish()
+      .transform((v) => v ?? null),
+    confirmed: z.boolean().default(false),
+    preferences: NotificationPreferencesSchema.default({}),
+  }),
+});
+
+export type NotificationPreferencesResponse = z.infer<
+  typeof NotificationPreferencesResponseSchema
+>;
+
+/**
+ * Exact body of `POST /api/notifications/subscribe`: the email has been
+ * stored and a confirmation email is pending (double opt-in).
+ */
+export const NotificationSubscribeResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.object({
+    email: z.string().min(1),
+    confirmed: z.boolean().default(false),
+  }),
+});
+
+export type NotificationSubscribeResponse = z.infer<typeof NotificationSubscribeResponseSchema>;
+
+/**
+ * Exact body of `POST /api/notifications/unsubscribe`: the email has been
+ * removed and no further alerts will be sent.
+ */
+export const NotificationUnsubscribeResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.object({
+    unsubscribed: z.boolean(),
+  }),
+});
+
+export type NotificationUnsubscribeResponse = z.infer<
+  typeof NotificationUnsubscribeResponseSchema
+>;
 
 // ---------------------------------------------------------------------------
 // Helper: validate and throw ApiShapeError on failure

@@ -38,7 +38,14 @@ import {
   getPhaseLabel,
   runContractAction,
   submitContractTransaction,
+  type ContractArgs,
 } from "@/app/lib/transactions";
+import {
+  buildAdminPauseArgs,
+  buildAdminResumeArgs,
+  buildAddWhitelistedTokenArgs,
+  buildRemoveWhitelistedTokenArgs,
+} from "@/app/lib/contractArgs";
 import ContractPauseSwitch from "@/app/components/ContractPauseSwitch";
 import {
   contractPauseErrorToast,
@@ -74,7 +81,9 @@ export default function AdminPage() {
               // The contract exposes pause and resume as separate admin
               // endpoints, each taking only the admin address.
               method: nextPaused ? "admin_pause_escrow" : "admin_resume_escrow",
-              args: [{ type: "address", value: address }],
+              args: nextPaused
+                ? buildAdminPauseArgs(address)
+                : buildAdminResumeArgs(address),
               sourceAddress: address,
               signTransaction,
               onPhase,
@@ -148,7 +157,7 @@ export default function AdminPage() {
     action: WhitelistActionKind,
     token: string,
     method: string,
-    args: { type: string; value: unknown }[]
+    args: ContractArgs
   ) => {
     if (!address) return;
 
@@ -224,10 +233,9 @@ export default function AdminPage() {
       action.kind,
       action.token,
       action.kind === "add" ? "add_whitelisted_token" : "remove_whitelisted_token",
-      [
-        { type: "address", value: address },
-        { type: "address", value: action.token },
-      ]
+      action.kind === "add"
+        ? buildAddWhitelistedTokenArgs(address, action.token)
+        : buildRemoveWhitelistedTokenArgs(address, action.token)
     );
   };
 

@@ -69,6 +69,12 @@ export default function Navbar() {
               >
                 + New Job
               </Link>
+              <Link
+                href="/settings/notifications"
+                className={`text-sm text-text-secondary hover:text-text-primary transition ${focusRing}`}
+              >
+                Notifications
+              </Link>
               {isAdminUser && (
                 <Link
                   href="/admin"

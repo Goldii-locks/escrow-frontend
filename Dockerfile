@@ -28,12 +28,24 @@ ARG NEXT_PUBLIC_FACTORY_CONTRACT_ID
 # otherwise silently ship a testnet-wired bundle.
 ARG NEXT_PUBLIC_SOROBAN_RPC_URL
 ARG NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE
+# Default arbiter address pre-filled on the create page. Optional: without it
+# the field starts empty. See MAINNET.md.
+ARG NEXT_PUBLIC_DEFAULT_ARBITER
+# WalletConnect project id for the wallet picker. Optional: without it the
+# WalletConnect option is hidden. See MAINNET.md.
+ARG NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
+# Error reporting (e.g. Sentry DSN). Optional: without it errors are only
+# logged to the console. See MAINNET.md.
+ARG NEXT_PUBLIC_ERROR_REPORTING_DSN
 
 ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL \
     NEXT_PUBLIC_CONTRACT_ID=$NEXT_PUBLIC_CONTRACT_ID \
     NEXT_PUBLIC_FACTORY_CONTRACT_ID=$NEXT_PUBLIC_FACTORY_CONTRACT_ID \
     NEXT_PUBLIC_SOROBAN_RPC_URL=$NEXT_PUBLIC_SOROBAN_RPC_URL \
-    NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=$NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE
+    NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=$NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE \
+    NEXT_PUBLIC_DEFAULT_ARBITER=$NEXT_PUBLIC_DEFAULT_ARBITER \
+    NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=$NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID \
+    NEXT_PUBLIC_ERROR_REPORTING_DSN=$NEXT_PUBLIC_ERROR_REPORTING_DSN
 
 # Reject a plain-HTTP remote backend (mixed content on the HTTPS site).
 # Empty is allowed: the app uses same-origin relative /api (nginx proxies it).

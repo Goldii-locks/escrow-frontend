@@ -1,50 +1,85 @@
 import { reportClientError } from "@/app/lib/errorReporter";
+import {
+  EscrowError,
+  FactoryError,
+} from "@goldii-locks/milestone-escrow-bindings";
 
 /**
- * User-facing messages for the escrow contract's `Error` enum
- * (`escrow-contract/contracts/milestone-escrow/src/lib.rs`), keyed by code.
- * Keep in step with the enum: the backend reports a revert as
+ * User-facing messages for the escrow contract's `Error` enum, keyed by the
+ * enum's numeric code. The keys come from the generated bindings
+ * (`@goldii-locks/milestone-escrow-bindings`), so a new or renumbered variant
+ * in the contract surfaces here as a TypeScript error rather than a silently
+ * wrong message. The backend reports a revert as
  * "Contract execution reverted (error code N)".
  */
-export const ERROR_MESSAGES: Record<number, string> = {
-  1: "This escrow has already been initialized.",
-  2: "This escrow hasn't been initialized yet.",
-  3: "This escrow has already been funded.",
-  4: "This escrow hasn't been funded yet. Fund the escrow before proceeding.",
-  5: "You are not authorized to perform this action.",
-  6: "That milestone doesn't exist on this escrow.",
-  7: "This action is not available for the current milestone status.",
-  8: "This token is not on the escrow's whitelist.",
-  9: "This token is already whitelisted.",
-  10: "Invalid amount. Check the value and try again.",
-  11: "The auto-release deadline has not passed yet. Please wait until it does.",
-  12: "One of the addresses is invalid. Check it and try again.",
-  13: "This escrow is paused. No actions can be taken until it is unpaused.",
-  14: "The split ratio is invalid. Check the percentages and try again.",
-  15: "That deadline extension isn't allowed.",
-  16: "This escrow is locked and cannot be modified.",
-  17: "This multisig has no signers configured.",
-  18: "Too many multisig signers.",
-  19: "The multisig threshold is invalid.",
-  20: "The multisig has a duplicate signer.",
-  21: "An admin transfer is already pending.",
-  22: "There is no pending admin transfer.",
-  23: "Not enough multisig approvals yet.",
-  24: "A dispute is already being raised for this milestone.",
-  25: "There is no balance to pay out.",
-  26: "Tax withholding is in progress. Try again in a moment.",
-  27: "A platform fee allocation is in progress. Try again in a moment.",
-  28: "An emergency pause change is in progress. Try again in a moment.",
-  29: "This escrow is already paused.",
-  30: "This escrow is not paused.",
-  31: "The allocation weights are invalid.",
-  32: "The escrow holds no balance to settle.",
-  33: "A deadline extension is in progress. Try again in a moment.",
-  34: "A payment stream update is in progress. Try again in a moment.",
-  35: "The fee is higher than the contract allows.",
-  36: "The amount is too large to process.",
-  37: "The escrow balance is too low for this action.",
+const ESCROW_ERROR_TEXT: Record<keyof typeof EscrowError, string> = {
+  AlreadyInitialized: "This escrow has already been initialized.",
+  NotInitialized: "This escrow hasn't been initialized yet.",
+  AlreadyFunded: "This escrow has already been funded.",
+  NotFunded: "This escrow hasn't been funded yet. Fund the escrow before proceeding.",
+  Unauthorized: "You are not authorized to perform this action.",
+  MilestoneNotFound: "That milestone doesn't exist on this escrow.",
+  InvalidMilestoneStatus: "This action is not available for the current milestone status.",
+  TokenNotWhitelisted: "This token is not on the escrow's whitelist.",
+  TokenAlreadyWhitelisted: "This token is already whitelisted.",
+  InvalidAmount: "Invalid amount. Check the value and try again.",
+  DeadlineNotPassed: "The auto-release deadline has not passed yet. Please wait until it does.",
+  InvalidAddress: "One of the addresses is invalid. Check it and try again.",
+  Paused: "This escrow is paused. No actions can be taken until it is unpaused.",
+  InvalidSplitRatio: "The split ratio is invalid. Check the percentages and try again.",
+  DeadlineExtensionNotAllowed: "That deadline extension isn't allowed.",
+  Locked: "This escrow is locked and cannot be modified.",
+  NoMultisigSigners: "This multisig has no signers configured.",
+  TooManySigners: "Too many multisig signers.",
+  InvalidThreshold: "The multisig threshold is invalid.",
+  DuplicateSigner: "The multisig has a duplicate signer.",
+  AdminTransferPending: "An admin transfer is already pending.",
+  NoPendingAdminTransfer: "There is no pending admin transfer.",
+  InsufficientApprovals: "Not enough multisig approvals yet.",
+  DisputeAlreadyRaised: "A dispute is already being raised for this milestone.",
+  NoBalanceToPay: "There is no balance to pay out.",
+  TaxWithholdingInProgress: "Tax withholding is in progress. Try again in a moment.",
+  FeeAllocationInProgress: "A platform fee allocation is in progress. Try again in a moment.",
+  PauseChangeInProgress: "An emergency pause change is in progress. Try again in a moment.",
+  AlreadyPaused: "This escrow is already paused.",
+  NotPaused: "This escrow is not paused.",
+  InvalidAllocationWeights: "The allocation weights are invalid.",
+  NoBalanceToSettle: "The escrow holds no balance to settle.",
+  DeadlineExtensionInProgress: "A deadline extension is in progress. Try again in a moment.",
+  StreamUpdateInProgress: "A payment stream update is in progress. Try again in a moment.",
+  FeeTooHigh: "The fee is higher than the contract allows.",
+  AmountTooLarge: "The amount is too large to process.",
+  InsufficientBalance: "The escrow balance is too low for this action.",
 };
+
+/**
+ * Builds a `code -> message` map from a bindings `Error` enum and its text
+ * table. Throws at module load if the two drift apart (e.g. a variant was
+ * added to the enum but not to the text table), so the mismatch fails fast
+ * in tests and at build time instead of showing a wrong message in the UI.
+ */
+function buildErrorMessages<E extends Record<string, number | string>>(
+  errorEnum: E,
+  text: Record<keyof E, string>,
+): Record<number, string> {
+  const messages: Record<number, string> = {};
+  for (const key of Object.keys(errorEnum) as (keyof E)[]) {
+    const code = errorEnum[key];
+    if (typeof code !== "number") continue;
+    const message = text[key];
+    if (typeof message !== "string") {
+      throw new Error(`Missing user-facing message for contract error "${String(key)}" (code ${code}).`);
+    }
+    messages[code] = message;
+  }
+  return messages;
+}
+
+/** Escrow contract error codes, derived from the generated bindings enum. */
+export const ERROR_MESSAGES: Record<number, string> = buildErrorMessages(
+  EscrowError,
+  ESCROW_ERROR_TEXT,
+);
 
 export class WalletRejectedError extends Error {
   constructor() {
@@ -181,16 +216,22 @@ export function parseContractErrorCode(message: string): number | null {
 }
 
 /**
- * Messages for the escrow-factory `Error` codes `create_escrow` can return
- * (`escrow-contract/contracts/escrow-factory/src/lib.rs`). They overlap the
- * escrow's codes, so the create flow checks these first; any other code comes
- * from the new escrow's constructor and keeps its {@link ERROR_MESSAGES} text.
+ * Messages for the escrow-factory `Error` codes `create_escrow` can return,
+ * derived from the generated bindings enum. They overlap the escrow's codes,
+ * so the create flow checks these first; any other code comes from the new
+ * escrow's constructor and keeps its {@link ERROR_MESSAGES} text.
  */
-export const FACTORY_ERROR_MESSAGES: Record<number, string> = {
-  1: "Escrow creation isn't set up yet: the escrow factory hasn't been initialized.",
-  4: "This token isn't accepted for new escrows. Pick one of the listed tokens.",
-  5: "Add at least one milestone with a valid amount.",
+const FACTORY_ERROR_TEXT: Record<keyof typeof FactoryError, string> = {
+  NotInitialized: "Escrow creation isn't set up yet: the escrow factory hasn't been initialized.",
+  TokenNotAccepted: "This token isn't accepted for new escrows. Pick one of the listed tokens.",
+  NoMilestones: "Add at least one milestone with a valid amount.",
 };
+
+/** Escrow-factory error codes, derived from the generated bindings enum. */
+export const FACTORY_ERROR_MESSAGES: Record<number, string> = buildErrorMessages(
+  FactoryError,
+  FACTORY_ERROR_TEXT,
+);
 
 /** {@link formatTxError} for `create_escrow`, reading factory error codes first. */
 export function formatCreateEscrowError(err: unknown, walletId?: string): string {
