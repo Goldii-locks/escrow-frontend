@@ -1,13 +1,13 @@
-import { BACKEND_URL, CONTRACT_ID, FACTORY_CONTRACT_ID } from "@/app/lib/config";
+import { API_BASE, BACKEND_URL, CONTRACT_ID, FACTORY_CONTRACT_ID } from "@/app/lib/config";
 import { formatTxError, WalletRejectedError } from "@/app/lib/errors";
 import type { WalletSimulationResult } from "@/app/lib/wallet_session";
 
 /**
- * `BACKEND_URL`, `CONTRACT_ID` and `FACTORY_CONTRACT_ID` are deployment
- * settings and live in `app/lib/config.ts`; they are re-exported here because
- * every caller already imports this module and tests mock it.
+ * `API_BASE`, `BACKEND_URL`, `CONTRACT_ID` and `FACTORY_CONTRACT_ID` are
+ * deployment settings and live in `app/lib/config.ts`; they are re-exported
+ * here because every caller already imports this module and tests mock it.
  */
-export { BACKEND_URL, CONTRACT_ID, FACTORY_CONTRACT_ID };
+export { API_BASE, BACKEND_URL, CONTRACT_ID, FACTORY_CONTRACT_ID };
 
 export type ContractArg = { type: string; value: unknown };
 
@@ -236,7 +236,7 @@ export async function submitContractTransaction({
 }): Promise<string> {
   onPhase?.("building");
 
-  const buildTxRes = await fetch(`${BACKEND_URL}/api/jobs/build-tx`, {
+  const buildTxRes = await fetch(`${API_BASE}/jobs/build-tx`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -292,7 +292,7 @@ export async function submitContractTransaction({
 
   onPhase?.("submitting");
 
-  const submitRes = await fetch(`${BACKEND_URL}/api/jobs/submit`, {
+  const submitRes = await fetch(`${API_BASE}/jobs/submit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ signedXdr }),

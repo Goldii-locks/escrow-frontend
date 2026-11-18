@@ -26,17 +26,9 @@ jobs:
         # reason in .audit-allowlist.json.
         run: node scripts/audit-gate.mjs
 
-      - name: Format check
-        run: npm run format:check
-
-      - name: Lint
-        run: npm run lint -- --max-warnings=0
-
-      - name: Type check
-        run: npx tsc --noEmit
-
-      - name: Test with coverage
-        run: npm run test:coverage
+      - name: Check (format, lint, types, tests)
+        # Mirrors the local `npm run check` script so local and CI cannot drift.
+        run: npm run check
 
       - name: Publish coverage summary
         if: ${{ !cancelled() }}
@@ -51,9 +43,11 @@ jobs:
           if-no-files-found: ignore
 
       - name: Build
+        # Mirrors the build step of the local `npm run check:full` script.
         run: npm run build
 
       - name: Bundle size budget
+        # Mirrors the bundle budget step of the local `npm run check:full` script.
         run: node scripts/bundle-size.mjs
 
       - name: Install Playwright browser

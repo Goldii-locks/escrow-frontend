@@ -43,6 +43,13 @@ import {
   isWalletRejectedError,
 } from "@/app/lib/errors";
 import { submitContractTransaction, type ContractArg } from "@/app/lib/transactions";
+import {
+  clearWalletAuthSession,
+  getWalletAuthToken,
+  authenticateWallet,
+  scheduleWalletAuthRefresh,
+  type WalletAuthSession,
+} from "@/app/lib/wallet_auth";
 
 /**
  * Map NETWORK_PASSPHRASE to the kit's Networks enum value.
@@ -133,6 +140,15 @@ interface WalletContextType {
   setSimulationResult: (result: WalletSimulationResult | null) => void;
   /** Derived gas/fee warning state from the latest simulation result. */
   gasWarning: WalletGasWarningState | null;
+  /**
+   * Short-lived backend session token proving wallet ownership (#905).
+   * Kept in memory only; `null` while unauthenticated.
+   */
+  authToken: string | null;
+  /** True while a challenge is being requested/signed/exchanged. */
+  isAuthenticating: boolean;
+  /** Request a fresh challenge and exchange its signature for a session token. */
+  authenticate: () => Promise<void>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -168,12 +184,99 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   /** Last contract action submitted, retained so a timed-out signature can be retried with a fresh XDR. */
   const [lastPendingAction, setLastPendingAction] = useState<PendingContractAction | null>(null);
   const [simulationResult, setSimulationResult] = useState<WalletSimulationResult | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const kitInitRef = useRef<Promise<void> | null>(null);
   const { showToast } = useToast();
+  /** Latest auth session, used to cancel refresh timers and detect expiry. */
+  const authSessionRef = useRef<WalletAuthSession | null>(null);
+  /** Guards against overlapping silent re-authentication attempts. */
+  const authInFlightRef = useRef<Promise<void> | null>(null);
+  /** Latest address, readable from callbacks without stale closures. */
+  const authAddressRef = useRef<string | null>(null);
+  /** Latest selected wallet, readable from callbacks without stale closures. */
+  const authWalletRef = useRef<SupportedWalletId>(selectedWalletId);
+  useEffect(() => {
+    authWalletRef.current = selectedWalletId;
+  }, [selectedWalletId]);
 
   const gasWarning: WalletGasWarningState | null = simulationResult
     ? checkSimulationFeeWarning(simulationResult)
     : null;
+
+  /**
+   * Drop the in-memory backend session (#905). Called on disconnect, account
+   * switch and network switch so a token can never outlive the wallet state
+   * it was issued for.
+   */
+  const resetAuthSession = useCallback(() => {
+    authSessionRef.current = null;
+    setAuthToken(null);
+    clearWalletAuthSession();
+  }, []);
+
+  /**
+   * Request a challenge, have the wallet sign it, and exchange the signature
+   * for a short-lived session token (#905). The token stays in memory and is
+   * only ever sent to the backend origin by `wallet_auth`.
+   */
+  const authenticate = useCallback(async (): Promise<void> => {
+    if (authInFlightRef.current) return authInFlightRef.current;
+
+    const run = (async () => {
+      const currentAddress = authAddressRef.current;
+      if (!currentAddress) return;
+
+      setIsAuthenticating(true);
+      try {
+        await ensureKitInitialized();
+        StellarWalletsKit.setWallet(authWalletRef.current);
+
+        const session = await authenticateWallet({
+          address: currentAddress,
+          networkPassphrase: NETWORK_PASSPHRASE,
+          signMessage: async (message: string) => {
+            const result = (await StellarWalletsKit.signMessage(message, {
+              address: currentAddress,
+            })) as { signedMessage?: string | Uint8Array };
+            return result?.signedMessage ?? "";
+          },
+        });
+
+        // The wallet may have switched accounts while the challenge was being
+        // signed; discard a token that no longer matches the active address.
+        if (authAddressRef.current !== currentAddress) {
+          clearWalletAuthSession();
+          return;
+        }
+
+        authSessionRef.current = session;
+        setAuthToken(session.token);
+        scheduleWalletAuthRefresh(session, () => {
+          // Silent re-authentication on expiry; failures leave the session
+          // cleared so the next user action can retry.
+          void authenticate().catch(() => {
+            resetAuthSession();
+          });
+        });
+      } catch (e) {
+        logWalletWarning("WALLET AUTH FAILED", "Wallet authentication failed", {
+          err: e instanceof Error ? e : new Error(String(e)),
+          phase: "error",
+        });
+        resetAuthSession();
+      } finally {
+        setIsAuthenticating(false);
+      }
+    })();
+
+    authInFlightRef.current = run;
+    try {
+      await run;
+    } finally {
+      if (authInFlightRef.current === run) authInFlightRef.current = null;
+    }
+  }, [ensureKitInitialized, resetAuthSession]);
 
   const checkNetwork = useCallback(async () => {
     try {
@@ -361,7 +464,33 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const addressRef = useRef<string | null>(null);
   useEffect(() => {
     addressRef.current = address;
+    authAddressRef.current = address;
   }, [address]);
+
+  // #905 — Clear the backend session whenever the connected account changes
+  // (including disconnect) and re-authenticate for the new account.
+  const authAddressForEffect = address;
+  useEffect(() => {
+    resetAuthSession();
+    if (authAddressForEffect) {
+      void authenticate();
+    }
+    // `authenticate` is stable per kit init; re-running on address change is
+    // exactly the account-switch invalidation we want.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authAddressForEffect]);
+
+  // #905 — A network switch invalidates the session: the challenge is bound to
+  // the network passphrase, so re-authenticate against the new network.
+  const authNetworkRef = useRef(NETWORK_PASSPHRASE);
+  useEffect(() => {
+    if (authNetworkRef.current === NETWORK_PASSPHRASE) return;
+    authNetworkRef.current = NETWORK_PASSPHRASE;
+    resetAuthSession();
+    if (authAddressRef.current) {
+      void authenticate();
+    }
+  }, [authenticate, resetAuthSession]);
 
   useEffect(() => {
     // Only poll when a wallet is connected.
@@ -446,6 +575,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
                 connectedAt: Date.now(),
               });
             }
+            // #905 — Obtain a backend session token right after connecting.
+            // The address effect also triggers this; the in-flight guard makes
+            // the duplicate a no-op.
+            authAddressRef.current = result.address;
+            authWalletRef.current = walletId;
+            void authenticate();
           }
         });
       } catch (e) {
@@ -455,7 +590,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setIsConnecting(false);
       }
     },
-    [ensureKitInitialized, selectedWalletId, checkNetwork, showToast]
+    [ensureKitInitialized, selectedWalletId, checkNetwork, showToast, authenticate]
   );
 
   const disconnect = useCallback(() => {
@@ -470,9 +605,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(LEGACY_STORAGE_KEY);
     freighterActiveAddress.clear();
     clearAllWalletSessionStorage();
+    // #905 — Never keep a backend session past a disconnect.
+    resetAuthSession();
     setNetworkMismatchMessage(null);
     setAddress(null);
-  }, []);
+  }, [resetAuthSession]);
 
   const signTransaction = useCallback(
     async (xdr: string): Promise<string> => {
@@ -644,6 +781,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         simulationResult,
         setSimulationResult,
         gasWarning,
+        authToken,
+        isAuthenticating,
+        authenticate,
       }}
     >
       {children}
@@ -658,3 +798,14 @@ export function useWallet(): WalletContextType {
   }
   return context;
 }
+
+/**
+ * Read the current backend session token (#905). The token lives in memory
+ * only and is cleared on disconnect, account switch and network switch.
+ */
+export function useWalletAuthToken(): string | null {
+  return useWallet().authToken;
+}
+
+/** Re-exported so callers can read the token without a React subscription. */
+export { getWalletAuthToken };

@@ -62,6 +62,29 @@ Follow the project's existing code style and use ESLint to check:
 npm run lint
 ```
 
+## Verifying your changes
+
+Run the combined check before opening a PR. It mirrors the CI steps, in the same order:
+
+```bash
+npm run check
+```
+
+This runs, in order:
+
+1. `npm run format:check` — Prettier formatting check
+2. `npm run lint -- --max-warnings=0` — ESLint with zero warnings allowed (CI rejects warnings, so a plain `npm run lint` is not enough)
+3. `npm run type-check` — `tsc --noEmit`
+4. `npm test` — the Vitest suite
+
+For a full run that also builds the app and enforces the bundle budget (the remaining CI steps):
+
+```bash
+npm run check:full
+```
+
+`npm run check` passes exactly when the corresponding CI steps pass, so a green local run means CI won't fail on formatting, lint, types or tests.
+
 ## Project structure
 
 Routes live under `app/` (Next.js App Router). Pages from README:
@@ -134,9 +157,7 @@ When you add fixtures, match real backend response shapes rather than inventing 
 
 ## Pull request checklist
 
-- [ ] `npm run lint` completes with zero warnings
-- [ ] `npm run type-check` passes
-- [ ] `npm test` passes
+- [ ] `npm run check` passes (format, lint with zero warnings, type-check, tests)
 - [ ] `npm run check-test-locations` passes
 - [ ] UI changes include screenshots in the PR
 - [ ] The PR links the related issue

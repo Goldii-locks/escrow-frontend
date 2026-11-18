@@ -36,7 +36,9 @@
     "test:e2e": "playwright test",
     "type-check": "tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,tsx,js,mjs,mts,json,css,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,mts,json,css,md}\""
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,mts,json,css,md}\"",
+    "check": "npm run format:check && npm run lint -- --max-warnings=0 && npm run type-check && npm test",
+    "check:full": "npm run check && npm run build && node scripts/bundle-size.mjs"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.8.0",

@@ -13,7 +13,7 @@ import DisputeRaiseModal from "@/app/components/DisputeRaiseModal";
 import { ArbiterPanelPlaceholder } from "@/app/components/ArbiterActionPanel";
 import { getArbiterJobEmptyState } from "@/app/lib/arbiter_action_panel";
 import { useActionStates } from "@/app/hooks/useActionStates";
-import { BACKEND_URL, runContractAction, submitContractTransaction } from "@/app/lib/transactions";
+import { API_BASE, runContractAction, submitContractTransaction } from "@/app/lib/transactions";
 import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
 import {
   JobListResponseSchema,
@@ -121,6 +121,20 @@ const roleFilterLabels: Array<{ id: RoleFilter; label: string }> = [
   { id: "arbiter", label: "As Arbiter" },
 ];
 
+/** Base interval for the polling fallback (used when SSE is unavailable). */
+const BASE_POLL_INTERVAL_MS = 30_000;
+
+/** SSE reconnect backoff: 1 s → 2 s → 4 s → … capped at 30 s. */
+const SSE_RECONNECT_BASE_MS = 1_000;
+const SSE_RECONNECT_MAX_MS = 30_000;
+
+/** Shape of a job-update event delivered over the SSE stream (#904). */
+type JobUpdateEvent = {
+  contractId?: string;
+  id?: string;
+  type?: string;
+};
+
 export default function Dashboard() {
   const { address, signTransaction, connect, isConnecting, registerPendingAction } = useWallet();
   const [fetchLoading, setFetchLoading] = useState(true);
@@ -169,6 +183,21 @@ export default function Dashboard() {
   const jobsResponseHistory = useRef<string[]>([]);
   /** Current poll interval multiplier (1 = 30 s, 2 = 60 s, 3 = 90 s, cap 4 = 120 s). */
   const pollBackoffRef = useRef(1);
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ── SSE refs (#904) ───────────────────────────────────────────────────────
+  /** Whether the SSE stream is currently connected and usable. */
+  const sseConnectedRef = useRef(false);
+  /** Whether SSE has failed and we've fallen back to polling. */
+  const sseFallbackRef = useRef(false);
+  /** The active EventSource, if any. */
+  const eventSourceRef = useRef<EventSource | null>(null);
+  /** Reconnect timer for the SSE stream. */
+  const sseReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Current reconnect attempt count (drives backoff). */
+  const sseReconnectAttemptRef = useRef(0);
+  /** Whether the tab is currently visible. */
+  const tabVisibleRef = useRef(true);
   // ─────────────────────────────────────────────────────────────────────────
 
   const totalPages = Math.max(1, Math.ceil((total || jobs.length || 1) / limit));
@@ -225,14 +254,14 @@ export default function Dashboard() {
       // We filter the loaded jobs by substring instead.
 
       const res = await fetch(
-        `${BACKEND_URL}/api/jobs/by-wallet/${encodeURIComponent(address)}?${params.toString()}`,
+        `${API_BASE}/jobs/by-wallet/${encodeURIComponent(address)}?${params.toString()}`,
         { signal: controller.signal }
       );
 
       // Drop stale responses (a newer request already completed).
       if (requestId !== jobsRequestIdRef.current) return;
 
-      reportApiResponse(res, "/api/jobs/by-wallet/:address");
+      reportApiResponse(res, "/api/v1/jobs/by-wallet/:address");
       if (res.status === 429) {
         setError("You're doing that too fast. Please wait a moment and try again.");
         setJobs([]);
@@ -243,7 +272,7 @@ export default function Dashboard() {
       // Drop stale responses again after the body read.
       if (requestId !== jobsRequestIdRef.current) return;
 
-      const endpoint = `/api/jobs/by-wallet/${address}`;
+      const endpoint = `/api/v1/jobs/by-wallet/${address}`;
       const data = validateResponse(JobListResponseSchema, rawData, endpoint);
 
       if (data.success === false) {
@@ -319,14 +348,14 @@ export default function Dashboard() {
       setDetailsLoading((current) => ({ ...current, [jobId]: true }));
 
       try {
-        const res = await fetch(`${BACKEND_URL}/api/jobs/${encodeURIComponent(jobId)}`, {
+        const res = await fetch(`${API_BASE}/jobs/${encodeURIComponent(jobId)}`, {
           signal: controller.signal,
         });
 
         // Drop stale responses.
         if (requestId !== detailsRequestIdRef.current) return;
 
-        reportApiResponse(res, "/api/jobs/:contractId");
+        reportApiResponse(res, "/api/v1/jobs/:contractId");
         if (!res.ok) {
           throw new Error(`Failed to load job details: HTTP ${res.status}`);
         }
@@ -334,7 +363,11 @@ export default function Dashboard() {
 
         if (requestId !== detailsRequestIdRef.current) return;
 
-        const payload = validateResponse(JobDetailResponseSchema, rawPayload, `/api/jobs/${jobId}`);
+        const payload = validateResponse(
+          JobDetailResponseSchema,
+          rawPayload,
+          `/api/v1/jobs/${jobId}`
+        );
         const candidate = normalizeJob(payload.data);
 
         if (candidate) {
@@ -455,10 +488,12 @@ export default function Dashboard() {
     };
   }, [expandedJobId, fetchJobDetails]);
 
-  useEffect(() => {
-    if (!address) return;
-
-    const BASE_INTERVAL_MS = 30_000;
+  /**
+   * Polling fallback (#904). Runs only when the SSE stream is unavailable
+   * (or has failed). Extracted so the SSE path can reuse the same tick.
+   */
+  const startPollingFallback = useCallback(() => {
+    if (!address) return () => {};
 
     const tick = () => {
       void fetchJobs();
@@ -471,10 +506,10 @@ export default function Dashboard() {
 
     const startInterval = () => {
       if (intervalId !== null) return; // already running
-      const delay = BASE_INTERVAL_MS * pollBackoffRef.current;
+      const delay = BASE_POLL_INTERVAL_MS * pollBackoffRef.current;
       intervalId = setInterval(() => {
         // Re-read backoff: if it changed since last tick, restart with new delay.
-        const expectedDelay = BASE_INTERVAL_MS * pollBackoffRef.current;
+        const expectedDelay = BASE_POLL_INTERVAL_MS * pollBackoffRef.current;
         tick();
         if (intervalId !== null && expectedDelay !== delay) {
           clearInterval(intervalId);
@@ -513,6 +548,160 @@ export default function Dashboard() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [address, expandedJobId, fetchJobs, fetchJobDetails]);
+
+  /**
+   * SSE subscription (#904). Opens one EventSource per tab for the connected
+   * wallet's jobs. On an event, refetches only the affected job (and the list
+   * summary). Falls back to polling when the stream is unavailable, with
+   * reconnect + exponential backoff. Closes the stream while the tab is hidden.
+   */
+  useEffect(() => {
+    if (!address) return;
+    if (typeof window === "undefined" || typeof EventSource === "undefined") {
+      // No EventSource support — use polling.
+      sseFallbackRef.current = true;
+      return startPollingFallback();
+    }
+
+    let disposed = false;
+    let fallbackCleanup: (() => void) | null = null;
+
+    const clearReconnectTimer = () => {
+      if (sseReconnectTimerRef.current !== null) {
+        clearTimeout(sseReconnectTimerRef.current);
+        sseReconnectTimerRef.current = null;
+      }
+    };
+
+    const closeSource = () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      sseConnectedRef.current = false;
+    };
+
+    const enterFallback = () => {
+      if (sseFallbackRef.current) return;
+      sseFallbackRef.current = true;
+      closeSource();
+      if (!disposed) {
+        fallbackCleanup = startPollingFallback();
+      }
+    };
+
+    const handleJobUpdate = (event: MessageEvent) => {
+      let payload: JobUpdateEvent | null = null;
+      try {
+        payload = event.data ? (JSON.parse(event.data) as JobUpdateEvent) : null;
+      } catch {
+        payload = null;
+      }
+      const affectedId = payload?.contractId ?? payload?.id ?? null;
+
+      // Refresh the list summary (cheap) and only the affected job's detail.
+      void fetchJobs();
+      if (affectedId) {
+        void fetchJobDetails(affectedId, true);
+      } else if (expandedJobId) {
+        void fetchJobDetails(expandedJobId, true);
+      }
+    };
+
+    const connect = () => {
+      if (disposed) return;
+      clearReconnectTimer();
+      closeSource();
+
+      const url = `${API_BASE}/jobs/stream?wallet=${encodeURIComponent(address)}`;
+      let source: EventSource;
+      try {
+        source = new EventSource(url);
+      } catch {
+        enterFallback();
+        return;
+      }
+      eventSourceRef.current = source;
+
+      source.onopen = () => {
+        if (disposed) return;
+        sseConnectedRef.current = true;
+        sseFallbackRef.current = false;
+        sseReconnectAttemptRef.current = 0;
+        // If we had fallen back to polling, stop it now that SSE is live.
+        if (fallbackCleanup) {
+          fallbackCleanup();
+          fallbackCleanup = null;
+        }
+      };
+
+      source.onmessage = (event) => {
+        if (disposed) return;
+        handleJobUpdate(event);
+      };
+
+      // Named event used by the backend for job updates.
+      source.addEventListener("job-update", (event) => {
+        if (disposed) return;
+        handleJobUpdate(event as MessageEvent);
+      });
+
+      source.onerror = () => {
+        if (disposed) return;
+        sseConnectedRef.current = false;
+        closeSource();
+
+        // After a few failed attempts, fall back to polling while still
+        // retrying the stream in the background.
+        sseReconnectAttemptRef.current += 1;
+        if (sseReconnectAttemptRef.current >= 3) {
+          enterFallback();
+        }
+
+        const delay = Math.min(
+          SSE_RECONNECT_BASE_MS * 2 ** (sseReconnectAttemptRef.current - 1),
+          SSE_RECONNECT_MAX_MS
+        );
+        clearReconnectTimer();
+        sseReconnectTimerRef.current = setTimeout(() => {
+          if (!disposed && tabVisibleRef.current) connect();
+        }, delay);
+      };
+    };
+
+    const handleVisibilityChange = () => {
+      const visible = document.visibilityState !== "hidden";
+      tabVisibleRef.current = visible;
+      if (visible) {
+        // Reconnect immediately when the tab becomes visible again.
+        if (!sseConnectedRef.current) {
+          sseReconnectAttemptRef.current = 0;
+          connect();
+        }
+      } else {
+        // Close the stream while hidden to save backend resources.
+        clearReconnectTimer();
+        closeSource();
+      }
+    };
+
+    tabVisibleRef.current = document.visibilityState !== "hidden";
+    if (tabVisibleRef.current) {
+      connect();
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      disposed = true;
+      clearReconnectTimer();
+      closeSource();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (fallbackCleanup) {
+        fallbackCleanup();
+        fallbackCleanup = null;
+      }
+    };
+  }, [address, expandedJobId, fetchJobs, fetchJobDetails, startPollingFallback]);
 
   const expandedJob = expandedJobId ? (jobDetails[expandedJobId] ?? null) : null;
   const milestoneList = Array.isArray(expandedJob?.milestones) ? expandedJob.milestones : [];
@@ -757,429 +946,3 @@ export default function Dashboard() {
                 aria-label="Submit search query"
               >
                 Search
-              </button>
-            </form>
-
-            <div
-              className="flex flex-wrap gap-2 sm:gap-3"
-              role="tablist"
-              aria-label="Filter jobs by role"
-            >
-              {roleFilterLabels.map((role) => {
-                const active = roleFilter === role.id;
-                return (
-                  <button
-                    key={role.id}
-                    type="button"
-                    onClick={() => {
-                      setRoleFilter(role.id);
-                      setPage(1);
-                    }}
-                    role="tab"
-                    aria-selected={active}
-                    aria-label={`Filter jobs: ${role.label}`}
-                    className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page ${
-                      active
-                        ? "bg-indigo-600 border-indigo-500 text-text-primary focus-visible:ring-indigo-400"
-                        : "bg-surface-card border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-hover hover:bg-surface-field active:bg-surface-raised focus-visible:ring-indigo-500"
-                    }`}
-                  >
-                    {role.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            {fetchLoading && !error ? (
-              <LoadingSkeleton />
-            ) : error ? (
-              <EmptyStateCard
-                testId="dashboard-error-alert"
-                ariaLabel="Error loading jobs"
-                title="Error loading jobs"
-                description={error}
-                icon="briefcase"
-                className="border-red-800 bg-red-950/20 animate-shake"
-                action={
-                  <button
-                    type="button"
-                    onClick={() => void fetchJobs()}
-                    disabled={fetchLoading}
-                    data-testid="dashboard-retry-button"
-                    aria-label="Retry loading jobs"
-                    className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {fetchLoading ? "Retrying…" : "Retry"}
-                  </button>
-                }
-              />
-            ) : jobs.length === 0 ? (
-              <EmptyStateCard
-                testId="dashboard-empty-state"
-                ariaLabel="No jobs"
-                title="No jobs found"
-                description="You don't have any jobs yet. Connect your wallet to see jobs you're involved in as a client, freelancer, or arbiter. Create one to get started."
-                icon="briefcase"
-                badges={["Client", "Freelancer", "Arbiter"]}
-              />
-            ) : filteredJobs.length === 0 ? (
-              <EmptyStateCard
-                testId="dashboard-filter-empty-state"
-                ariaLabel="No matching jobs"
-                title="No matching jobs"
-                description="No jobs on this page match your search. Try a different contract ID, address, or token symbol."
-                icon="briefcase"
-              />
-            ) : (
-              <div className="space-y-3 sm:space-y-5">
-                {isFiltering && (
-                  <p
-                    data-testid="dashboard-filter-hint"
-                    className="text-xs text-text-muted"
-                    role="status"
-                    aria-live="polite"
-                  >
-                    Filtering this page ({filteredJobs.length} of {jobs.length})
-                  </p>
-                )}
-                <div
-                  className="border border-border-strong rounded-lg sm:rounded-xl bg-surface-card overflow-hidden overflow-x-auto"
-                  role="region"
-                  aria-label="Jobs list"
-                >
-                  {filteredJobs.map((job) => {
-                    const isExpanded = expandedJobId === job.id;
-                    const isUpdating = updatingJobIds.has(job.id);
-                    const roles = getJobRoles(job, address);
-                    const roleBadges = roles.map(roleLabel);
-                    const counterparty = getCounterparty(job, roles);
-                    const progress = formatMilestoneProgress(job);
-                    const activity = formatLatestActivity(job);
-                    const label = jobLabels[job.id] ?? getJobLabel(job.id);
-
-                    return (
-                      <div
-                        key={job.id}
-                        data-testid="dashboard-list-item"
-                        className="border-b border-border-strong last:border-b-0 animate-slide-in"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
-                          className="w-full text-left px-3 sm:px-5 py-3 sm:py-4 hover:bg-surface-field/50 transition-all duration-200 active:scale-[0.99] active:bg-surface-field/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
-                          aria-expanded={isExpanded}
-                          aria-label={`Job #${job.id.slice(0, 8)}, ${job.funded ? "Funded" : "Not funded"}, ${isExpanded ? "collapse details" : "expand details"}`}
-                          aria-controls={`job-details-${job.id}`}
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-                            <div className="min-w-0">
-                              <p className="font-semibold text-sm sm:text-base truncate">
-                                {label || `Job #${job.id.slice(0, 8)}`}
-                              </p>
-                              <p className="text-xs text-text-muted mt-0.5 sm:mt-1">
-                                {job.funded ? "Funded" : "Not funded"}
-                              </p>
-                              <p
-                                className="text-xs text-text-disabled mt-0.5"
-                                data-testid="job-row-summary"
-                              >
-                                {[
-                                  counterparty ? `with ${shortAddress(counterparty)}` : null,
-                                  progress,
-                                  activity,
-                                ]
-                                  .filter(Boolean)
-                                  .join(" · ")}
-                              </p>
-                            </div>
-                            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2">
-                              {/* Issue #670: show "Updating…" badge while indexer catches up */}
-                              {isUpdating && (
-                                <span
-                                  data-testid="updating-badge"
-                                  className="text-xs px-2 py-0.5 sm:py-1 rounded-full border border-yellow-600 bg-yellow-900/40 text-yellow-300 whitespace-nowrap animate-pulse"
-                                  role="status"
-                                  aria-live="polite"
-                                  aria-label="Updating job status"
-                                >
-                                  Updating…
-                                </span>
-                              )}
-                              {roleBadges.map((badge) => (
-                                <span
-                                  key={`${job.id}-${badge}`}
-                                  className="text-xs px-2 py-0.5 sm:py-1 rounded-full border border-border-subtle bg-surface-field text-text-secondary whitespace-nowrap"
-                                  role="status"
-                                  aria-label={`Your role: ${badge}`}
-                                >
-                                  {badge}
-                                </span>
-                              ))}
-                              <span
-                                className="text-xs text-indigo-300 whitespace-nowrap"
-                                aria-hidden="true"
-                              >
-                                {isExpanded ? "Collapse" : "Expand"}
-                              </span>
-                            </div>
-                          </div>
-                        </button>
-
-                        {isExpanded && (
-                          <div
-                            data-testid="dashboard-expanded-panel"
-                            id={`job-details-${job.id}`}
-                            className="px-3 sm:px-5 pb-3 sm:pb-5 space-y-3 sm:space-y-4 border-t border-border-strong/50 animate-fade-in"
-                            role="region"
-                            aria-label={`Details for job #${job.id.slice(0, 8)}`}
-                          >
-                            <label className="block mb-3 text-xs text-text-muted">
-                              Label (saved on this device)
-                              <input
-                                type="text"
-                                value={label}
-                                maxLength={60}
-                                placeholder={`Job #${job.id.slice(0, 8)}`}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  setJobLabels((prev) => ({ ...prev, [job.id]: value }));
-                                  setJobLabel(job.id, value);
-                                }}
-                                className="mt-1 block w-full rounded border border-border-subtle bg-surface-field px-2 py-1 text-sm text-text-primary"
-                              />
-                            </label>
-                            {detailsLoading[job.id] ? (
-                              <LoadingSkeleton />
-                            ) : detailsError[job.id] ? (
-                              <div className="bg-red-950/40 border border-red-800/60 rounded-lg p-3 sm:p-4 my-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                <div>
-                                  <p className="text-red-400 font-semibold text-sm">
-                                    Failed to load job details
-                                  </p>
-                                  <p className="text-red-300/80 text-xs mt-0.5">
-                                    {detailsError[job.id]}
-                                  </p>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => fetchJobDetails(job.id, true)}
-                                  className="px-3 py-1.5 bg-red-800 hover:bg-red-700 text-white rounded text-xs font-medium transition"
-                                >
-                                  Retry
-                                </button>
-                              </div>
-                            ) : !expandedJob ? (
-                              <p className="text-xs sm:text-sm text-text-muted" role="status">
-                                Unable to load job details.
-                              </p>
-                            ) : (
-                              <>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
-                                  <div className="bg-surface-field rounded-lg p-2 sm:p-3 min-w-0">
-                                    <div className="flex items-center justify-between gap-2 mb-1">
-                                      <p className="text-text-muted text-xs font-semibold">
-                                        Client
-                                      </p>
-                                      <CopyButton
-                                        value={expandedJob.client}
-                                        label="Client address"
-                                      />
-                                    </div>
-                                    <p
-                                      className="font-mono text-xs break-all"
-                                      aria-label={`Client address: ${expandedJob.client}`}
-                                    >
-                                      {expandedJob.client}
-                                    </p>
-                                  </div>
-                                  <div className="bg-surface-field rounded-lg p-2 sm:p-3 min-w-0">
-                                    <div className="flex items-center justify-between gap-2 mb-1">
-                                      <p className="text-text-muted text-xs font-semibold">
-                                        Freelancer
-                                      </p>
-                                      <CopyButton
-                                        value={expandedJob.freelancer}
-                                        label="Freelancer address"
-                                      />
-                                    </div>
-                                    <p
-                                      className="font-mono text-xs break-all"
-                                      aria-label={`Freelancer address: ${expandedJob.freelancer}`}
-                                    >
-                                      {expandedJob.freelancer}
-                                    </p>
-                                  </div>
-                                  <div className="bg-surface-field rounded-lg p-2 sm:p-3 min-w-0">
-                                    <div className="flex items-center justify-between gap-2 mb-1">
-                                      <p className="text-text-muted text-xs font-semibold">
-                                        Arbiter
-                                      </p>
-                                      <CopyButton
-                                        value={expandedJob.arbiter}
-                                        label="Arbiter address"
-                                      />
-                                    </div>
-                                    <p
-                                      className="font-mono text-xs break-all"
-                                      aria-label={`Arbiter address: ${expandedJob.arbiter}`}
-                                    >
-                                      {expandedJob.arbiter}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                {isClient && !expandedJob.funded && (
-                                  <div className="bg-amber-950/40 border border-amber-600/50 rounded-lg p-3 sm:p-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                    <div>
-                                      <p className="text-amber-300 font-semibold text-sm">
-                                        Escrow Unfunded
-                                      </p>
-                                      <p className="text-amber-200/80 text-xs mt-0.5">
-                                        Deposit the escrow tokens so the freelancer can begin
-                                        delivery.
-                                      </p>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      onClick={handleFund}
-                                      disabled={isPending("fund-" + expandedJob.id)}
-                                      className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-semibold transition"
-                                    >
-                                      {isPending("fund-" + expandedJob.id)
-                                        ? "Funding..."
-                                        : "Fund escrow"}
-                                    </button>
-                                  </div>
-                                )}
-                                <div
-                                  className="space-y-3 sm:space-y-4"
-                                  role="region"
-                                  aria-label="Milestones"
-                                >
-                                  {showArbiterNoDisputes && (
-                                    <ArbiterPanelPlaceholder variant="no-disputes" />
-                                  )}
-                                  {milestoneList.length > 0 ? (
-                                    milestoneList.map((m) => (
-                                      <MilestoneCard
-                                        key={`${expandedJob.id}-${m.index}`}
-                                        milestone={m}
-                                        isClient={isClient}
-                                        isFreelancer={isFreelancer}
-                                        isArbiter={isArbiter}
-                                        amountDecimals={expandedJob.tokenDecimals ?? 7}
-                                        amountSymbol={expandedJob.tokenSymbol ?? "XLM"}
-                                        freelancerAddress={expandedJob.freelancer}
-                                        resolveDisputeState={getState(`resolve-${m.index}`)}
-                                        isResolveDisputePending={isPending(`resolve-${m.index}`)}
-                                        onResolveDispute={handleResolveDispute}
-                                        partialReleaseState={getState(`partial-${m.index}`)}
-                                        claimAutoReleaseState={getState(`claim-${m.index}`)}
-                                        isPartialReleasePending={isPending(`partial-${m.index}`)}
-                                        isClaimAutoReleasePending={isPending(`claim-${m.index}`)}
-                                        autoReleaseDeadline={autoReleaseDeadlines[m.index] ?? null}
-                                        onPartialRelease={handlePartialRelease}
-                                        onClaimAutoRelease={handleClaimAutoRelease}
-                                        onMarkDelivered={handleMarkDelivered}
-                                        onApprove={handleApprove}
-                                        onDispute={handleDispute}
-                                      />
-                                    ))
-                                  ) : (
-                                    <MilestoneCard
-                                      milestone={null}
-                                      isClient={isClient}
-                                      isFreelancer={isFreelancer}
-                                      partialReleaseState={getState("empty")}
-                                      claimAutoReleaseState={getState("empty")}
-                                      isPartialReleasePending={false}
-                                      isClaimAutoReleasePending={false}
-                                    />
-                                  )}
-                                </div>
-
-                                <JobActivityTimeline contractId={expandedJob.id} />
-                              </>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <nav
-                  className="flex flex-col xs:flex-row items-center justify-between gap-3 overflow-x-auto"
-                  aria-label="Pagination navigation"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page <= 1}
-                    className="w-full xs:w-auto px-3 py-2 rounded-lg border border-border-subtle bg-surface-card text-xs sm:text-sm transition-all duration-200 hover:bg-surface-field hover:border-border-hover active:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-surface-card disabled:hover:border-border-subtle"
-                    aria-label={`Previous page, current page is ${page} of ${totalPages}`}
-                  >
-                    Previous
-                  </button>
-
-                  <div
-                    className="flex items-center gap-1 sm:gap-2 overflow-x-auto"
-                    aria-label="Pagination buttons"
-                    role="group"
-                  >
-                    {paginationButtons.map((value) => {
-                      const active = value === page;
-                      return (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => setPage(value)}
-                          aria-current={active ? "page" : undefined}
-                          aria-label={
-                            active ? `Current page, page ${value}` : `Go to page ${value}`
-                          }
-                          className={`h-8 min-w-8 px-1.5 sm:px-2 rounded-md text-xs sm:text-sm border whitespace-nowrap transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page ${
-                            active
-                              ? "bg-indigo-600 border-indigo-500 text-text-primary focus-visible:ring-indigo-400"
-                              : "bg-surface-card border-border-subtle text-text-secondary hover:bg-surface-field hover:border-border-hover active:bg-surface-raised focus-visible:ring-indigo-500"
-                          }`}
-                        >
-                          {value}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={page >= totalPages}
-                    className="w-full xs:w-auto px-3 py-2 rounded-lg border border-border-subtle bg-surface-card text-xs sm:text-sm transition-all duration-200 hover:bg-surface-field hover:border-border-hover active:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-surface-card disabled:hover:border-border-subtle"
-                    aria-label={`Next page, current page is ${page} of ${totalPages}`}
-                  >
-                    Next
-                  </button>
-                </nav>
-              </div>
-            )}
-          </div>
-        )}
-      </main>
-
-      {/* Dispute Raise Modal */}
-      {disputeMilestoneIndex !== null && (
-        <DisputeRaiseModal
-          isOpen={disputeModalOpen}
-          onClose={() => {
-            setDisputeModalOpen(false);
-            setDisputeMilestoneIndex(null);
-          }}
-          onSubmit={handleDisputeSubmit}
-          milestoneIndex={disputeMilestoneIndex}
-          isLoading={isPending(`dispute-${disputeMilestoneIndex}`)}
-          submissionError={getState(`dispute-${disputeMilestoneIndex}`)?.error}
-        />
-      )}
-    </div>
-  );
-}

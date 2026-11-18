@@ -105,5 +105,17 @@ if (!backendUrlCheck.ok) {
   console.warn(message);
 }
 
-/** Backend origin every `/api/...` request is issued against. */
+/**
+ * Backend origin. Requests are issued against the versioned `/api/v1` prefix
+ * (see `API_BASE`); the unversioned `/api/...` routes are deprecated (#903).
+ */
 export const BACKEND_URL = resolveBackendUrl(rawBackendUrl);
+
+/**
+ * Versioned backend API prefix every frontend request must be issued against.
+ *
+ * The backend still mounts the unversioned `/api/...` routers but marks them
+ * deprecated, so nothing in the app should build URLs from `BACKEND_URL`
+ * directly — use this constant instead (#903).
+ */
+export const API_BASE = `${BACKEND_URL}/api/v1`;
