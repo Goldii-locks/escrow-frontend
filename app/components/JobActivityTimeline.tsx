@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BACKEND_URL } from "@/app/lib/transactions";
 import { reportApiResponse } from "@/app/lib/errorReporter";
 import { getStellarExpertTxUrl } from "@/app/lib/stellar";
@@ -20,7 +20,13 @@ interface HistoryResponse {
   success?: boolean;
   events?: HistoryEvent[];
   total?: number;
+  /** Echoed by backends that honour `order=desc` (newest page first). */
+  order?: string;
   error?: string;
+}
+
+function pageCount(total: number | undefined): number {
+  return Math.max(1, Math.ceil((total ?? 0) / PAGE_SIZE));
 }
 
 const EVENT_LABELS: Record<string, string> = {
@@ -83,24 +89,44 @@ export function relativeTime(timestamp: number | null, now = Date.now()): string
 }
 
 /**
- * Activity timeline for one job, newest first. The backend pages oldest
- * first, so display page N maps to backend page (totalPages - N + 1).
+ * Activity timeline for one job, newest first.
+ *
+ * Every request asks for `order=desc`. A backend that honours it echoes
+ * `order: "desc"` and display page N is backend page N, in one request.
+ * Older backends ignore the parameter and page oldest first; then display
+ * page N maps to backend page (totalPages - N + 1), and `total` is re-read
+ * from every response so the mapping stays correct as new events arrive.
+ *
+ * `refreshKey` (e.g. the job's `latestLedger`) refetches the timeline when
+ * the job changes: after an action, or when the dashboard poll sees new
+ * activity (#892). Render it with `key={contractId}` so switching jobs
+ * starts from page 1 with fresh state.
  */
-export default function JobActivityTimeline({ contractId }: { contractId: string }) {
+export default function JobActivityTimeline({
+  contractId,
+  refreshKey,
+}: {
+  contractId: string;
+  refreshKey?: string | number | null;
+}) {
   const [displayPage, setDisplayPage] = useState(1);
   const [total, setTotal] = useState<number | null>(null);
   const [events, setEvents] = useState<HistoryEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** null = not yet known, true = backend honours order=desc, false = legacy. */
+  const descSupportedRef = useRef<boolean | null>(null);
+  /** Latest total seen, used to guess the legacy backend page before fetching. */
+  const totalRef = useRef<number | null>(null);
 
-  const totalPages = total == null ? 1 : Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = total == null ? 1 : pageCount(total);
 
   useEffect(() => {
     const controller = new AbortController();
 
     const load = async (backendPage: number): Promise<HistoryResponse> => {
       const res = await fetch(
-        `${BACKEND_URL}/api/jobs/${encodeURIComponent(contractId)}/history?page=${backendPage}&limit=${PAGE_SIZE}`,
+        `${BACKEND_URL}/api/jobs/${encodeURIComponent(contractId)}/history?page=${backendPage}&limit=${PAGE_SIZE}&order=desc`,
         { signal: controller.signal }
       );
       reportApiResponse(res, "/api/jobs/:contractId/history");
@@ -111,23 +137,42 @@ export default function JobActivityTimeline({ contractId }: { contractId: string
       return payload;
     };
 
+    /** Fetch display page `displayPage`, newest first, with a fresh total. */
+    const fetchDisplayPage = async (): Promise<{ events: HistoryEvent[]; total: number }> => {
+      // Unknown or desc-capable backend: ask for the display page directly.
+      if (descSupportedRef.current !== false) {
+        const payload = await load(displayPage);
+        if (payload.order === "desc") {
+          descSupportedRef.current = true;
+          return { events: payload.events ?? [], total: payload.total ?? 0 };
+        }
+        descSupportedRef.current = false;
+        // Legacy backend: that was oldest-first page `displayPage`.
+        const target = Math.max(1, pageCount(payload.total) - displayPage + 1);
+        const page = target === displayPage ? payload : await load(target);
+        return { events: [...(page.events ?? [])].reverse(), total: page.total ?? 0 };
+      }
+
+      // Legacy backend: guess from the last total, then correct if it moved.
+      const guess = Math.max(1, pageCount(totalRef.current ?? 0) - displayPage + 1);
+      let payload = await load(guess);
+      const target = Math.max(1, pageCount(payload.total) - displayPage + 1);
+      if (target !== guess) payload = await load(target);
+      return { events: [...(payload.events ?? [])].reverse(), total: payload.total ?? 0 };
+    };
+
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        let payload: HistoryResponse;
-        if (total == null) {
-          // First load: learn the total, then jump to the newest page.
-          payload = await load(1);
-          const pages = Math.max(1, Math.ceil((payload.total ?? 0) / PAGE_SIZE));
-          if (pages > 1) payload = await load(pages);
-          if (controller.signal.aborted) return;
-          setTotal(payload.total ?? 0);
-        } else {
-          payload = await load(totalPages - displayPage + 1);
-        }
+        const result = await fetchDisplayPage();
         if (controller.signal.aborted) return;
-        setEvents([...(payload.events ?? [])].reverse());
+        totalRef.current = result.total;
+        setTotal(result.total);
+        setEvents(result.events);
+        // Keep the current page in range if the history shrank.
+        const pages = pageCount(result.total);
+        if (displayPage > pages) setDisplayPage(pages);
       } catch {
         if (controller.signal.aborted) return;
         setError("Unable to load activity.");
@@ -137,9 +182,7 @@ export default function JobActivityTimeline({ contractId }: { contractId: string
     })();
 
     return () => controller.abort();
-    // `total` only seeds the first load; page changes drive later fetches.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contractId, displayPage]);
+  }, [contractId, displayPage, refreshKey]);
 
   return (
     <section

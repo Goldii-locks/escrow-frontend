@@ -9,9 +9,15 @@ Production deploys to milestonepay.app are recorded under dated headings.
 
 ### Added
 
+- "Needs your action" list at the top of the dashboard, sorted by deadline (#888)
+
 ### Changed
 
+- Transactions prepared by the backend are checked against the requested call before the wallet is asked to sign (#889)
+
 ### Fixed
+
+- The job activity timeline refreshes after an action and when the dashboard poll sees new activity (#892)
 
 ### Removed
 
