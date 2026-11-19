@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { submitContractTransaction } from "@/app/lib/transactions";
 
+// These tests use placeholder XDR strings; decoding and matching the prepared
+// transaction is covered in tx-verification.test.ts (#889).
+vi.mock("@/app/lib/tx_verification", () => ({ verifyPreparedTransaction: vi.fn() }));
+
 describe("submitContractTransaction simulation result wiring (#631)", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());

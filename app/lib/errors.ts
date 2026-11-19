@@ -53,6 +53,21 @@ export class WalletRejectedError extends Error {
   }
 }
 
+/**
+ * Thrown before signing when the transaction `build-tx` returned isn't the
+ * call the user requested (#889). `reason` says which check failed; it is for
+ * error reports, not for display.
+ */
+export class PreparedTransactionMismatchError extends Error {
+  readonly reason: string;
+
+  constructor(reason: string) {
+    super("The prepared transaction didn't match your request.");
+    this.name = "PreparedTransactionMismatchError";
+    this.reason = reason;
+  }
+}
+
 // =============================================================================
 // Per-wallet availability error (#687)
 // =============================================================================
@@ -227,6 +242,11 @@ export function formatTxError(err: unknown, walletId?: string): string {
 
   if (err instanceof WalletUnavailableError) {
     return buildWalletUnavailableMessage(err.walletId);
+  }
+
+  // Already reported, with its reason, where it was raised.
+  if (err instanceof PreparedTransactionMismatchError) {
+    return err.message;
   }
 
   if (err instanceof Error) {
