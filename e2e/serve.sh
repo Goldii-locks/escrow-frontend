@@ -17,7 +17,7 @@ docker rm -f escrow-smoke >/dev/null 2>&1 || true
 docker run -d --name escrow-smoke -p 8080:80 \
   -v "$PWD/out:/usr/share/nginx/html:ro" \
   -v "$PWD/$conf:/etc/nginx/conf.d/default.conf:ro" \
-  nginx:1.27-alpine >/dev/null
+  nginx:1.28-alpine@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236 >/dev/null
 
 for _ in $(seq 1 30); do
   curl -sf http://127.0.0.1:8080/healthz >/dev/null && exit 0
