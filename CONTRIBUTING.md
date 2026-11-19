@@ -138,6 +138,7 @@ When you add fixtures, match real backend response shapes rather than inventing 
 - [ ] `npm run type-check` passes
 - [ ] `npm test` passes
 - [ ] `npm run check-test-locations` passes
+- [ ] If you changed a colour token in `app/globals.css`, you ran `npm run generate-tokens` and committed the updated `app/lib/generated_tokens.ts` (CI regenerates it and fails on any difference)
 - [ ] UI changes include screenshots in the PR
 - [ ] The PR links the related issue
 - [ ] User-facing changes include a line in `CHANGELOG.md`
