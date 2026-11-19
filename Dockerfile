@@ -70,6 +70,9 @@ FROM nginx:1.28-alpine@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451
 
 RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/conf.d/app.conf
+# CSP hash include generated at build time by scripts/gen-csp-hashes.mjs.
+# nginx.conf references it as `include /etc/nginx/csp-hashes.conf;`.
+COPY nginx/csp-hashes.conf /etc/nginx/csp-hashes.conf
 COPY --from=build /app/out /usr/share/nginx/html
 
 EXPOSE 80

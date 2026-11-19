@@ -27,6 +27,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "node scripts/gen-csp-hashes.mjs",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
