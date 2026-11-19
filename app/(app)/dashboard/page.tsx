@@ -720,13 +720,13 @@ export default function Dashboard() {
                 type="button"
                 onClick={() => void connect()}
                 disabled={isConnecting}
-                className="px-4 py-2 rounded-lg bg-indigo-600 text-sm font-medium text-text-primary transition-colors hover:bg-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-lg bg-accent text-sm font-medium text-text-primary transition-colors hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isConnecting ? "Connecting…" : "Connect wallet"}
               </button>
               <Link
                 href="/#how-it-works"
-                className="text-sm text-indigo-400 hover:text-indigo-300 underline-offset-2 hover:underline"
+                className="text-sm text-accent-soft hover:text-accent-soft-hover underline-offset-2 hover:underline"
               >
                 How it works
               </Link>
@@ -744,7 +744,7 @@ export default function Dashboard() {
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Search by contract/job ID"
-                className="w-full bg-surface-card border border-border-subtle rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page hover:border-border-hover"
+                className="w-full bg-surface-card border border-border-subtle rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page hover:border-border-hover"
                 aria-label="Search by contract ID"
                 aria-describedby="search-help"
               />
@@ -753,7 +753,7 @@ export default function Dashboard() {
               </span>
               <button
                 type="submit"
-                className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full sm:w-auto bg-accent hover:bg-accent-hover active:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Submit search query"
               >
                 Search
@@ -762,7 +762,7 @@ export default function Dashboard() {
 
             <div
               className="flex flex-wrap gap-2 sm:gap-3"
-              role="tablist"
+              role="group"
               aria-label="Filter jobs by role"
             >
               {roleFilterLabels.map((role) => {
@@ -775,13 +775,12 @@ export default function Dashboard() {
                       setRoleFilter(role.id);
                       setPage(1);
                     }}
-                    role="tab"
-                    aria-selected={active}
+                    aria-pressed={active}
                     aria-label={`Filter jobs: ${role.label}`}
                     className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page ${
                       active
-                        ? "bg-indigo-600 border-indigo-500 text-text-primary focus-visible:ring-indigo-400"
-                        : "bg-surface-card border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-hover hover:bg-surface-field active:bg-surface-raised focus-visible:ring-indigo-500"
+                        ? "bg-accent border-accent-soft text-text-primary focus-visible:ring-accent-soft"
+                        : "bg-surface-card border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-hover hover:bg-surface-field active:bg-surface-raised focus-visible:ring-accent-soft"
                     }`}
                   >
                     {role.label}
@@ -807,7 +806,7 @@ export default function Dashboard() {
                     disabled={fetchLoading}
                     data-testid="dashboard-retry-button"
                     aria-label="Retry loading jobs"
-                    className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-accent hover:bg-accent-hover active:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {fetchLoading ? "Retrying…" : "Retry"}
                   </button>
@@ -866,7 +865,7 @@ export default function Dashboard() {
                         <button
                           type="button"
                           onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
-                          className="w-full text-left px-3 sm:px-5 py-3 sm:py-4 hover:bg-surface-field/50 transition-all duration-200 active:scale-[0.99] active:bg-surface-field/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
+                          className="w-full text-left px-3 sm:px-5 py-3 sm:py-4 hover:bg-surface-field/50 transition-all duration-200 active:scale-[0.99] active:bg-surface-field/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-soft"
                           aria-expanded={isExpanded}
                           aria-label={`Job #${job.id.slice(0, 8)}, ${job.funded ? "Funded" : "Not funded"}, ${isExpanded ? "collapse details" : "expand details"}`}
                           aria-controls={`job-details-${job.id}`}
@@ -916,7 +915,7 @@ export default function Dashboard() {
                                 </span>
                               ))}
                               <span
-                                className="text-xs text-indigo-300 whitespace-nowrap"
+                                className="text-xs text-accent-soft-hover whitespace-nowrap"
                                 aria-hidden="true"
                               >
                                 {isExpanded ? "Collapse" : "Expand"}
@@ -1116,7 +1115,7 @@ export default function Dashboard() {
                     type="button"
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     disabled={page <= 1}
-                    className="w-full xs:w-auto px-3 py-2 rounded-lg border border-border-subtle bg-surface-card text-xs sm:text-sm transition-all duration-200 hover:bg-surface-field hover:border-border-hover active:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-surface-card disabled:hover:border-border-subtle"
+                    className="w-full xs:w-auto px-3 py-2 rounded-lg border border-border-subtle bg-surface-card text-xs sm:text-sm transition-all duration-200 hover:bg-surface-field hover:border-border-hover active:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-surface-card disabled:hover:border-border-subtle"
                     aria-label={`Previous page, current page is ${page} of ${totalPages}`}
                   >
                     Previous
@@ -1140,8 +1139,8 @@ export default function Dashboard() {
                           }
                           className={`h-8 min-w-8 px-1.5 sm:px-2 rounded-md text-xs sm:text-sm border whitespace-nowrap transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page ${
                             active
-                              ? "bg-indigo-600 border-indigo-500 text-text-primary focus-visible:ring-indigo-400"
-                              : "bg-surface-card border-border-subtle text-text-secondary hover:bg-surface-field hover:border-border-hover active:bg-surface-raised focus-visible:ring-indigo-500"
+                              ? "bg-accent border-accent-soft text-text-primary focus-visible:ring-accent-soft"
+                              : "bg-surface-card border-border-subtle text-text-secondary hover:bg-surface-field hover:border-border-hover active:bg-surface-raised focus-visible:ring-accent-soft"
                           }`}
                         >
                           {value}
@@ -1154,7 +1153,7 @@ export default function Dashboard() {
                     type="button"
                     onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     disabled={page >= totalPages}
-                    className="w-full xs:w-auto px-3 py-2 rounded-lg border border-border-subtle bg-surface-card text-xs sm:text-sm transition-all duration-200 hover:bg-surface-field hover:border-border-hover active:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-surface-card disabled:hover:border-border-subtle"
+                    className="w-full xs:w-auto px-3 py-2 rounded-lg border border-border-subtle bg-surface-card text-xs sm:text-sm transition-all duration-200 hover:bg-surface-field hover:border-border-hover active:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-surface-card disabled:hover:border-border-subtle"
                     aria-label={`Next page, current page is ${page} of ${totalPages}`}
                   >
                     Next
