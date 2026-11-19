@@ -77,6 +77,23 @@ export const JobSchema = z.object({
   token: z.string().optional(),
   tokenSymbol: z.string().optional(),
   tokenDecimals: z.number().finite().optional(),
+  // Pause / lock state fields (#896).
+  // paused.admin: true when the platform admin called admin_pause_escrow.
+  // paused.emergency: true when both parties agreed to an emergency pause.
+  // cancelLocked: true when both parties signed a mutual cancel and the
+  //   escrow is waiting for the admin to settle.
+  pausedByAdmin: z
+    .boolean()
+    .nullish()
+    .transform((v) => v ?? undefined),
+  pausedByEmergency: z
+    .boolean()
+    .nullish()
+    .transform((v) => v ?? undefined),
+  cancelLocked: z
+    .boolean()
+    .nullish()
+    .transform((v) => v ?? undefined),
   // By-wallet summary fields shown on the dashboard rows (#638). The backend
   // may send null for unknown values, which is treated as absent.
   role: z
