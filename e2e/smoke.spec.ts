@@ -25,6 +25,24 @@ function trackErrors(page: Page) {
   return errors;
 }
 
+/** Collect CSP violation reports emitted by the browser. */
+function trackCspViolations(page: Page) {
+  const violations: string[] = [];
+  page.on("console", (msg) => {
+    // Chromium surfaces CSP violations as console errors with this prefix.
+    if (msg.type() === "error" && msg.text().includes("Content Security Policy")) {
+      violations.push(msg.text());
+    }
+  });
+  // securitypolicyviolation fires on the page when a CSP directive is violated.
+  page.on("pageerror", (err) => {
+    if (err.message.includes("Content Security Policy")) {
+      violations.push(err.message);
+    }
+  });
+  return violations;
+}
+
 const routes = [
   {
     path: "/",
@@ -57,3 +75,50 @@ test("unknown routes return a real 404", async ({ page }) => {
   const res = await page.goto("/nonsense");
   expect(res?.status()).toBe(404);
 });
+
+// ---------------------------------------------------------------------------
+// CSP enforcement checks (#890)
+// ---------------------------------------------------------------------------
+
+test("enforcing Content-Security-Policy header is present (not report-only)", async ({
+  page,
+  baseURL,
+}) => {
+  const res = await page.goto("/");
+  expect(res).not.toBeNull();
+
+  const cspEnforcing = res!.headers()["content-security-policy"];
+  const cspReportOnly = res!.headers()["content-security-policy-report-only"];
+
+  // The enforcing header must exist.
+  expect(cspEnforcing, "Content-Security-Policy header missing").toBeTruthy();
+
+  // The report-only header must NOT exist (the policy is enforced, not observed).
+  expect(
+    cspReportOnly,
+    "Content-Security-Policy-Report-Only must be absent when enforcing"
+  ).toBeFalsy();
+
+  // The policy must not contain 'unsafe-inline' for scripts.
+  expect(cspEnforcing).not.toContain("'unsafe-inline'");
+
+  // The policy must have at least one SHA-256 hash (the inline scripts allowlist).
+  expect(cspEnforcing).toContain("'sha256-");
+});
+
+for (const { path, check } of routes) {
+  test(`${path} has no CSP violations under enforcing policy`, async ({ page }) => {
+    const violations = trackCspViolations(page);
+    const res = await page.goto(path);
+    expect(res?.status()).toBe(200);
+    await page.waitForLoadState("networkidle");
+
+    // Confirm the page actually hydrated (not just the shell).
+    await check(page);
+
+    expect(
+      violations,
+      `CSP violations on ${path}: ${violations.join("; ")}`
+    ).toHaveLength(0);
+  });
+}
