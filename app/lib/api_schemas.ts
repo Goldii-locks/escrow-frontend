@@ -77,6 +77,23 @@ export const JobSchema = z.object({
   token: z.string().optional(),
   tokenSymbol: z.string().optional(),
   tokenDecimals: z.number().finite().optional(),
+  // Pause / lock state fields (#896).
+  // paused.admin: true when the platform admin called admin_pause_escrow.
+  // paused.emergency: true when both parties agreed to an emergency pause.
+  // cancelLocked: true when both parties signed a mutual cancel and the
+  //   escrow is waiting for the admin to settle.
+  pausedByAdmin: z
+    .boolean()
+    .nullish()
+    .transform((v) => v ?? undefined),
+  pausedByEmergency: z
+    .boolean()
+    .nullish()
+    .transform((v) => v ?? undefined),
+  cancelLocked: z
+    .boolean()
+    .nullish()
+    .transform((v) => v ?? undefined),
   // By-wallet summary fields shown on the dashboard rows (#638). The backend
   // may send null for unknown values, which is treated as absent.
   role: z
@@ -211,6 +228,42 @@ export const AdminResponseSchema = z.object({
 });
 
 export type AdminResponse = z.infer<typeof AdminResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Escrow state response (#895)
+// ---------------------------------------------------------------------------
+
+/**
+ * Full body of `POST /api/jobs/query` for `get_escrow_state`, reading the
+ * job sub-object so the dashboard can render milestones when the indexer is
+ * behind or unreachable.
+ *
+ * The contract returns milestones as an array of `{ index, amount, status,
+ * releasedAmount? }` objects, which matches `MilestoneSchema`. Addresses and
+ * token fields may be absent in older contract versions so they are optional.
+ */
+export const EscrowStateResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.object({
+    result: z.object({
+      admin: z.string().optional(),
+      job: z
+        .object({
+          client: z.string().optional(),
+          freelancer: z.string().optional(),
+          arbiter: z.string().optional(),
+          funded: z.boolean().optional(),
+          token: z.string().optional(),
+          tokenSymbol: z.string().optional(),
+          tokenDecimals: z.number().finite().optional(),
+          milestones: z.array(MilestoneSchema).optional(),
+        })
+        .passthrough(),
+    }),
+  }),
+});
+
+export type EscrowStateResponse = z.infer<typeof EscrowStateResponseSchema>;
 
 // ---------------------------------------------------------------------------
 // Auto-release response

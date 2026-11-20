@@ -2,8 +2,8 @@
 /**
  * LandingNav regression tests.
  *
- * LandingNav is the public marketing nav and matches design/landing-reference.html:
- * logo, network badge, four links, one CTA. The notification bell and the wallet
+ * LandingNav is the public marketing nav: logo, network badge, four links, one
+ * CTA. The notification bell and the wallet
  * controls moved to Navbar (see Navbar.test.tsx) because they belong to the
  * signed-in app, not to a marketing page. The negative assertions below exist so
  * a future merge cannot quietly put them back.

@@ -1,5 +1,5 @@
 /**
- * The Milestone mark from design/landing-reference.html. Decorative wherever
+ * The Milestone mark used as the logo icon. Decorative wherever
  * it sits next to the wordmark, so it is aria-hidden and the accessible name
  * comes from the surrounding link or text.
  */

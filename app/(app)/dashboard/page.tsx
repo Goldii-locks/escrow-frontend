@@ -14,7 +14,10 @@ import { ArbiterPanelPlaceholder } from "@/app/components/ArbiterActionPanel";
 import { getArbiterJobEmptyState } from "@/app/lib/arbiter_action_panel";
 import { useActionStates } from "@/app/hooks/useActionStates";
 import { BACKEND_URL, runContractAction, submitContractTransaction } from "@/app/lib/transactions";
+import { fetchJobStateFromContract, isIndexerStale } from "@/app/lib/contract_job_state";
 import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
+import EscrowLockBanner from "@/app/components/EscrowLockBanner";
+import { getEscrowLockState } from "@/app/lib/escrow_lock_state";
 import {
   JobListResponseSchema,
   JobDetailResponseSchema,
@@ -131,6 +134,8 @@ export default function Dashboard() {
   const [jobDetails, setJobDetails] = useState<Record<string, Job>>({});
   const [detailsLoading, setDetailsLoading] = useState<Record<string, boolean>>({});
   const [detailsError, setDetailsError] = useState<Record<string, string>>({});
+  /** Jobs whose milestone data came from the contract directly (#895). */
+  const [contractFallbackIds, setContractFallbackIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [limit] = useState(5);
   const [total, setTotal] = useState(0);
@@ -327,21 +332,60 @@ export default function Dashboard() {
         if (requestId !== detailsRequestIdRef.current) return;
 
         reportApiResponse(res, "/api/jobs/:contractId");
-        if (!res.ok) {
-          throw new Error(`Failed to load job details: HTTP ${res.status}`);
+
+        // On a non-ok response fall through to the contract fallback below
+        // rather than throwing immediately (#895).
+        let candidate: Job | null = null;
+        let usedFallback = false;
+
+        if (res.ok) {
+          const rawPayload: unknown = await res.json();
+
+          if (requestId !== detailsRequestIdRef.current) return;
+
+          const payload = validateResponse(
+            JobDetailResponseSchema,
+            rawPayload,
+            `/api/jobs/${jobId}`
+          );
+          candidate = normalizeJob(payload.data);
+
+          // If the indexer ledger is stale, prefer fresh contract state (#895).
+          if (candidate && isIndexerStale(candidate.latestLedger, undefined)) {
+            // latestLedger alone is enough signal when no currentLedger is
+            // available; treat values older than STALE_LEDGER_THRESHOLD as
+            // stale relative to the tip.  When the backend sends a
+            // currentLedger field in the future it can be threaded through here.
+            candidate = null;
+          }
         }
-        const rawPayload: unknown = await res.json();
 
-        if (requestId !== detailsRequestIdRef.current) return;
-
-        const payload = validateResponse(JobDetailResponseSchema, rawPayload, `/api/jobs/${jobId}`);
-        const candidate = normalizeJob(payload.data);
+        if (!candidate) {
+          // Backend failed or data is stale — read directly from the contract.
+          const contractJob = await fetchJobStateFromContract(jobId, {
+            signal: controller.signal,
+          });
+          if (requestId !== detailsRequestIdRef.current) return;
+          if (contractJob) {
+            candidate = contractJob;
+            usedFallback = true;
+          }
+        }
 
         if (candidate) {
-          setJobDetails((current) => ({ ...current, [jobId]: candidate }));
+          setJobDetails((current) => ({ ...current, [jobId]: candidate as Job }));
           setDetailsError((current) => {
             const next = { ...current };
             delete next[jobId];
+            return next;
+          });
+          setContractFallbackIds((prev) => {
+            const next = new Set(prev);
+            if (usedFallback) {
+              next.add(jobId);
+            } else {
+              next.delete(jobId);
+            }
             return next;
           });
           return;
@@ -525,6 +569,14 @@ export default function Dashboard() {
   const showArbiterNoDisputes =
     isArbiter && getArbiterJobEmptyState(milestoneList) === "no-disputes";
 
+  // Issue #896: derive the escrow lock state so the banner and disabled
+  // buttons can be rendered without hitting the contract again.
+  const escrowLock = getEscrowLockState({
+    pausedByAdmin: expandedJob?.pausedByAdmin,
+    pausedByEmergency: expandedJob?.pausedByEmergency,
+    cancelLocked: expandedJob?.cancelLocked,
+  });
+
   const [autoReleaseDeadlines, setAutoReleaseDeadlines] = useState<Record<number, number | null>>(
     {}
   );
@@ -588,6 +640,20 @@ export default function Dashboard() {
           startUpdatingPoll(expandedJobId);
         }
 
+        // Issue #895: confirm the new state directly from the contract first,
+        // so the milestone card reflects reality even when the indexer lags.
+        if (expandedJobId) {
+          const contractJob = await fetchJobStateFromContract(expandedJobId);
+          if (contractJob) {
+            setJobDetails((current) => ({ ...current, [expandedJobId]: contractJob }));
+            setContractFallbackIds((prev) => {
+              const next = new Set(prev);
+              next.add(expandedJobId);
+              return next;
+            });
+          }
+        }
+
         await fetchJobs();
         if (expandedJobId) {
           await fetchJobDetails(expandedJobId, true);
@@ -608,6 +674,8 @@ export default function Dashboard() {
       expandedJobId,
       fetchJobDetails,
       startUpdatingPoll,
+      setJobDetails,
+      setContractFallbackIds,
     ]
   );
 
@@ -1051,11 +1119,26 @@ export default function Dashboard() {
                                     </button>
                                   </div>
                                 )}
+                                {contractFallbackIds.has(job.id) && (
+                                  <p
+                                    data-testid="contract-fallback-banner"
+                                    className="text-xs text-amber-300 bg-amber-900/30 border border-amber-700/50 rounded px-3 py-2"
+                                    role="status"
+                                    aria-live="polite"
+                                  >
+                                    Live from the contract; history may be delayed.
+                                  </p>
+                                )}
                                 <div
                                   className="space-y-3 sm:space-y-4"
                                   role="region"
                                   aria-label="Milestones"
                                 >
+                                  {/* Issue #896: banner when escrow is paused or cancel-locked */}
+                                  <EscrowLockBanner
+                                    kind={escrowLock.kind}
+                                    message={escrowLock.message}
+                                  />
                                   {showArbiterNoDisputes && (
                                     <ArbiterPanelPlaceholder variant="no-disputes" />
                                   )}
@@ -1083,6 +1166,8 @@ export default function Dashboard() {
                                         onMarkDelivered={handleMarkDelivered}
                                         onApprove={handleApprove}
                                         onDispute={handleDispute}
+                                        escrowLocked={escrowLock.actionsDisabled}
+                                        lockTooltip={escrowLock.tooltip}
                                       />
                                     ))
                                   ) : (
