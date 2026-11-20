@@ -532,9 +532,7 @@ describe("useCreateJobForm — isSubmitDisabled", () => {
 });
 
 describe("useCreateJobForm — handleSubmit", () => {
-  function setupValidForm(
-    result: ReturnType<typeof renderHook<ReturnType<typeof useCreateJobForm>>>["result"]
-  ) {
+  function setupValidForm(result: { current: ReturnType<typeof useCreateJobForm> }) {
     mockTokenCheckReturn.listed = true;
     mockTokenCheckReturn.status = {
       token: FULL_DRAFT.token,
