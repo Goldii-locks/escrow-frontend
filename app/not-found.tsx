@@ -33,16 +33,10 @@ export default function NotFound() {
           </div>
 
           <div className="space-y-3">
-            <p
-              className="text-6xl font-bold text-accent-soft tabular-nums"
-              aria-hidden="true"
-            >
+            <p className="text-6xl font-bold text-accent-soft tabular-nums" aria-hidden="true">
               404
             </p>
-            <h1
-              id="not-found-heading"
-              className="text-2xl font-bold text-text-primary"
-            >
+            <h1 id="not-found-heading" className="text-2xl font-bold text-text-primary">
               Page not found
             </h1>
             <p className="text-text-secondary text-sm max-w-sm mx-auto">
