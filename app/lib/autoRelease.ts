@@ -23,15 +23,13 @@ function toEpochMs(value: number | string): number | null {
 }
 
 /**
- * Fetch auto-release deadlines for all delivered milestones in one request.
+ * Fetch auto-release deadlines for all delivered milestones.
  *
- * Endpoint: GET `${BACKEND_URL}/api/jobs/:jobId/deadlines`
- * Expected response shape:
- *   { success: true, data: { deadlines: { [milestoneIndex: number]: number | null } } }
- *
- * Falls back to the individual per-milestone endpoint if the batch endpoint
- * returns a non-OK status, so the UI degrades gracefully when the backend
- * hasn't deployed the new route yet.
+ * Issues one GET `/api/jobs/:jobId/milestones/:index/auto-release` request per
+ * delivered milestone index. The former batch endpoint
+ * (`/api/jobs/:jobId/deadlines`) never existed on the backend and caused a
+ * guaranteed 404 on every job view, burning rate-limit quota. It has been
+ * removed (issue #872).
  *
  * Returns a map of milestoneIndex → deadlineMs (or null).
  */
@@ -42,40 +40,6 @@ export async function fetchAllAutoReleaseDeadlines(
 ): Promise<Record<number, number | null>> {
   if (milestoneIndexes.length === 0) return {};
 
-  // Try the batch endpoint first (one request for all milestones).
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/jobs/${encodeURIComponent(jobId)}/deadlines`, {
-      signal: options?.signal,
-    });
-
-    if (res.ok) {
-      interface BatchResponse {
-        success?: boolean;
-        data?: { deadlines?: Record<string, number | string | null> };
-        error?: string;
-      }
-      const body = (await res.json()) as BatchResponse;
-      const rawDeadlines = body.data?.deadlines ?? {};
-      const result: Record<number, number | null> = {};
-
-      for (const index of milestoneIndexes) {
-        const raw = rawDeadlines[String(index)];
-        if (raw === null || raw === undefined) {
-          result[index] = null;
-        } else {
-          result[index] = toEpochMs(raw as number | string);
-        }
-      }
-
-      return result;
-    }
-  } catch {
-    // Fall through to individual fetches on network or parse error.
-    if (options?.signal?.aborted) return {};
-  }
-
-  // Fallback: fetch each milestone individually (original N+1 behaviour).
-  // This keeps the app working if the backend hasn't shipped the batch route.
   const entries = await Promise.all(
     milestoneIndexes.map(async (index) => {
       const info = await fetchAutoReleaseInfo(jobId, index, options);
