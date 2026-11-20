@@ -77,8 +77,7 @@ const LOCK_MESSAGES: Record<EscrowLockKind, { message: string; tooltip: string }
     tooltip: "This escrow is emergency-paused.",
   },
   cancel_locked: {
-    message:
-      "Cancellation agreed by both parties. Waiting for the admin to settle the escrow.",
+    message: "Cancellation agreed by both parties. Waiting for the admin to settle the escrow.",
     tooltip: "This escrow is cancel-locked. No actions are available.",
   },
 };
