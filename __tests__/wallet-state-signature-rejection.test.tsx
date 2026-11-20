@@ -6,6 +6,10 @@ import { WalletProvider, useWallet } from "@/app/context/WalletContext";
 import { WalletRejectedError } from "@/app/lib/errors";
 import { submitContractTransaction } from "@/app/lib/transactions";
 
+// These tests use placeholder XDR strings; decoding and matching the prepared
+// transaction is covered in tx-verification.test.ts (#889).
+vi.mock("@/app/lib/tx_verification", () => ({ verifyPreparedTransaction: vi.fn() }));
+
 const walletKitMocks = vi.hoisted(() => ({
   authModal: vi.fn(),
   disconnect: vi.fn(),

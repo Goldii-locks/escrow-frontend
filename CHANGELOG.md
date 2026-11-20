@@ -12,10 +12,15 @@ Production deploys to milestonepay.app are recorded under dated headings.
 - Recover stray tokens from an escrow with "Recover excess funds" (#898)
 - Approve several delivered milestones in one transaction (#899)
 - Arbiter fee and payout shown before a dispute is resolved (#900)
+- "Needs your action" list at the top of the dashboard, sorted by deadline (#888)
 
 ### Changed
 
+- Transactions prepared by the backend are checked against the requested call before the wallet is asked to sign (#889)
+
 ### Fixed
+
+- The job activity timeline refreshes after an action and when the dashboard poll sees new activity (#892)
 
 ### Removed
 

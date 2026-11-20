@@ -26,6 +26,16 @@ jobs:
         # reason in .audit-allowlist.json.
         run: node scripts/audit-gate.mjs
 
+      - name: Check generated tokens are up to date
+        # app/lib/generated_tokens.ts is derived from the @theme block in
+        # app/globals.css. Regenerate it and fail if the committed copy differs.
+        run: |
+          npm run generate-tokens
+          if ! git diff --exit-code app/lib/generated_tokens.ts; then
+            echo "::error file=app/lib/generated_tokens.ts::generated_tokens.ts is out of date with app/globals.css. Run 'npm run generate-tokens' and commit the result."
+            exit 1
+          fi
+
       - name: Format check
         run: npm run format:check
 

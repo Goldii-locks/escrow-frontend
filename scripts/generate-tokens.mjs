@@ -78,8 +78,12 @@ const lines = [
   "export const THEME_TOKENS = {",
 ];
 
+// Quote keys only when they aren't valid identifiers, matching Prettier's
+// "as-needed" quote-props so the committed file stays format-check clean and
+// CI can diff a fresh run against it.
 for (const [name, value] of tokens) {
-  lines.push(`  "${name}": "${value}",`);
+  const key = /^[A-Za-z_$][\w$]*$/.test(name) ? name : `"${name}"`;
+  lines.push(`  ${key}: "${value}",`);
 }
 
 lines.push("} as const;");

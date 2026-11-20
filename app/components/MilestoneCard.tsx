@@ -9,6 +9,7 @@ import DisputeRaiseModal from "@/app/components/DisputeRaiseModal";
 import ArbiterActionPanel from "@/app/components/ArbiterActionPanel";
 import { formatBaseUnits } from "@/app/lib/amounts";
 import { getClaimEligibility, CLAIM_UNKNOWN_DEADLINE_NOTE } from "@/app/lib/claimEligibility";
+import { canApprove, canMarkDelivered, canResolveDispute } from "@/app/lib/milestone_actions";
 import ReleaseConfirmModal from "@/app/components/ReleaseConfirmModal";
 import { formatFeeBps, getArbiterResolutionBreakdown } from "@/app/lib/arbiter_fee";
 
@@ -518,7 +519,7 @@ export default function MilestoneCard({
             )}
           </div>
 
-          {isFreelancer && milestone.status === "Pending" && (
+          {canMarkDelivered(milestone, isFreelancer) && (
             <button
               onClick={() => onMarkDelivered?.(milestone.index)}
               disabled={!onMarkDelivered || escrowLocked}
@@ -531,7 +532,7 @@ export default function MilestoneCard({
             </button>
           )}
 
-          {isClient && milestone.status === "Delivered" && (
+          {canApprove(milestone, isClient) && (
             <button
               onClick={() => {
                 setPendingRelease({ kind: "approve", index: milestone.index });
@@ -586,7 +587,7 @@ export default function MilestoneCard({
       </div>
 
       {/* Arbiter resolution panel — full-width row beneath the card summary */}
-      {isArbiter && milestone.status === "Disputed" && (
+      {canResolveDispute(milestone, !!isArbiter) && (
         <ArbiterActionPanel
           milestoneIndex={milestone.index}
           displayAmount={`${displayAmount} ${amountSymbol}`}
