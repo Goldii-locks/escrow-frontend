@@ -39,10 +39,8 @@ function errorResponse(status = 404): Response {
 // ---------------------------------------------------------------------------
 
 describe("Issue #872 – /deadlines endpoint removed", () => {
-  let fetchSpy: ReturnType<typeof vi.spyOn>;
-
   beforeEach(() => {
-    fetchSpy = vi.spyOn(globalThis, "fetch");
+    vi.spyOn(globalThis, "fetch");
   });
 
   afterEach(() => {
@@ -53,36 +51,43 @@ describe("Issue #872 – /deadlines endpoint removed", () => {
   // 1. No request to /deadlines is ever made
   // -------------------------------------------------------------------------
   it("never requests a URL containing /deadlines", async () => {
-    fetchSpy.mockResolvedValue(okMilestoneResponse(1700000000));
+    vi.mocked(fetch).mockResolvedValue(okMilestoneResponse(1700000000));
 
     await fetchAllAutoReleaseDeadlines("job-1", [0, 1, 2]);
 
-    for (const call of fetchSpy.mock.calls) {
-      expect(String(call[0])).not.toMatch(/\/deadlines/);
-    }
+    // /deadlines was never the first argument of any call.
+    expect(fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining("/deadlines"),
+      expect.anything()
+    );
   });
 
   // -------------------------------------------------------------------------
   // 2. Exact request count for 3 delivered milestones = 3
   // -------------------------------------------------------------------------
   it("makes exactly 3 requests for a job with 3 delivered milestones", async () => {
-    fetchSpy
+    vi.mocked(fetch)
       .mockResolvedValueOnce(okMilestoneResponse(1700000001))
       .mockResolvedValueOnce(okMilestoneResponse(1700000002))
       .mockResolvedValueOnce(okMilestoneResponse(1700000003));
 
     const result = await fetchAllAutoReleaseDeadlines("job-2", [0, 1, 2]);
 
-    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    // Exactly 3 requests – one per milestone index.
+    expect(fetch).toHaveBeenCalledTimes(3);
 
     // Each call targets the correct per-milestone URL.
-    const urls = fetchSpy.mock.calls.map((c) => String(c[0]));
-    expect(urls).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining("/milestones/0/auto-release"),
-        expect.stringContaining("/milestones/1/auto-release"),
-        expect.stringContaining("/milestones/2/auto-release"),
-      ])
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/milestones/0/auto-release"),
+      expect.anything()
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/milestones/1/auto-release"),
+      expect.anything()
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/milestones/2/auto-release"),
+      expect.anything()
     );
 
     // Deadlines are populated (10-digit epoch seconds → converted to ms).
@@ -95,28 +100,22 @@ describe("Issue #872 – /deadlines endpoint removed", () => {
   // 3. Per-milestone request failure → deadlineMs null, other milestones ok
   // -------------------------------------------------------------------------
   it("sets deadlineMs to null for a failed per-milestone request and keeps successful ones", async () => {
-    fetchSpy
-      // index 0: success
+    vi.mocked(fetch)
       .mockResolvedValueOnce(okMilestoneResponse(1700000010))
-      // index 1: non-OK (simulates backend error)
       .mockResolvedValueOnce(errorResponse(404))
-      // index 2: success
       .mockResolvedValueOnce(okMilestoneResponse(1700000030));
 
     const result = await fetchAllAutoReleaseDeadlines("job-3", [0, 1, 2]);
 
-    expect(fetchSpy).toHaveBeenCalledTimes(3);
-
-    // Successful milestones have a deadline.
+    expect(fetch).toHaveBeenCalledTimes(3);
     expect(result[0]).toBe(1700000010 * 1000);
     expect(result[2]).toBe(1700000030 * 1000);
-
     // Failed milestone resolves to null, not an exception.
     expect(result[1]).toBeNull();
   });
 
   it("sets deadlineMs to null when a per-milestone request throws (network error)", async () => {
-    fetchSpy
+    vi.mocked(fetch)
       .mockResolvedValueOnce(okMilestoneResponse(1700000010))
       .mockRejectedValueOnce(new TypeError("Failed to fetch"))
       .mockResolvedValueOnce(okMilestoneResponse(1700000030));
@@ -134,7 +133,7 @@ describe("Issue #872 – /deadlines endpoint removed", () => {
   it("makes zero requests when milestoneIndexes is empty", async () => {
     const result = await fetchAllAutoReleaseDeadlines("job-5", []);
 
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
     expect(result).toEqual({});
   });
 });
