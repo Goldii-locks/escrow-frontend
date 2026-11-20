@@ -123,3 +123,17 @@ for (const { path, check } of routes) {
     expect(violations, `CSP violations on ${path}: ${violations.join("; ")}`).toHaveLength(0);
   });
 }
+
+test("/nonsense shows the branded 404 page", async ({ page }) => {
+  await page.goto("/nonsense");
+  await page.waitForLoadState("networkidle");
+  // Branded heading and copy
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Page not found");
+  await expect(page.getByText("404")).toBeVisible();
+  // Navigation links
+  await expect(page.getByRole("link", { name: "Go to dashboard" })).toHaveAttribute(
+    "href",
+    "/dashboard"
+  );
+  await expect(page.getByRole("link", { name: "Go to home" })).toHaveAttribute("href", "/");
+});
