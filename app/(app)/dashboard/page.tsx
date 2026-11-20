@@ -9,7 +9,10 @@ import CopyButton from "@/app/components/CopyButton";
 import LoadingSkeleton from "@/app/components/LoadingSkeleton";
 import EmptyStateCard from "@/app/components/EmptyStateCard";
 import JobActivityTimeline from "@/app/components/JobActivityTimeline";
+import NeedsActionPanel from "@/app/components/NeedsActionPanel";
 import DisputeRaiseModal from "@/app/components/DisputeRaiseModal";
+import BatchApproveModal from "@/app/components/BatchApproveModal";
+import RecoverExcessFunds from "@/app/components/RecoverExcessFunds";
 import { ArbiterPanelPlaceholder } from "@/app/components/ArbiterActionPanel";
 import { getArbiterJobEmptyState } from "@/app/lib/arbiter_action_panel";
 import { useActionStates } from "@/app/hooks/useActionStates";
@@ -21,10 +24,10 @@ import { getEscrowLockState } from "@/app/lib/escrow_lock_state";
 import {
   JobListResponseSchema,
   JobDetailResponseSchema,
-  JobSchema,
   validateResponse,
   type Job,
 } from "@/app/lib/api_schemas";
+import { normalizeJob, parsePageResponse } from "@/app/lib/job_list_response";
 import { reportApiResponse } from "@/app/lib/errorReporter";
 import {
   formatLatestActivity,
@@ -37,6 +40,21 @@ import {
   shortAddress,
 } from "@/app/lib/job_list_summary";
 import { hashDisputeReason } from "@/app/lib/dispute_reason";
+import { canFund } from "@/app/lib/milestone_actions";
+import { fetchArbiterFeeBps } from "@/app/lib/arbiter_fee";
+import {
+  MAX_BATCH_APPROVALS,
+  buildApproveMilestonesArgs,
+  getBatchApprovalTotal,
+  pruneBatchSelection,
+  shouldOfferBatchApproval,
+  toggleBatchSelection,
+  validateBatchSelection,
+} from "@/app/lib/batch_approval";
+import { buildSweepExcessArgs } from "@/app/lib/sweep_excess";
+
+/** Action key for the batch `approve_milestones` transaction (#899). */
+const BATCH_APPROVE_KEY = "approve-batch";
 
 type RoleFilter = "all" | "client" | "freelancer" | "arbiter";
 
@@ -52,83 +70,6 @@ type RoleFilter = "all" | "client" | "freelancer" | "arbiter";
  */
 function actionKey(jobId: string, kind: string, index?: number): string {
   return index === undefined ? `${jobId}:${kind}` : `${jobId}:${kind}:${index}`;
-}
-
-/**
- * Normalises raw (unknown-typed) data from the backend into a `Job`.
- * Uses Zod's `safeParse` so that a bad shape never silently produces
- * empty data — it returns `null` so the caller can show an error or fall
- * back gracefully.
- */
-/** snake_case fields the by-wallet summary sends, mapped to the Job schema (#638). */
-const SUMMARY_FIELD_ALIASES: Record<string, string> = {
-  contract_id: "id",
-  milestone_count: "milestoneCount",
-  released_count: "releasedCount",
-  latest_event_type: "latestEventType",
-  latest_event_at: "latestEventAt",
-  latest_ledger: "latestLedger",
-};
-
-function normalizeJob(item: unknown): Job | null {
-  let input = item;
-  if (typeof item === "object" && item !== null && !Array.isArray(item)) {
-    const mapped: Record<string, unknown> = { ...(item as Record<string, unknown>) };
-    for (const [from, to] of Object.entries(SUMMARY_FIELD_ALIASES)) {
-      if (mapped[to] === undefined && mapped[from] !== undefined) mapped[to] = mapped[from];
-    }
-    input = mapped;
-  }
-  const result = JobSchema.safeParse(input);
-  return result.success ? result.data : null;
-}
-
-function parsePageResponse(payload: ReturnType<typeof JobListResponseSchema.parse>): {
-  jobs: Job[];
-  page: number;
-  limit: number;
-  total: number;
-} {
-  const fallback = { jobs: [] as Job[], page: 1, limit: 5, total: 0 };
-
-  if (!payload || payload.success === false) {
-    return fallback;
-  }
-
-  let rows: unknown[] = [];
-  let page = payload.page ?? payload.pagination?.page ?? 1;
-  let limit = payload.limit ?? payload.pagination?.limit ?? 5;
-  let total = payload.total ?? payload.totalItems ?? payload.pagination?.total ?? 0;
-
-  if (Array.isArray(payload.data)) {
-    rows = payload.data;
-  } else if (payload.data && typeof payload.data === "object") {
-    const embedded = payload.data as Record<string, unknown>;
-    if (Array.isArray(embedded.jobs)) {
-      rows = embedded.jobs;
-    } else if (Array.isArray(embedded.items)) {
-      rows = embedded.items;
-    } else if (typeof embedded.id === "string") {
-      rows = [embedded];
-      page = 1;
-      limit = 1;
-      total = 1;
-    }
-
-    if (typeof embedded.page === "number") page = embedded.page;
-    if (typeof embedded.limit === "number") limit = embedded.limit;
-    if (typeof embedded.total === "number") total = embedded.total;
-    if (typeof embedded.totalItems === "number") total = embedded.totalItems;
-  }
-
-  const jobs = rows.map(normalizeJob).filter((job): job is Job => job !== null);
-
-  return {
-    jobs,
-    page,
-    limit,
-    total: total || jobs.length,
-  };
 }
 
 const roleFilterLabels: Array<{ id: RoleFilter; label: string }> = [
@@ -158,6 +99,26 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
   const [disputeMilestoneIndex, setDisputeMilestoneIndex] = useState<number | null>(null);
+  /** Delivered milestones selected for batch approval, keyed by job (#899). */
+  const [batchSelection, setBatchSelection] = useState<{ jobId: string | null; indices: number[] }>(
+    { jobId: null, indices: [] }
+  );
+  const [batchModalOpen, setBatchModalOpen] = useState(false);
+  /** Arbiter fee (bps) per job; null = unreadable, absent = not read yet (#900). */
+  const [arbiterFeeBps, setArbiterFeeBps] = useState<Record<string, number | null>>({});
+  /**
+   * #888: a job opened from "Needs your action" that isn't on the current
+   * list page is shown at the top of the list until the user moves on.
+   */
+  const [pinnedJob, setPinnedJob] = useState<Job | null>(null);
+  const pinnedJobIdRef = useRef<string | null>(null);
+  /** Job and milestone to scroll to and highlight after opening from the panel. */
+  const [focusTarget, setFocusTarget] = useState<{
+    jobId: string;
+    milestoneIndex: number | null;
+    nonce: number;
+  } | null>(null);
+  const lastFocusNonceRef = useRef<number | null>(null);
 
   const { getState, isPending, setPhase, setError: setActionError, setTxHash } = useActionStates();
 
@@ -209,6 +170,12 @@ export default function Dashboard() {
   }, [jobs, searchQuery]);
 
   const isFiltering = searchQuery.trim().length > 0;
+
+  /** The list as rendered: the filtered page, plus a job pinned from the panel. */
+  const displayedJobs = useMemo(() => {
+    if (!pinnedJob || filteredJobs.some((job) => job.id === pinnedJob.id)) return filteredJobs;
+    return [pinnedJob, ...filteredJobs];
+  }, [filteredJobs, pinnedJob]);
 
   const fetchJobs = useCallback(async () => {
     if (!address) {
@@ -304,6 +271,8 @@ export default function Dashboard() {
         if (previous && parsed.jobs.some((job) => job.id === previous)) {
           return previous;
         }
+        // Keep a job opened from "Needs your action" open across polls.
+        if (previous && previous === pinnedJobIdRef.current) return previous;
         return parsed.jobs[0].id;
       });
     } catch (err: unknown) {
@@ -575,6 +544,62 @@ export default function Dashboard() {
   const expandedJob = expandedJobId ? (jobDetails[expandedJobId] ?? null) : null;
   const milestoneList = Array.isArray(expandedJob?.milestones) ? expandedJob.milestones : [];
 
+  // Refetch the activity timeline whenever the job changes: a new ledger in
+  // the list summary, or a new funded/milestone state from the detail (#892).
+  const expandedSummary = expandedJobId ? jobs.find((job) => job.id === expandedJobId) : undefined;
+  const timelineRefreshKey = [
+    expandedSummary?.latestLedger ?? expandedJob?.latestLedger ?? "",
+    expandedJob?.funded ? 1 : 0,
+    milestoneList.map((m) => `${m.status}:${m.releasedAmount ?? ""}`).join(","),
+  ].join("|");
+
+  // Reload "Needs your action" when the poll or an action changes any job.
+  const needsActionRefreshKey = [
+    jobs.map((job) => `${job.id}:${job.latestLedger ?? ""}:${job.releasedCount ?? ""}`).join(","),
+    expandedJobId ?? "",
+    timelineRefreshKey,
+  ].join("|");
+
+  /** Opens the job and milestone a "Needs your action" row points at (#888). */
+  const handleNeedsActionSelect = useCallback(
+    (job: Job, milestoneIndex: number | null) => {
+      const onPage = jobs.some((j) => j.id === job.id);
+      pinnedJobIdRef.current = onPage ? null : job.id;
+      setPinnedJob(onPage ? null : job);
+      // The panel already loaded this job's details; show them straight away.
+      setJobDetails((current) => (current[job.id] ? current : { ...current, [job.id]: job }));
+      setExpandedJobId(job.id);
+      setFocusTarget({ jobId: job.id, milestoneIndex, nonce: Date.now() });
+      void fetchJobDetails(job.id, true);
+    },
+    [jobs, fetchJobDetails]
+  );
+
+  /** Expanding or collapsing a row by hand drops any panel pin and highlight. */
+  const handleToggleJob = (jobId: string, isExpanded: boolean) => {
+    setExpandedJobId(isExpanded ? null : jobId);
+    if (pinnedJobIdRef.current && (isExpanded || jobId !== pinnedJobIdRef.current)) {
+      pinnedJobIdRef.current = null;
+      setPinnedJob(null);
+    }
+    setFocusTarget(null);
+  };
+
+  // Scroll the targeted milestone (or the job) into view once it renders.
+  useEffect(() => {
+    if (!focusTarget || expandedJob?.id !== focusTarget.jobId) return;
+    if (lastFocusNonceRef.current === focusTarget.nonce) return;
+    const id =
+      focusTarget.milestoneIndex === null
+        ? `job-details-${focusTarget.jobId}`
+        : `milestone-${focusTarget.jobId}-${focusTarget.milestoneIndex}`;
+    const element = document.getElementById(id);
+    if (!element) return;
+    lastFocusNonceRef.current = focusTarget.nonce;
+    element.scrollIntoView?.({ behavior: "smooth", block: "center" });
+    element.focus?.({ preventScroll: true });
+  }, [focusTarget, expandedJob]);
+
   const isClient = !!(expandedJob && address === expandedJob.client);
   const isFreelancer = !!(expandedJob && address === expandedJob.freelancer);
   const isArbiter = !!(expandedJob && address === expandedJob.arbiter);
@@ -590,6 +615,43 @@ export default function Dashboard() {
     pausedByEmergency: expandedJob?.pausedByEmergency,
     cancelLocked: expandedJob?.cancelLocked,
   });
+
+  // Batch approval (#899): the selection belongs to the expanded job and only
+  // ever holds milestones that are still Delivered.
+  const offerBatchApproval = isClient && shouldOfferBatchApproval(milestoneList);
+  const selectedForBatch =
+    offerBatchApproval && batchSelection.jobId === expandedJobId
+      ? pruneBatchSelection(batchSelection.indices, milestoneList)
+      : [];
+  const batchTotal = getBatchApprovalTotal(selectedForBatch, milestoneList);
+
+  const handleBatchSelectChange = useCallback(
+    (index: number, selected: boolean) => {
+      setBatchSelection((current) => {
+        const base = current.jobId === expandedJobId ? current.indices : [];
+        return { jobId: expandedJobId, indices: toggleBatchSelection(base, index, selected) };
+      });
+    },
+    [expandedJobId]
+  );
+
+  // Arbiter fee (#900): read once per job that has a disputed milestone, so
+  // the arbiter and both parties see the split before resolution.
+  const expandedJobHasDispute = milestoneList.some((m) => m.status === "Disputed");
+  const expandedJobFeeBps =
+    expandedJobId && expandedJobId in arbiterFeeBps ? arbiterFeeBps[expandedJobId] : undefined;
+
+  useEffect(() => {
+    if (!expandedJobId || !expandedJobHasDispute || expandedJobId in arbiterFeeBps) return;
+    let active = true;
+    const jobId = expandedJobId;
+    void fetchArbiterFeeBps(jobId).then((bps) => {
+      if (active) setArbiterFeeBps((current) => ({ ...current, [jobId]: bps }));
+    });
+    return () => {
+      active = false;
+    };
+  }, [expandedJobId, expandedJobHasDispute, arbiterFeeBps]);
 
   const [autoReleaseDeadlines, setAutoReleaseDeadlines] = useState<Record<number, number | null>>(
     {}
@@ -738,6 +800,26 @@ export default function Dashboard() {
     ]);
   };
 
+  const handleBatchApprove = async () => {
+    if (!address || validateBatchSelection(selectedForBatch) !== null) return;
+
+    const txHash = await executeTx(
+      BATCH_APPROVE_KEY,
+      "approve_milestones",
+      buildApproveMilestonesArgs(address, selectedForBatch)
+    );
+    if (txHash !== null) {
+      setBatchModalOpen(false);
+      setBatchSelection({ jobId: null, indices: [] });
+    }
+  };
+
+  const handleSweepExcess = async (token: string) => {
+    if (!address) return null;
+
+    return executeTx(`sweep-${token}`, "sweep_excess", buildSweepExcessArgs(address, token));
+  };
+
   const handleDispute = (i: number) => {
     setDisputeMilestoneIndex(i);
     setDisputeModalOpen(true);
@@ -818,6 +900,14 @@ export default function Dashboard() {
           </EmptyStateCard>
         ) : (
           <div className="space-y-4 sm:space-y-6">
+            {(jobs.length > 0 || pinnedJob) && (
+              <NeedsActionPanel
+                address={address}
+                refreshKey={needsActionRefreshKey}
+                onSelect={handleNeedsActionSelect}
+              />
+            )}
+
             <form onSubmit={handleSearch} className="flex flex-col gap-2 sm:gap-3">
               <label htmlFor="search-input" className="sr-only">
                 Search by contract or job ID
@@ -896,7 +986,7 @@ export default function Dashboard() {
                   </button>
                 }
               />
-            ) : jobs.length === 0 ? (
+            ) : jobs.length === 0 && !pinnedJob ? (
               <EmptyStateCard
                 testId="dashboard-empty-state"
                 ariaLabel="No jobs"
@@ -905,7 +995,7 @@ export default function Dashboard() {
                 icon="briefcase"
                 badges={["Client", "Freelancer", "Arbiter"]}
               />
-            ) : filteredJobs.length === 0 ? (
+            ) : displayedJobs.length === 0 ? (
               <EmptyStateCard
                 testId="dashboard-filter-empty-state"
                 ariaLabel="No matching jobs"
@@ -930,7 +1020,7 @@ export default function Dashboard() {
                   role="region"
                   aria-label="Jobs list"
                 >
-                  {filteredJobs.map((job) => {
+                  {displayedJobs.map((job) => {
                     const isExpanded = expandedJobId === job.id;
                     const isUpdating = updatingJobIds.has(job.id);
                     const roles = getJobRoles(job, address);
@@ -948,7 +1038,7 @@ export default function Dashboard() {
                       >
                         <button
                           type="button"
-                          onClick={() => setExpandedJobId(isExpanded ? null : job.id)}
+                          onClick={() => handleToggleJob(job.id, isExpanded)}
                           className="w-full text-left px-3 sm:px-5 py-3 sm:py-4 hover:bg-surface-field/50 transition-all duration-200 active:scale-[0.99] active:bg-surface-field/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-soft"
                           aria-expanded={isExpanded}
                           aria-label={`Job #${job.id.slice(0, 8)}, ${job.funded ? "Funded" : "Not funded"}, ${isExpanded ? "collapse details" : "expand details"}`}
@@ -1012,6 +1102,7 @@ export default function Dashboard() {
                           <div
                             data-testid="dashboard-expanded-panel"
                             id={`job-details-${job.id}`}
+                            tabIndex={-1}
                             className="px-3 sm:px-5 pb-3 sm:pb-5 space-y-3 sm:space-y-4 border-t border-border-strong/50 animate-fade-in"
                             role="region"
                             aria-label={`Details for job #${job.id.slice(0, 8)}`}
@@ -1111,7 +1202,7 @@ export default function Dashboard() {
                                   </div>
                                 </div>
 
-                                {isClient && !expandedJob.funded && (
+                                {canFund(expandedJob, isClient) && (
                                   <div className="bg-amber-950/40 border border-amber-600/50 rounded-lg p-3 sm:p-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                     <div>
                                       <p className="text-amber-300 font-semibold text-sm">
@@ -1144,6 +1235,36 @@ export default function Dashboard() {
                                     Live from the contract; history may be delayed.
                                   </p>
                                 )}
+                                {offerBatchApproval && (
+                                  <div
+                                    data-testid="batch-approve-bar"
+                                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border border-border-subtle bg-surface-field px-3 py-2"
+                                  >
+                                    <p className="text-xs text-text-muted" aria-live="polite">
+                                      {selectedForBatch.length === 0
+                                        ? `Select delivered milestones to approve them in one transaction (up to ${MAX_BATCH_APPROVALS}).`
+                                        : `${selectedForBatch.length} selected`}
+                                    </p>
+                                    <button
+                                      type="button"
+                                      data-testid="batch-approve-button"
+                                      onClick={() => setBatchModalOpen(true)}
+                                      disabled={
+                                        selectedForBatch.length === 0 ||
+                                        isPending(BATCH_APPROVE_KEY) ||
+                                        escrowLock.actionsDisabled
+                                      }
+                                      title={
+                                        escrowLock.actionsDisabled ? escrowLock.tooltip : undefined
+                                      }
+                                      className="text-xs px-3 py-1.5 rounded-lg bg-success text-surface-page font-medium hover:bg-success/80 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success-soft disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                      {isPending(BATCH_APPROVE_KEY)
+                                        ? "Approving…"
+                                        : `Approve selected${selectedForBatch.length > 0 ? ` (${selectedForBatch.length})` : ""}`}
+                                    </button>
+                                  </div>
+                                )}
                                 <div
                                   className="space-y-3 sm:space-y-4"
                                   role="region"
@@ -1159,43 +1280,74 @@ export default function Dashboard() {
                                   )}
                                   {milestoneList.length > 0 ? (
                                     milestoneList.map((m) => (
-                                      <MilestoneCard
+                                      <div
                                         key={`${expandedJob.id}-${m.index}`}
-                                        milestone={m}
-                                        isClient={isClient}
-                                        isFreelancer={isFreelancer}
-                                        isArbiter={isArbiter}
-                                        amountDecimals={expandedJob.tokenDecimals ?? 7}
-                                        amountSymbol={expandedJob.tokenSymbol ?? "XLM"}
-                                        freelancerAddress={expandedJob.freelancer}
-                                        resolveDisputeState={getState(
-                                          actionKey(expandedJob.id, "resolve", m.index)
-                                        )}
-                                        isResolveDisputePending={isPending(
-                                          actionKey(expandedJob.id, "resolve", m.index)
-                                        )}
-                                        onResolveDispute={handleResolveDispute}
-                                        partialReleaseState={getState(
-                                          actionKey(expandedJob.id, "partial", m.index)
-                                        )}
-                                        claimAutoReleaseState={getState(
-                                          actionKey(expandedJob.id, "claim", m.index)
-                                        )}
-                                        isPartialReleasePending={isPending(
-                                          actionKey(expandedJob.id, "partial", m.index)
-                                        )}
-                                        isClaimAutoReleasePending={isPending(
-                                          actionKey(expandedJob.id, "claim", m.index)
-                                        )}
-                                        autoReleaseDeadline={autoReleaseDeadlines[m.index] ?? null}
-                                        onPartialRelease={handlePartialRelease}
-                                        onClaimAutoRelease={handleClaimAutoRelease}
-                                        onMarkDelivered={handleMarkDelivered}
-                                        onApprove={handleApprove}
-                                        onDispute={handleDispute}
-                                        escrowLocked={escrowLock.actionsDisabled}
-                                        lockTooltip={escrowLock.tooltip}
-                                      />
+                                        id={`milestone-${expandedJob.id}-${m.index}`}
+                                        tabIndex={-1}
+                                        data-testid="milestone-focus-target"
+                                        data-focused={
+                                          focusTarget?.jobId === expandedJob.id &&
+                                          focusTarget.milestoneIndex === m.index
+                                            ? "true"
+                                            : undefined
+                                        }
+                                        className={
+                                          focusTarget?.jobId === expandedJob.id &&
+                                          focusTarget.milestoneIndex === m.index
+                                            ? "rounded-lg ring-2 ring-accent-soft ring-offset-2 ring-offset-surface-page focus:outline-none"
+                                            : "focus:outline-none"
+                                        }
+                                      >
+                                        <MilestoneCard
+                                          milestone={m}
+                                          isClient={isClient}
+                                          isFreelancer={isFreelancer}
+                                          isArbiter={isArbiter}
+                                          amountDecimals={expandedJob.tokenDecimals ?? 7}
+                                          amountSymbol={expandedJob.tokenSymbol ?? "XLM"}
+                                          freelancerAddress={expandedJob.freelancer}
+                                          resolveDisputeState={getState(
+                                            actionKey(expandedJob.id, "resolve", m.index)
+                                          )}
+                                          isResolveDisputePending={isPending(
+                                            actionKey(expandedJob.id, "resolve", m.index)
+                                          )}
+                                          onResolveDispute={handleResolveDispute}
+                                          partialReleaseState={getState(
+                                            actionKey(expandedJob.id, "partial", m.index)
+                                          )}
+                                          claimAutoReleaseState={getState(
+                                            actionKey(expandedJob.id, "claim", m.index)
+                                          )}
+                                          isPartialReleasePending={isPending(
+                                            actionKey(expandedJob.id, "partial", m.index)
+                                          )}
+                                          isClaimAutoReleasePending={isPending(
+                                            actionKey(expandedJob.id, "claim", m.index)
+                                          )}
+                                          autoReleaseDeadline={
+                                            autoReleaseDeadlines[m.index] ?? null
+                                          }
+                                          onPartialRelease={handlePartialRelease}
+                                          onClaimAutoRelease={handleClaimAutoRelease}
+                                          onMarkDelivered={handleMarkDelivered}
+                                          onApprove={handleApprove}
+                                          onDispute={handleDispute}
+                                          escrowLocked={escrowLock.actionsDisabled}
+                                          lockTooltip={escrowLock.tooltip}
+                                          arbiterFeeBps={
+                                            expandedJobHasDispute
+                                              ? (expandedJobFeeBps ?? null)
+                                              : undefined
+                                          }
+                                          isArbiterFeeLoading={
+                                            expandedJobHasDispute && expandedJobFeeBps === undefined
+                                          }
+                                          selectable={offerBatchApproval}
+                                          selected={selectedForBatch.includes(m.index)}
+                                          onSelectChange={handleBatchSelectChange}
+                                        />
+                                      </div>
                                     ))
                                   ) : (
                                     <MilestoneCard
@@ -1210,7 +1362,24 @@ export default function Dashboard() {
                                   )}
                                 </div>
 
-                                <JobActivityTimeline contractId={expandedJob.id} />
+                                {isClient && (
+                                  <RecoverExcessFunds
+                                    contractId={expandedJob.id}
+                                    clientAddress={address}
+                                    jobToken={expandedJob.token ?? null}
+                                    jobTokenSymbol={expandedJob.tokenSymbol ?? "XLM"}
+                                    jobTokenDecimals={expandedJob.tokenDecimals ?? 7}
+                                    onSweep={handleSweepExcess}
+                                    getSweepState={(token) => getState(`sweep-${token}`)}
+                                    isSweepPending={(token) => isPending(`sweep-${token}`)}
+                                  />
+                                )}
+
+                                <JobActivityTimeline
+                                  key={expandedJob.id}
+                                  contractId={expandedJob.id}
+                                  refreshKey={timelineRefreshKey}
+                                />
                               </>
                             )}
                           </div>
@@ -1277,6 +1446,22 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* Batch approval confirmation (#899) */}
+      {batchModalOpen && expandedJob && (
+        <BatchApproveModal
+          isOpen
+          onClose={() => setBatchModalOpen(false)}
+          onConfirm={() => void handleBatchApprove()}
+          milestones={milestoneList.filter((m) => selectedForBatch.includes(m.index))}
+          totalStroops={(batchTotal ?? BigInt(0)).toString()}
+          decimals={expandedJob.tokenDecimals ?? 7}
+          symbol={expandedJob.tokenSymbol ?? "XLM"}
+          recipientAddress={expandedJob.freelancer}
+          isConfirming={isPending(BATCH_APPROVE_KEY)}
+          errorMessage={getState(BATCH_APPROVE_KEY).error}
+        />
+      )}
 
       {/* Dispute Raise Modal */}
       {disputeMilestoneIndex !== null && (

@@ -1,5 +1,11 @@
 import { BACKEND_URL, CONTRACT_ID, FACTORY_CONTRACT_ID } from "@/app/lib/config";
-import { formatTxError, WalletRejectedError } from "@/app/lib/errors";
+import {
+  formatTxError,
+  PreparedTransactionMismatchError,
+  WalletRejectedError,
+} from "@/app/lib/errors";
+import { reportClientError } from "@/app/lib/errorReporter";
+import { verifyPreparedTransaction } from "@/app/lib/tx_verification";
 import type { WalletSimulationResult } from "@/app/lib/wallet_session";
 
 /**
@@ -263,6 +269,21 @@ export async function submitContractTransaction({
 
   if (!xdr) {
     throw new Error("We could not prepare your transaction. Please try again.");
+  }
+
+  // Refuse to sign anything but the call that was requested (#889): the
+  // backend, or anything between it and the browser, could otherwise swap in
+  // a different transaction for the wallet to approve.
+  try {
+    verifyPreparedTransaction(xdr, { contractId, method, args, sourceAddress });
+  } catch (err) {
+    if (err instanceof PreparedTransactionMismatchError) {
+      reportClientError({
+        source: "tx",
+        message: `Prepared transaction mismatch for ${method}: ${err.reason}`,
+      });
+    }
+    throw err;
   }
 
   // Hand any simulation result to the wallet context so the fee warning

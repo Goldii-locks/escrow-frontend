@@ -18,6 +18,10 @@ import {
 import { WalletRejectedError } from "@/app/lib/errors";
 import { WalletSignatureTimeoutError } from "@/app/lib/wallet_state_context";
 
+// These tests use placeholder XDR strings; decoding and matching the prepared
+// transaction is covered in tx-verification.test.ts (#889).
+vi.mock("@/app/lib/tx_verification", () => ({ verifyPreparedTransaction: vi.fn() }));
+
 /**
  * Builds a minimal `Response`-alike. The production code only touches `ok`
  * and `json()`, so a plain object is enough and keeps the fixtures (plain

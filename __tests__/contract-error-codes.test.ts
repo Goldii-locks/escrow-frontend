@@ -27,6 +27,7 @@ describe("contract error codes (#600)", () => {
     expect(ERROR_MESSAGES[8]).toMatch(/not on the escrow's whitelist/); // TokenNotWhitelisted
     expect(ERROR_MESSAGES[12]).toMatch(/addresses is invalid/); // InvalidAddress
     expect(ERROR_MESSAGES[37]).toMatch(/balance is too low/); // InsufficientBalance
-    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(37);
+    expect(ERROR_MESSAGES[42]).toMatch(/nothing to recover/); // NothingToSweep (#898)
+    expect(Object.keys(ERROR_MESSAGES)).toHaveLength(38);
   });
 });

@@ -44,12 +44,28 @@ export const ERROR_MESSAGES: Record<number, string> = {
   35: "The fee is higher than the contract allows.",
   36: "The amount is too large to process.",
   37: "The escrow balance is too low for this action.",
+  42: "There's nothing to recover: this escrow holds no tokens beyond what it still owes.",
 };
 
 export class WalletRejectedError extends Error {
   constructor() {
     super("You declined the transaction in your wallet.");
     this.name = "WalletRejectedError";
+  }
+}
+
+/**
+ * Thrown before signing when the transaction `build-tx` returned isn't the
+ * call the user requested (#889). `reason` says which check failed; it is for
+ * error reports, not for display.
+ */
+export class PreparedTransactionMismatchError extends Error {
+  readonly reason: string;
+
+  constructor(reason: string) {
+    super("The prepared transaction didn't match your request.");
+    this.name = "PreparedTransactionMismatchError";
+    this.reason = reason;
   }
 }
 
@@ -227,6 +243,11 @@ export function formatTxError(err: unknown, walletId?: string): string {
 
   if (err instanceof WalletUnavailableError) {
     return buildWalletUnavailableMessage(err.walletId);
+  }
+
+  // Already reported, with its reason, where it was raised.
+  if (err instanceof PreparedTransactionMismatchError) {
+    return err.message;
   }
 
   if (err instanceof Error) {
