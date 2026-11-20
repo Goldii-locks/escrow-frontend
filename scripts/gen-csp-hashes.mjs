@@ -8,9 +8,9 @@
 //
 //   node scripts/gen-csp-hashes.mjs
 //
-// The generated file is committed so the production image (which copies
-// nginx.conf and nginx/) is always self-consistent with the out/ it was built
-// from. CI rebuilds it on every `npm run build` (via the postbuild hook).
+// The generated file is not committed: it is rebuilt by every `npm run build`
+// (via the postbuild hook), and the Docker image copies it from the build
+// stage, so it always matches the out/ it ships with.
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -70,9 +70,7 @@ try {
 }
 
 if (htmlFiles.length === 0) {
-  console.error(
-    "[gen-csp-hashes] No HTML files found in out/. Run `npm run build` first."
-  );
+  console.error("[gen-csp-hashes] No HTML files found in out/. Run `npm run build` first.");
   process.exit(1);
 }
 
@@ -106,9 +104,7 @@ set $csp_script_hashes "${hashList}";
 mkdirSync("nginx", { recursive: true });
 writeFileSync(OUT_CONF, conf, "utf8");
 
-console.log(
-  `[gen-csp-hashes] wrote ${seen.size} hash(es) to ${OUT_CONF}`
-);
+console.log(`[gen-csp-hashes] wrote ${seen.size} hash(es) to ${OUT_CONF}`);
 for (const h of seen) {
   console.log(`  sha256-${h}`);
 }

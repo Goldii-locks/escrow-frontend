@@ -80,10 +80,7 @@ test("unknown routes return a real 404", async ({ page }) => {
 // CSP enforcement checks (#890)
 // ---------------------------------------------------------------------------
 
-test("enforcing Content-Security-Policy header is present (not report-only)", async ({
-  page,
-  baseURL,
-}) => {
+test("enforcing Content-Security-Policy header is present (not report-only)", async ({ page }) => {
   const res = await page.goto("/");
   expect(res).not.toBeNull();
 
@@ -116,9 +113,6 @@ for (const { path, check } of routes) {
     // Confirm the page actually hydrated (not just the shell).
     await check(page);
 
-    expect(
-      violations,
-      `CSP violations on ${path}: ${violations.join("; ")}`
-    ).toHaveLength(0);
+    expect(violations, `CSP violations on ${path}: ${violations.join("; ")}`).toHaveLength(0);
   });
 }
