@@ -62,10 +62,10 @@ describe("Dashboard – surrounding controls stay clickable while the skeleton i
     render(<Dashboard />);
     expect(screen.getByTestId("loading-skeleton")).toBeInTheDocument();
 
-    const clientFilter = screen.getByRole("tab", { name: /Filter jobs: As Client/i });
+    const clientFilter = screen.getByRole("button", { name: /Filter jobs: As Client/i });
     expect(clientFilter).not.toBeDisabled();
 
     fireEvent.click(clientFilter);
-    expect(clientFilter).toHaveAttribute("aria-selected", "true");
+    expect(clientFilter).toHaveAttribute("aria-pressed", "true");
   });
 });

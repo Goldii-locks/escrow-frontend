@@ -21,20 +21,11 @@ Production deploys to milestonepay.app are recorded under dated headings.
 
 - Wallet selector modal (#704)
 - Milestone cap on create forms (#700)
-- Client refund panel toasts and freeze-history export (#568)
-- Arbitrator evidence list on the dispute page (#557)
-- Client refund panel (#556)
-- Platform metrics charts (#555)
 - Status badges on the contract pause switch (#544)
 - Freeze and unfreeze toasts on the contract pause switch (#545)
 - Contract pause switch on the admin page (#542)
-- Admin fee configuration with confirmations, toasts, and CSV export (#537)
-- Freelancer claim panel toasts and export (#535)
-- Dispute timeline and resolution voting form (#533)
-- Dispute history timeline with badges, confirmations, toasts, and CSV export (#532)
 - Admin whitelist panel toasts, CSV export, and grid layout (#530)
-- Role-gated dispute details and emergency freeze panel (#527)
-- Arbitrator evidence list loaded from the backend (#522)
+- Emergency freeze panel layout on the admin page (#527)
 - Arbiter panel empty states and short-screen layout (#521)
 - Dedicated accessible arbiter dispute resolution panel (#519)
 - Fee copy and contact mailbox on the landing page (#399)
@@ -46,8 +37,29 @@ Production deploys to milestonepay.app are recorded under dated headings.
 - Mobile viewport styling for the dispute raise modal (#383)
 - Gas estimation warning banners (#377)
 - Dispute raise modal with validation messages and alerts (#375)
-- Dark mode switcher (#367)
 - Milestone notification badge (#366)
+
+### Not user-visible
+
+These were merged in this deploy but no route mounts them, or they were
+removed later, so they can't be found in the UI. They are listed here so the
+"Added" section only names features users can reach.
+
+- Client refund panel (#556) and its toasts and freeze-history export (#568):
+  removed in #586
+- Platform metrics charts (#555): removed in #609 (see also #704 below)
+- Admin fee configuration with confirmations, toasts, and CSV export (#537):
+  there is no fee UI (#610)
+- Freelancer claim panel toasts and export (#535): removed in #587
+- Arbitrator evidence list on the dispute page (#557), loaded from the backend
+  (#522): not mounted by any page, and calls `/api/disputes`, which doesn't
+  exist
+- Dispute timeline and resolution voting form (#533): not mounted by any page,
+  and calls `/api/disputes`
+- Dispute history timeline with badges, confirmations, toasts, and CSV export
+  (#532): not mounted by any page, and calls `/api/disputes`
+- Role-gated dispute details (#527): not mounted by any page
+- Dark mode switcher (#367): not mounted by any page
 
 ### Changed
 
