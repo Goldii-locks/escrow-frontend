@@ -53,8 +53,8 @@ export default function RecoverExcessFunds({
   contractId,
   clientAddress,
   jobToken,
-  jobTokenSymbol = "XLM",
-  jobTokenDecimals = 7,
+  jobTokenSymbol,
+  jobTokenDecimals,
   onSweep,
   getSweepState,
   isSweepPending,
@@ -119,7 +119,11 @@ export default function RecoverExcessFunds({
   }
 
   const jobTarget: TokenTarget | null = jobToken
-    ? { address: jobToken, symbol: jobTokenSymbol, decimals: jobTokenDecimals }
+    ? {
+        address: jobToken,
+        symbol: jobTokenSymbol ?? `${jobToken.slice(0, 4)}…${jobToken.slice(-4)}`,
+        decimals: jobTokenDecimals ?? 0,
+      }
     : null;
   const jobState = jobToken ? getSweepState(jobToken) : null;
   const otherState = otherTarget ? getSweepState(otherTarget.address) : null;

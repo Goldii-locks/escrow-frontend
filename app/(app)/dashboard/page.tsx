@@ -52,6 +52,7 @@ import {
   validateBatchSelection,
 } from "@/app/lib/batch_approval";
 import { buildSweepExcessArgs } from "@/app/lib/sweep_excess";
+import { useTokenMetadata } from "@/app/lib/useTokenMetadata";
 
 /** Action key for the batch `approve_milestones` transaction (#899). */
 const BATCH_APPROVE_KEY = "approve-batch";
@@ -543,6 +544,32 @@ export default function Dashboard() {
 
   const expandedJob = expandedJobId ? (jobDetails[expandedJobId] ?? null) : null;
   const milestoneList = Array.isArray(expandedJob?.milestones) ? expandedJob.milestones : [];
+
+  // Resolve token metadata via SEP-41 simulation (#880). Prefer metadata
+  // already on the job response (future backend fields); otherwise look up
+  // the contract once per session.  Native XLM short-circuits the RPC call.
+  const tokenMetadata = useTokenMetadata(expandedJob?.token, {
+    symbol: expandedJob?.tokenSymbol,
+    decimals: expandedJob?.tokenDecimals,
+  });
+  // Derive display values from the resolved metadata.
+  // While unknown (loading or error) show the truncated address so the user
+  // never sees "XLM" for a non-XLM token. The decimals fall back to 0 so
+  // formatBaseUnits renders raw base units rather than a wrongly-scaled number.
+  const tokenSymbolDisplay: string = (() => {
+    if (tokenMetadata.status === "ready") return tokenMetadata.symbol;
+    if (tokenMetadata.status === "error") return tokenMetadata.truncatedAddress;
+    // loading
+    if (expandedJob?.token) {
+      const t = expandedJob.token;
+      return `${t.slice(0, 4)}…${t.slice(-4)}`;
+    }
+    return "…";
+  })();
+  // 0 decimals = raw base units shown while metadata is not yet known,
+  // so the user sees the exact on-chain value rather than a guessed scale.
+  const tokenDecimalsResolved: number =
+    tokenMetadata.status === "ready" ? tokenMetadata.decimals : 0;
 
   // Refetch the activity timeline whenever the job changes: a new ledger in
   // the list summary, or a new funded/milestone state from the detail (#892).
@@ -1303,8 +1330,8 @@ export default function Dashboard() {
                                           isClient={isClient}
                                           isFreelancer={isFreelancer}
                                           isArbiter={isArbiter}
-                                          amountDecimals={expandedJob.tokenDecimals ?? 7}
-                                          amountSymbol={expandedJob.tokenSymbol ?? "XLM"}
+                                          amountDecimals={tokenDecimalsResolved}
+                                          amountSymbol={tokenSymbolDisplay}
                                           freelancerAddress={expandedJob.freelancer}
                                           resolveDisputeState={getState(
                                             actionKey(expandedJob.id, "resolve", m.index)
@@ -1367,8 +1394,8 @@ export default function Dashboard() {
                                     contractId={expandedJob.id}
                                     clientAddress={address}
                                     jobToken={expandedJob.token ?? null}
-                                    jobTokenSymbol={expandedJob.tokenSymbol ?? "XLM"}
-                                    jobTokenDecimals={expandedJob.tokenDecimals ?? 7}
+                                    jobTokenSymbol={tokenSymbolDisplay}
+                                    jobTokenDecimals={tokenDecimalsResolved}
                                     onSweep={handleSweepExcess}
                                     getSweepState={(token) => getState(`sweep-${token}`)}
                                     isSweepPending={(token) => isPending(`sweep-${token}`)}
@@ -1455,8 +1482,8 @@ export default function Dashboard() {
           onConfirm={() => void handleBatchApprove()}
           milestones={milestoneList.filter((m) => selectedForBatch.includes(m.index))}
           totalStroops={(batchTotal ?? BigInt(0)).toString()}
-          decimals={expandedJob.tokenDecimals ?? 7}
-          symbol={expandedJob.tokenSymbol ?? "XLM"}
+          decimals={tokenDecimalsResolved}
+          symbol={tokenSymbolDisplay}
           recipientAddress={expandedJob.freelancer}
           isConfirming={isPending(BATCH_APPROVE_KEY)}
           errorMessage={getState(BATCH_APPROVE_KEY).error}
