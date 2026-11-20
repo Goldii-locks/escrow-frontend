@@ -140,10 +140,7 @@ describe("TestnetOnboardingPanel – account not found", () => {
     fireEvent.click(btn);
 
     await waitFor(() => {
-      expect(mockShowToast).toHaveBeenCalledWith(
-        expect.stringContaining("funded"),
-        "success"
-      );
+      expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining("funded"), "success");
     });
   });
 
@@ -160,16 +157,17 @@ describe("TestnetOnboardingPanel – account not found", () => {
     fireEvent.click(btn);
 
     await waitFor(() => {
-      expect(mockShowToast).toHaveBeenCalledWith(
-        expect.stringContaining("HTTP 429"),
-        "error"
-      );
+      expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining("HTTP 429"), "error");
     });
   });
 
   it("disables the button while funding is in progress", async () => {
     let resolveFund!: () => void;
-    mockFundWithFriendbot.mockReturnValue(new Promise<void>((res) => { resolveFund = res; }));
+    mockFundWithFriendbot.mockReturnValue(
+      new Promise<void>((res) => {
+        resolveFund = res;
+      })
+    );
     mockFetchAccountStatus.mockResolvedValue({
       notFound: true,
       missingTrustline: false,
@@ -258,10 +256,7 @@ describe("TestnetOnboardingPanel – missing trustline", () => {
     fireEvent.click(btn);
 
     await waitFor(() => {
-      expect(mockShowToast).toHaveBeenCalledWith(
-        expect.stringContaining("User rejected"),
-        "error"
-      );
+      expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining("User rejected"), "error");
     });
   });
 });

@@ -181,19 +181,14 @@ function decodeXdrAsset(
   if (!inner) return null; // native asset — no trustline needed
 
   const codeContainer = inner["assetCode"] as { value?: Uint8Array } | undefined;
-  const issuerContainer = inner["issuer"] as
-    | { ed25519?: { value?: Uint8Array } }
-    | undefined;
+  const issuerContainer = inner["issuer"] as { ed25519?: { value?: Uint8Array } } | undefined;
 
   const codeBytes = codeContainer?.value;
   const issuerBytes = issuerContainer?.ed25519?.value;
 
   if (!codeBytes || !issuerBytes) return null;
 
-  const code = Buffer.from(codeBytes)
-    .toString("ascii")
-    .replace(/\0/g, "")
-    .trim();
+  const code = Buffer.from(codeBytes).toString("ascii").replace(/\0/g, "").trim();
   const issuer = StrKey.encodeEd25519PublicKey(issuerBytes);
 
   return { code, issuer };

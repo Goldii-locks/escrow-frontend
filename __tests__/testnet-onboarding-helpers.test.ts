@@ -47,9 +47,7 @@ describe("fundWithFriendbot()", () => {
   it("resolves when Friendbot returns HTTP 200", async () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: true });
     await expect(fundWithFriendbot("GCTEST")).resolves.toBeUndefined();
-    expect(fetch).toHaveBeenCalledWith(
-      `${FRIENDBOT_URL}?addr=GCTEST`
-    );
+    expect(fetch).toHaveBeenCalledWith(`${FRIENDBOT_URL}?addr=GCTEST`);
   });
 
   it("throws with status code when Friendbot returns a non-OK response", async () => {
