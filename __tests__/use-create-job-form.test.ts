@@ -2,7 +2,7 @@
 /**
  * Unit tests for app/(app)/create/useCreateJobForm.ts (issue #864).
  */
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, type RenderHookResult } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Keypair } from "@stellar/stellar-sdk";
 
@@ -533,7 +533,7 @@ describe("useCreateJobForm — isSubmitDisabled", () => {
 
 describe("useCreateJobForm — handleSubmit", () => {
   function setupValidForm(
-    result: ReturnType<typeof renderHook<ReturnType<typeof useCreateJobForm>>>["result"]
+    result: RenderHookResult<ReturnType<typeof useCreateJobForm>, unknown>["result"]
   ) {
     mockTokenCheckReturn.listed = true;
     mockTokenCheckReturn.status = {
