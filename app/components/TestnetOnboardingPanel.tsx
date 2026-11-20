@@ -48,17 +48,21 @@ function TestnetOnboardingPanelInner({ tokenAddress }: Props) {
   const { showToast } = useToast();
 
   const [dismissed, setDismissed] = useState(false);
-  const [status, setStatus] = useState<AccountStatus | null>(null);
+  // The status is kept with the address it was fetched for, so a stale entry
+  // (wallet switched or disconnected) is ignored at render instead of being
+  // cleared synchronously inside the effect.
+  const [statusEntry, setStatusEntry] = useState<{
+    address: string;
+    status: AccountStatus;
+  } | null>(null);
+  const status = address && statusEntry?.address === address ? statusEntry.status : null;
   const [fundingInProgress, setFundingInProgress] = useState(false);
   const [trustlineInProgress, setTrustlineInProgress] = useState(false);
 
   const statusAbortRef = useRef<AbortController | null>(null);
 
   const refreshStatus = useCallback(async () => {
-    if (!address) {
-      setStatus(null);
-      return;
-    }
+    if (!address) return;
 
     statusAbortRef.current?.abort();
     const controller = new AbortController();
@@ -67,19 +71,30 @@ function TestnetOnboardingPanelInner({ tokenAddress }: Props) {
     const result = await fetchAccountStatus(address, tokenAddress ?? "");
 
     if (controller.signal.aborted) return;
-    setStatus(result);
+    setStatusEntry({ address, status: result });
   }, [address, tokenAddress]);
 
+  // Load the status whenever the wallet or token changes. The fetch is inline
+  // (rather than through refreshStatus) so state is only set from the promise
+  // callback, never synchronously in the effect body.
   useEffect(() => {
-    void refreshStatus();
+    if (!address) return;
+    statusAbortRef.current?.abort();
+    const controller = new AbortController();
+    statusAbortRef.current = controller;
+    void fetchAccountStatus(address, tokenAddress ?? "").then((result) => {
+      if (controller.signal.aborted) return;
+      setStatusEntry({ address, status: result });
+    });
     return () => {
-      statusAbortRef.current?.abort();
+      controller.abort();
     };
-  }, [refreshStatus]);
+  }, [address, tokenAddress]);
 
   // ── Determine which actions to show ───────────────────────────────────────
   const needsFunding = status?.notFound === true;
-  const needsTrustline = !needsFunding && Boolean(tokenAddress) && status?.missingTrustline === true;
+  const needsTrustline =
+    !needsFunding && Boolean(tokenAddress) && status?.missingTrustline === true;
   const needsFaucet =
     !needsFunding &&
     !needsTrustline &&
