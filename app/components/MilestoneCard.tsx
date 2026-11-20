@@ -56,6 +56,13 @@ interface Props {
   /** Optional field-level / general error messages to render inside the card. */
   errors?: MilestoneCardErrors;
   /**
+   * When true the escrow is paused or cancel-locked (#896); all action
+   * buttons are disabled. `lockTooltip` is shown as the button title.
+   */
+  escrowLocked?: boolean;
+  /** Tooltip text shown on disabled buttons when escrowLocked is true. */
+  lockTooltip?: string;
+  /**
    * Absolute auto-release deadline (epoch ms) for a Delivered milestone. When
    * provided, a CountdownTimer is shown next to the status badge.
    */
@@ -165,6 +172,8 @@ export default function MilestoneCard({
   isPartialReleasePending,
   onPartialRelease,
   freelancerAddress,
+  escrowLocked = false,
+  lockTooltip = "",
   ...unusedProps
 }: Props) {
   void unusedProps;
@@ -464,8 +473,9 @@ export default function MilestoneCard({
           {isFreelancer && milestone.status === "Pending" && (
             <button
               onClick={() => onMarkDelivered?.(milestone.index)}
-              disabled={!onMarkDelivered}
-              aria-disabled={!onMarkDelivered}
+              disabled={!onMarkDelivered || escrowLocked}
+              aria-disabled={!onMarkDelivered || escrowLocked}
+              title={escrowLocked ? lockTooltip : undefined}
               aria-label={`Mark ${milestoneLabel} as delivered`}
               className={`${baseBtn} bg-info-soft text-surface-page font-medium hover:bg-info-soft/80 active:scale-[0.97] focus-visible:ring-info-soft disabled:hover:bg-info-soft disabled:active:scale-100`}
             >
@@ -479,8 +489,9 @@ export default function MilestoneCard({
                 setPendingRelease({ kind: "approve", index: milestone.index });
                 setIsReleaseConfirmOpen(true);
               }}
-              disabled={!onApprove}
-              aria-disabled={!onApprove}
+              disabled={!onApprove || escrowLocked}
+              aria-disabled={!onApprove || escrowLocked}
+              title={escrowLocked ? lockTooltip : undefined}
               aria-label={`Approve ${milestoneLabel}`}
               className={`${baseBtn} bg-success text-surface-page font-medium hover:bg-success/80 active:scale-[0.97] focus-visible:ring-success-soft disabled:hover:bg-success disabled:active:scale-100`}
             >
@@ -493,8 +504,9 @@ export default function MilestoneCard({
             (isDeadlineElapsed || claimEligibility.show) && (
               <button
                 onClick={() => onClaimAutoRelease?.(milestone.index)}
-                disabled={!onClaimAutoRelease || isClaimAutoReleasePending}
-                aria-disabled={!onClaimAutoRelease || isClaimAutoReleasePending}
+                disabled={!onClaimAutoRelease || isClaimAutoReleasePending || escrowLocked}
+                aria-disabled={!onClaimAutoRelease || isClaimAutoReleasePending || escrowLocked}
+                title={escrowLocked ? lockTooltip : undefined}
                 aria-label={`Claim auto-release for ${milestoneLabel}`}
                 className={`${baseBtn} bg-success-soft text-surface-page font-medium hover:bg-success-soft/80 active:scale-[0.97] focus-visible:ring-success-soft disabled:hover:bg-success-soft disabled:active:scale-100`}
               >
@@ -513,8 +525,9 @@ export default function MilestoneCard({
             ["Pending", "Delivered", "PartiallyReleased"].includes(milestone.status) && (
               <button
                 onClick={() => setIsDisputeModalOpen(true)}
-                disabled={!onDispute}
-                aria-disabled={!onDispute}
+                disabled={!onDispute || escrowLocked}
+                aria-disabled={!onDispute || escrowLocked}
+                title={escrowLocked ? lockTooltip : undefined}
                 aria-label={`Dispute ${milestoneLabel}`}
                 className={`${baseBtn} bg-danger text-text-primary hover:bg-danger/80 active:scale-[0.97] focus-visible:ring-danger-soft disabled:hover:bg-danger disabled:active:scale-100`}
               >
@@ -604,8 +617,9 @@ export default function MilestoneCard({
 
             <button
               onClick={handlePartialReleaseSubmit}
-              disabled={isPartialReleasePending || !onPartialRelease}
-              aria-disabled={isPartialReleasePending || !onPartialRelease}
+              disabled={isPartialReleasePending || !onPartialRelease || escrowLocked}
+              aria-disabled={isPartialReleasePending || !onPartialRelease || escrowLocked}
+              title={escrowLocked ? lockTooltip : undefined}
               aria-label={`Release partial amount for ${milestoneLabel}`}
               className={`${baseBtn} flex items-center gap-1.5 bg-accent-soft text-text-primary hover:bg-accent-soft/80 active:scale-[0.97] focus-visible:ring-accent-soft disabled:hover:bg-accent-soft disabled:active:scale-100`}
               data-testid="partial-release-btn"

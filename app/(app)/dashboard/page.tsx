@@ -14,7 +14,10 @@ import { ArbiterPanelPlaceholder } from "@/app/components/ArbiterActionPanel";
 import { getArbiterJobEmptyState } from "@/app/lib/arbiter_action_panel";
 import { useActionStates } from "@/app/hooks/useActionStates";
 import { BACKEND_URL, runContractAction, submitContractTransaction } from "@/app/lib/transactions";
+import { fetchJobStateFromContract, isIndexerStale } from "@/app/lib/contract_job_state";
 import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
+import EscrowLockBanner from "@/app/components/EscrowLockBanner";
+import { getEscrowLockState } from "@/app/lib/escrow_lock_state";
 import {
   JobListResponseSchema,
   JobDetailResponseSchema,
@@ -36,6 +39,20 @@ import {
 import { hashDisputeReason } from "@/app/lib/dispute_reason";
 
 type RoleFilter = "all" | "client" | "freelancer" | "arbiter";
+
+/**
+ * Builds a per-job action key so state is never shared across contracts.
+ *
+ * Without the jobId prefix, `approve-0` on job A and `approve-0` on job B
+ * resolve to the same key: job B shows "Submitting…" and its button is
+ * disabled while job A's transaction is in flight (#891).
+ *
+ * @example actionKey("C123", "approve", 0) → "C123:approve:0"
+ * @example actionKey("C123", "fund")       → "C123:fund"
+ */
+function actionKey(jobId: string, kind: string, index?: number): string {
+  return index === undefined ? `${jobId}:${kind}` : `${jobId}:${kind}:${index}`;
+}
 
 /**
  * Normalises raw (unknown-typed) data from the backend into a `Job`.
@@ -131,6 +148,8 @@ export default function Dashboard() {
   const [jobDetails, setJobDetails] = useState<Record<string, Job>>({});
   const [detailsLoading, setDetailsLoading] = useState<Record<string, boolean>>({});
   const [detailsError, setDetailsError] = useState<Record<string, string>>({});
+  /** Jobs whose milestone data came from the contract directly (#895). */
+  const [contractFallbackIds, setContractFallbackIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const [limit] = useState(5);
   const [total, setTotal] = useState(0);
@@ -327,21 +346,60 @@ export default function Dashboard() {
         if (requestId !== detailsRequestIdRef.current) return;
 
         reportApiResponse(res, "/api/jobs/:contractId");
-        if (!res.ok) {
-          throw new Error(`Failed to load job details: HTTP ${res.status}`);
+
+        // On a non-ok response fall through to the contract fallback below
+        // rather than throwing immediately (#895).
+        let candidate: Job | null = null;
+        let usedFallback = false;
+
+        if (res.ok) {
+          const rawPayload: unknown = await res.json();
+
+          if (requestId !== detailsRequestIdRef.current) return;
+
+          const payload = validateResponse(
+            JobDetailResponseSchema,
+            rawPayload,
+            `/api/jobs/${jobId}`
+          );
+          candidate = normalizeJob(payload.data);
+
+          // If the indexer ledger is stale, prefer fresh contract state (#895).
+          if (candidate && isIndexerStale(candidate.latestLedger, undefined)) {
+            // latestLedger alone is enough signal when no currentLedger is
+            // available; treat values older than STALE_LEDGER_THRESHOLD as
+            // stale relative to the tip.  When the backend sends a
+            // currentLedger field in the future it can be threaded through here.
+            candidate = null;
+          }
         }
-        const rawPayload: unknown = await res.json();
 
-        if (requestId !== detailsRequestIdRef.current) return;
-
-        const payload = validateResponse(JobDetailResponseSchema, rawPayload, `/api/jobs/${jobId}`);
-        const candidate = normalizeJob(payload.data);
+        if (!candidate) {
+          // Backend failed or data is stale — read directly from the contract.
+          const contractJob = await fetchJobStateFromContract(jobId, {
+            signal: controller.signal,
+          });
+          if (requestId !== detailsRequestIdRef.current) return;
+          if (contractJob) {
+            candidate = contractJob;
+            usedFallback = true;
+          }
+        }
 
         if (candidate) {
-          setJobDetails((current) => ({ ...current, [jobId]: candidate }));
+          setJobDetails((current) => ({ ...current, [jobId]: candidate as Job }));
           setDetailsError((current) => {
             const next = { ...current };
             delete next[jobId];
+            return next;
+          });
+          setContractFallbackIds((prev) => {
+            const next = new Set(prev);
+            if (usedFallback) {
+              next.add(jobId);
+            } else {
+              next.delete(jobId);
+            }
             return next;
           });
           return;
@@ -525,6 +583,14 @@ export default function Dashboard() {
   const showArbiterNoDisputes =
     isArbiter && getArbiterJobEmptyState(milestoneList) === "no-disputes";
 
+  // Issue #896: derive the escrow lock state so the banner and disabled
+  // buttons can be rendered without hitting the contract again.
+  const escrowLock = getEscrowLockState({
+    pausedByAdmin: expandedJob?.pausedByAdmin,
+    pausedByEmergency: expandedJob?.pausedByEmergency,
+    cancelLocked: expandedJob?.cancelLocked,
+  });
+
   const [autoReleaseDeadlines, setAutoReleaseDeadlines] = useState<Record<number, number | null>>(
     {}
   );
@@ -588,6 +654,20 @@ export default function Dashboard() {
           startUpdatingPoll(expandedJobId);
         }
 
+        // Issue #895: confirm the new state directly from the contract first,
+        // so the milestone card reflects reality even when the indexer lags.
+        if (expandedJobId) {
+          const contractJob = await fetchJobStateFromContract(expandedJobId);
+          if (contractJob) {
+            setJobDetails((current) => ({ ...current, [expandedJobId]: contractJob }));
+            setContractFallbackIds((prev) => {
+              const next = new Set(prev);
+              next.add(expandedJobId);
+              return next;
+            });
+          }
+        }
+
         await fetchJobs();
         if (expandedJobId) {
           await fetchJobDetails(expandedJobId, true);
@@ -608,13 +688,15 @@ export default function Dashboard() {
       expandedJobId,
       fetchJobDetails,
       startUpdatingPoll,
+      setJobDetails,
+      setContractFallbackIds,
     ]
   );
 
   const handlePartialRelease = async (index: number, amount: string) => {
-    if (!address || !amount) return;
+    if (!address || !amount || !expandedJobId) return;
 
-    await executeTx(`partial-${index}`, "approve_partial", [
+    await executeTx(actionKey(expandedJobId, "partial", index), "approve_partial", [
       { type: "address", value: address },
       { type: "u32", value: index.toString() },
       { type: "i128", value: amount },
@@ -622,18 +704,18 @@ export default function Dashboard() {
   };
 
   const handleClaimAutoRelease = async (index: number) => {
-    if (!address) return;
+    if (!address || !expandedJobId) return;
 
-    await executeTx(`claim-${index}`, "claim_auto_release", [
+    await executeTx(actionKey(expandedJobId, "claim", index), "claim_auto_release", [
       { type: "address", value: address },
       { type: "u32", value: index.toString() },
     ]);
   };
 
   const handleMarkDelivered = async (i: number) => {
-    if (!address) return;
+    if (!address || !expandedJobId) return;
 
-    await executeTx(`deliver-${i}`, "mark_delivered", [
+    await executeTx(actionKey(expandedJobId, "deliver", i), "mark_delivered", [
       { type: "address", value: address },
       { type: "u32", value: i.toString() },
     ]);
@@ -642,13 +724,15 @@ export default function Dashboard() {
   const handleFund = async () => {
     if (!address || !expandedJob) return;
 
-    await executeTx(`fund-${expandedJob.id}`, "fund", [{ type: "address", value: address }]);
+    await executeTx(actionKey(expandedJob.id, "fund"), "fund", [
+      { type: "address", value: address },
+    ]);
   };
 
   const handleApprove = async (i: number) => {
-    if (!address) return;
+    if (!address || !expandedJobId) return;
 
-    await executeTx(`approve-${i}`, "approve_milestone", [
+    await executeTx(actionKey(expandedJobId, "approve", i), "approve_milestone", [
       { type: "address", value: address },
       { type: "u32", value: i.toString() },
     ]);
@@ -660,10 +744,10 @@ export default function Dashboard() {
   };
 
   const handleDisputeSubmit = async (reason: string) => {
-    if (!address || disputeMilestoneIndex === null) return;
+    if (!address || disputeMilestoneIndex === null || !expandedJobId) return;
 
     // The contract takes a 32-byte hash of the reason, not the text (#590).
-    await executeTx(`dispute-${disputeMilestoneIndex}`, "raise_dispute", [
+    await executeTx(actionKey(expandedJobId, "dispute", disputeMilestoneIndex), "raise_dispute", [
       { type: "address", value: address },
       { type: "u32", value: disputeMilestoneIndex.toString() },
       { type: "bytes", value: await hashDisputeReason(reason) },
@@ -674,9 +758,9 @@ export default function Dashboard() {
   };
 
   const handleResolveDispute = async (index: number, releaseToFreelancer: boolean) => {
-    if (!address) return;
+    if (!address || !expandedJobId) return;
 
-    await executeTx(`resolve-${index}`, "resolve_dispute", [
+    await executeTx(actionKey(expandedJobId, "resolve", index), "resolve_dispute", [
       { type: "address", value: address },
       { type: "u32", value: index.toString() },
       { type: "bool", value: releaseToFreelancer },
@@ -1042,20 +1126,35 @@ export default function Dashboard() {
                                     <button
                                       type="button"
                                       onClick={handleFund}
-                                      disabled={isPending("fund-" + expandedJob.id)}
+                                      disabled={isPending(actionKey(expandedJob.id, "fund"))}
                                       className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-semibold transition"
                                     >
-                                      {isPending("fund-" + expandedJob.id)
+                                      {isPending(actionKey(expandedJob.id, "fund"))
                                         ? "Funding..."
                                         : "Fund escrow"}
                                     </button>
                                   </div>
+                                )}
+                                {contractFallbackIds.has(job.id) && (
+                                  <p
+                                    data-testid="contract-fallback-banner"
+                                    className="text-xs text-amber-300 bg-amber-900/30 border border-amber-700/50 rounded px-3 py-2"
+                                    role="status"
+                                    aria-live="polite"
+                                  >
+                                    Live from the contract; history may be delayed.
+                                  </p>
                                 )}
                                 <div
                                   className="space-y-3 sm:space-y-4"
                                   role="region"
                                   aria-label="Milestones"
                                 >
+                                  {/* Issue #896: banner when escrow is paused or cancel-locked */}
+                                  <EscrowLockBanner
+                                    kind={escrowLock.kind}
+                                    message={escrowLock.message}
+                                  />
                                   {showArbiterNoDisputes && (
                                     <ArbiterPanelPlaceholder variant="no-disputes" />
                                   )}
@@ -1070,19 +1169,33 @@ export default function Dashboard() {
                                         amountDecimals={expandedJob.tokenDecimals ?? 7}
                                         amountSymbol={expandedJob.tokenSymbol ?? "XLM"}
                                         freelancerAddress={expandedJob.freelancer}
-                                        resolveDisputeState={getState(`resolve-${m.index}`)}
-                                        isResolveDisputePending={isPending(`resolve-${m.index}`)}
+                                        resolveDisputeState={getState(
+                                          actionKey(expandedJob.id, "resolve", m.index)
+                                        )}
+                                        isResolveDisputePending={isPending(
+                                          actionKey(expandedJob.id, "resolve", m.index)
+                                        )}
                                         onResolveDispute={handleResolveDispute}
-                                        partialReleaseState={getState(`partial-${m.index}`)}
-                                        claimAutoReleaseState={getState(`claim-${m.index}`)}
-                                        isPartialReleasePending={isPending(`partial-${m.index}`)}
-                                        isClaimAutoReleasePending={isPending(`claim-${m.index}`)}
+                                        partialReleaseState={getState(
+                                          actionKey(expandedJob.id, "partial", m.index)
+                                        )}
+                                        claimAutoReleaseState={getState(
+                                          actionKey(expandedJob.id, "claim", m.index)
+                                        )}
+                                        isPartialReleasePending={isPending(
+                                          actionKey(expandedJob.id, "partial", m.index)
+                                        )}
+                                        isClaimAutoReleasePending={isPending(
+                                          actionKey(expandedJob.id, "claim", m.index)
+                                        )}
                                         autoReleaseDeadline={autoReleaseDeadlines[m.index] ?? null}
                                         onPartialRelease={handlePartialRelease}
                                         onClaimAutoRelease={handleClaimAutoRelease}
                                         onMarkDelivered={handleMarkDelivered}
                                         onApprove={handleApprove}
                                         onDispute={handleDispute}
+                                        escrowLocked={escrowLock.actionsDisabled}
+                                        lockTooltip={escrowLock.tooltip}
                                       />
                                     ))
                                   ) : (
@@ -1176,8 +1289,16 @@ export default function Dashboard() {
           }}
           onSubmit={handleDisputeSubmit}
           milestoneIndex={disputeMilestoneIndex}
-          isLoading={isPending(`dispute-${disputeMilestoneIndex}`)}
-          submissionError={getState(`dispute-${disputeMilestoneIndex}`)?.error}
+          isLoading={
+            expandedJobId
+              ? isPending(actionKey(expandedJobId, "dispute", disputeMilestoneIndex))
+              : false
+          }
+          submissionError={
+            expandedJobId
+              ? getState(actionKey(expandedJobId, "dispute", disputeMilestoneIndex))?.error
+              : undefined
+          }
         />
       )}
     </div>

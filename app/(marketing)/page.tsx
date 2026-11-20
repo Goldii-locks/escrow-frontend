@@ -13,8 +13,7 @@ const CONTRACT_REPO = "https://github.com/Goldii-locks/escrow-contract";
 /**
  * One orbiting chip.
  *
- * The nesting here is load bearing and is ported verbatim from
- * design/landing-reference.html. See the ORBIT block in landing.css for why
+ * The nesting here is load bearing — see the ORBIT block in landing.css for why
  * these layers cannot be collapsed into fewer elements.
  */
 function OrbitChip({
