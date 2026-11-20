@@ -14,6 +14,8 @@ import { ArbiterPanelPlaceholder } from "@/app/components/ArbiterActionPanel";
 import { getArbiterJobEmptyState } from "@/app/lib/arbiter_action_panel";
 import { useActionStates } from "@/app/hooks/useActionStates";
 import { BACKEND_URL, runContractAction, submitContractTransaction } from "@/app/lib/transactions";
+import { NETWORK_PASSPHRASE } from "@/app/lib/config";
+import { explorerContractUrl } from "@/app/lib/network";
 import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
 import {
   JobListResponseSchema,
@@ -515,6 +517,10 @@ export default function Dashboard() {
   }, [address, expandedJobId, fetchJobs, fetchJobDetails]);
 
   const expandedJob = expandedJobId ? (jobDetails[expandedJobId] ?? null) : null;
+  // Null on custom/futurenet networks, where Stellar Expert has no explorer.
+  const expandedJobExplorerUrl = expandedJob
+    ? explorerContractUrl(expandedJob.id, NETWORK_PASSPHRASE)
+    : null;
   const milestoneList = Array.isArray(expandedJob?.milestones) ? expandedJob.milestones : [];
 
   const isClient = !!(expandedJob && address === expandedJob.client);
@@ -1025,6 +1031,30 @@ export default function Dashboard() {
                                     >
                                       {expandedJob.arbiter}
                                     </p>
+                                  </div>
+                                  <div className="bg-surface-field rounded-lg p-2 sm:p-3 min-w-0">
+                                    <div className="flex items-center justify-between gap-2 mb-1">
+                                      <p className="text-text-muted text-xs font-semibold">
+                                        Contract
+                                      </p>
+                                      <CopyButton value={expandedJob.id} label="Contract ID" />
+                                    </div>
+                                    <p
+                                      className="font-mono text-xs break-all"
+                                      aria-label={`Contract ID: ${expandedJob.id}`}
+                                    >
+                                      {expandedJob.id}
+                                    </p>
+                                    {expandedJobExplorerUrl && (
+                                      <a
+                                        href={expandedJobExplorerUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="mt-1 inline-block text-xs text-accent-soft hover:text-accent-soft-hover underline transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft rounded-sm"
+                                      >
+                                        View on Stellar Expert
+                                      </a>
+                                    )}
                                   </div>
                                 </div>
 
