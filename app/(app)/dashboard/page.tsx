@@ -16,6 +16,8 @@ import { useActionStates } from "@/app/hooks/useActionStates";
 import { BACKEND_URL, runContractAction, submitContractTransaction } from "@/app/lib/transactions";
 import { fetchJobStateFromContract, isIndexerStale } from "@/app/lib/contract_job_state";
 import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
+import EscrowLockBanner from "@/app/components/EscrowLockBanner";
+import { getEscrowLockState } from "@/app/lib/escrow_lock_state";
 import {
   JobListResponseSchema,
   JobDetailResponseSchema,
@@ -566,6 +568,14 @@ export default function Dashboard() {
   // so the arbiter placeholder only covers "milestones, but none disputed".
   const showArbiterNoDisputes =
     isArbiter && getArbiterJobEmptyState(milestoneList) === "no-disputes";
+
+  // Issue #896: derive the escrow lock state so the banner and disabled
+  // buttons can be rendered without hitting the contract again.
+  const escrowLock = getEscrowLockState({
+    pausedByAdmin: expandedJob?.pausedByAdmin,
+    pausedByEmergency: expandedJob?.pausedByEmergency,
+    cancelLocked: expandedJob?.cancelLocked,
+  });
 
   const [autoReleaseDeadlines, setAutoReleaseDeadlines] = useState<Record<number, number | null>>(
     {}
@@ -1124,6 +1134,11 @@ export default function Dashboard() {
                                   role="region"
                                   aria-label="Milestones"
                                 >
+                                  {/* Issue #896: banner when escrow is paused or cancel-locked */}
+                                  <EscrowLockBanner
+                                    kind={escrowLock.kind}
+                                    message={escrowLock.message}
+                                  />
                                   {showArbiterNoDisputes && (
                                     <ArbiterPanelPlaceholder variant="no-disputes" />
                                   )}
@@ -1151,6 +1166,8 @@ export default function Dashboard() {
                                         onMarkDelivered={handleMarkDelivered}
                                         onApprove={handleApprove}
                                         onDispute={handleDispute}
+                                        escrowLocked={escrowLock.actionsDisabled}
+                                        lockTooltip={escrowLock.tooltip}
                                       />
                                     ))
                                   ) : (
