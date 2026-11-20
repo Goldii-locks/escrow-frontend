@@ -64,12 +64,22 @@ npm run lint
 
 ## Project structure
 
-Routes live under `app/` (Next.js App Router). Pages from README:
+Routes live under `app/` (Next.js App Router), split into two route groups. A
+folder in parentheses groups routes under a shared layout without adding a URL
+segment, so `app/(app)/create/` serves `/create`.
 
-- `/` — `app/page.tsx` (landing)
-- `/create` — `app/create/`
-- `/dashboard` — `app/dashboard/`
-- `/admin` — `app/admin/`
+- `app/(marketing)/` — public pages. Its `layout.tsx` loads only the landing
+  fonts and styles, not the wallet stack, so these pages stay light.
+  - `/` — `app/(marketing)/page.tsx` (landing)
+- `app/(app)/` — the dApp. Its `layout.tsx` wraps pages in `WalletProvider`
+  and mounts the wallet overlays and banners.
+  - `/create` — `app/(app)/create/`
+  - `/dashboard` — `app/(app)/dashboard/`
+  - `/admin` — `app/(app)/admin/`
+- `app/api/csp-report/` — route handler that receives Content-Security-Policy
+  violation reports
+- `app/layout.tsx` — root layout shared by both groups; `app/robots.ts` and
+  `app/sitemap.ts` generate `/robots.txt` and `/sitemap.xml`
 
 Supporting directories:
 
@@ -85,7 +95,16 @@ Supporting directories:
 
 Many modules under `app/` are not imported from any page or layout, so changing them does not change what users see. Confirm a module is actually rendered (imported from a route, layout, or a component those routes mount) before extending it. Related: GitHub issue #520.
 
-TODO(maintainers): add or link the reachability script used to list unreferenced modules.
+To list every module under `app/` that no page, layout or route handler
+imports, directly or transitively, run:
+
+```bash
+npm run reachability
+```
+
+Pass `-- --live` to list the reachable modules instead. The script
+(`scripts/reachability.mjs`) has no dependencies; it ignores stories and type
+declarations.
 
 ## Test file convention
 

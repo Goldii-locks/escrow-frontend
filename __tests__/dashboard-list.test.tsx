@@ -372,13 +372,15 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
       render(<Dashboard />);
 
       await waitFor(() => {
-        const filterTabs = screen.getByRole("tablist", { name: "Filter jobs by role" });
+        const filterTabs = screen.getByRole("group", { name: "Filter jobs by role" });
         expect(filterTabs).toBeInTheDocument();
 
-        expect(screen.getByRole("tab", { name: "Filter jobs: All" })).toBeInTheDocument();
-        expect(screen.getByRole("tab", { name: "Filter jobs: As Client" })).toBeInTheDocument();
-        expect(screen.getByRole("tab", { name: "Filter jobs: As Freelancer" })).toBeInTheDocument();
-        expect(screen.getByRole("tab", { name: "Filter jobs: As Arbiter" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Filter jobs: All" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Filter jobs: As Client" })).toBeInTheDocument();
+        expect(
+          screen.getByRole("button", { name: "Filter jobs: As Freelancer" })
+        ).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Filter jobs: As Arbiter" })).toBeInTheDocument();
       });
     });
 
@@ -388,8 +390,8 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
       render(<Dashboard />);
 
       await waitFor(() => {
-        const allTab = screen.getByRole("tab", { name: "Filter jobs: All" });
-        expect(allTab).toHaveAttribute("aria-selected", "true");
+        const allTab = screen.getByRole("button", { name: "Filter jobs: All" });
+        expect(allTab).toHaveAttribute("aria-pressed", "true");
       });
     });
   });

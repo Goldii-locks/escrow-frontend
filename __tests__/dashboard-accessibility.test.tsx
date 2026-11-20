@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Dashboard from "@/app/(app)/dashboard/page";
 import { wrapFetchWithJobDetails } from "@/__tests__/helpers/job_details_fetch";
@@ -139,7 +139,7 @@ describe("Dashboard — accessibility compliance (ARIA, keyboard, semantic HTML)
   });
 
   describe("ARIA attributes — filter tabs", () => {
-    it("filter buttons container has role=tablist", async () => {
+    it("filter buttons container has role=group", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn().mockResolvedValue({
@@ -157,7 +157,7 @@ describe("Dashboard — accessibility compliance (ARIA, keyboard, semantic HTML)
       render(<Dashboard />);
 
       await waitFor(() => {
-        const tablist = screen.getByRole("tablist", { name: "Filter jobs by role" });
+        const tablist = screen.getByRole("group", { name: "Filter jobs by role" });
         expect(tablist).toBeInTheDocument();
       });
     });
@@ -180,14 +180,14 @@ describe("Dashboard — accessibility compliance (ARIA, keyboard, semantic HTML)
       render(<Dashboard />);
 
       await waitFor(() => {
-        const allTab = screen.getByRole("tab", { name: /Filter jobs: All/i });
-        const clientTab = screen.getByRole("tab", { name: /Filter jobs: As Client/i });
+        const allTab = screen.getByRole("button", { name: /Filter jobs: All/i });
+        const clientTab = screen.getByRole("button", { name: /Filter jobs: As Client/i });
         expect(allTab).toBeInTheDocument();
         expect(clientTab).toBeInTheDocument();
       });
     });
 
-    it("active filter tab has aria-selected=true", async () => {
+    it("active filter tab has aria-pressed=true", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn().mockResolvedValue({
@@ -205,12 +205,12 @@ describe("Dashboard — accessibility compliance (ARIA, keyboard, semantic HTML)
       render(<Dashboard />);
 
       await waitFor(() => {
-        const allTab = screen.getByRole("tab", { name: /Filter jobs: All/i });
-        expect(allTab).toHaveAttribute("aria-selected", "true");
+        const allTab = screen.getByRole("button", { name: /Filter jobs: All/i });
+        expect(allTab).toHaveAttribute("aria-pressed", "true");
       });
     });
 
-    it("inactive filter tabs have aria-selected=false", async () => {
+    it("inactive filter tabs have aria-pressed=false", async () => {
       vi.stubGlobal(
         "fetch",
         vi.fn().mockResolvedValue({
@@ -228,8 +228,8 @@ describe("Dashboard — accessibility compliance (ARIA, keyboard, semantic HTML)
       render(<Dashboard />);
 
       await waitFor(() => {
-        const clientTab = screen.getByRole("tab", { name: /Filter jobs: As Client/i });
-        expect(clientTab).toHaveAttribute("aria-selected", "false");
+        const clientTab = screen.getByRole("button", { name: /Filter jobs: As Client/i });
+        expect(clientTab).toHaveAttribute("aria-pressed", "false");
       });
     });
   });
@@ -890,7 +890,9 @@ describe("Dashboard — accessibility compliance (ARIA, keyboard, semantic HTML)
       render(<Dashboard />);
 
       await waitFor(() => {
-        const tabs = screen.getAllByRole("tab");
+        const tabs = within(
+          screen.getByRole("group", { name: "Filter jobs by role" })
+        ).getAllByRole("button");
         tabs.forEach((tab) => {
           expect(tab).not.toHaveAttribute("tabindex", "-1");
         });
@@ -1026,8 +1028,8 @@ describe("Dashboard — accessibility compliance (ARIA, keyboard, semantic HTML)
       render(<Dashboard />);
 
       await waitFor(() => {
-        const activeTab = screen.getByRole("tab", { name: /Filter jobs: All/i });
-        expect(activeTab).toHaveClass("bg-indigo-600", "text-text-primary");
+        const activeTab = screen.getByRole("button", { name: /Filter jobs: All/i });
+        expect(activeTab).toHaveClass("bg-accent", "text-text-primary");
       });
     });
 
@@ -1049,7 +1051,7 @@ describe("Dashboard — accessibility compliance (ARIA, keyboard, semantic HTML)
       render(<Dashboard />);
 
       await waitFor(() => {
-        const inactiveTab = screen.getByRole("tab", { name: /Filter jobs: As Client/i });
+        const inactiveTab = screen.getByRole("button", { name: /Filter jobs: As Client/i });
         expect(inactiveTab).toHaveClass("text-text-secondary");
       });
     });

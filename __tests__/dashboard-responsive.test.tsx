@@ -188,7 +188,7 @@ describe("Dashboard — responsive design", () => {
       render(<Dashboard />);
 
       await waitFor(() => {
-        const filterButtons = screen.getAllByRole("tab");
+        const filterButtons = screen.getAllByRole("button");
         const roleButton = filterButtons.find((btn) => btn.textContent === "All");
         expect(roleButton).toHaveClass("px-2.5", "sm:px-3");
       });

@@ -33,6 +33,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "check-test-locations": "node scripts/check-test-locations.mjs",
+    "reachability": "node scripts/reachability.mjs",
     "generate-tokens": "node scripts/generate-tokens.mjs",
     "test:e2e": "playwright test",
     "type-check": "tsc --noEmit",

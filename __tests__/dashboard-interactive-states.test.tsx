@@ -69,7 +69,7 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
       await waitFor(() => {
         const input = screen.getByPlaceholderText("Search by contract/job ID");
         expect(input).toHaveClass("focus-visible:ring-2");
-        expect(input).toHaveClass("focus-visible:ring-indigo-500");
+        expect(input).toHaveClass("focus-visible:ring-accent-soft");
       });
     });
 
@@ -138,7 +138,7 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
       await waitFor(() => {
         const button = screen.getByRole("button", { name: "Submit search query" });
         expect(button).toHaveClass("focus-visible:ring-2");
-        expect(button).toHaveClass("focus-visible:ring-indigo-500");
+        expect(button).toHaveClass("focus-visible:ring-accent-soft");
       });
     });
 
@@ -160,7 +160,7 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
 
       await waitFor(() => {
         const button = screen.getByRole("button", { name: "Submit search query" });
-        expect(button).toHaveClass("hover:bg-indigo-500");
+        expect(button).toHaveClass("hover:bg-accent-hover");
       });
     });
 
@@ -182,7 +182,7 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
 
       await waitFor(() => {
         const button = screen.getByRole("button", { name: "Submit search query" });
-        expect(button).toHaveClass("active:bg-indigo-700");
+        expect(button).toHaveClass("active:bg-accent");
       });
     });
   });
@@ -214,10 +214,10 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
       render(<Dashboard />);
 
       await waitFor(() => {
-        const buttons = screen.getAllByRole("tab");
+        const buttons = screen.getAllByRole("button");
         const allButton = buttons.find((btn) => btn.textContent === "All");
-        expect(allButton).toHaveClass("bg-indigo-600");
-        expect(allButton).toHaveClass("border-indigo-500");
+        expect(allButton).toHaveClass("bg-accent");
+        expect(allButton).toHaveClass("border-accent-soft");
       });
     });
 
@@ -247,7 +247,7 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
       render(<Dashboard />);
 
       await waitFor(() => {
-        const buttons = screen.getAllByRole("tab");
+        const buttons = screen.getAllByRole("button");
         const clientButton = buttons.find((btn) => btn.textContent === "As Client");
         expect(clientButton).toHaveClass("hover:text-text-primary");
         expect(clientButton).toHaveClass("hover:border-border-hover");
@@ -281,7 +281,7 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
       render(<Dashboard />);
 
       await waitFor(() => {
-        const buttons = screen.getAllByRole("tab");
+        const buttons = screen.getAllByRole("button");
         const filterButton = buttons.find((btn) => btn.textContent === "As Client");
         expect(filterButton).toHaveClass("active:bg-surface-raised");
       });
@@ -313,10 +313,10 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
       render(<Dashboard />);
 
       await waitFor(() => {
-        const buttons = screen.getAllByRole("tab");
+        const buttons = screen.getAllByRole("button");
         const filterButton = buttons.find((btn) => btn.textContent === "As Freelancer");
         expect(filterButton).toHaveClass("focus-visible:ring-2");
-        expect(filterButton).toHaveClass("focus-visible:ring-indigo-500");
+        expect(filterButton).toHaveClass("focus-visible:ring-accent-soft");
       });
     });
 
@@ -346,7 +346,7 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
       render(<Dashboard />);
 
       await waitFor(() => {
-        const buttons = screen.getAllByRole("tab");
+        const buttons = screen.getAllByRole("button");
         const filterButton = buttons.find((btn) => btn.textContent === "As Arbiter");
         expect(filterButton).toHaveClass("transition-all", "duration-200");
       });
@@ -447,7 +447,7 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
         const main = screen.getByRole("main");
         const jobButton = main.querySelector("button[aria-expanded]");
         expect(jobButton).toHaveClass("focus-visible:ring-2");
-        expect(jobButton).toHaveClass("focus-visible:ring-indigo-500");
+        expect(jobButton).toHaveClass("focus-visible:ring-accent-soft");
       });
     });
 
@@ -513,7 +513,7 @@ describe("Dashboard — interactive states (hover, focus, disabled)", () => {
       await waitFor(() => {
         const prevButton = screen.getByRole("button", { name: /Previous page/i });
         expect(prevButton).toHaveClass("focus-visible:ring-2");
-        expect(prevButton).toHaveClass("focus-visible:ring-indigo-500");
+        expect(prevButton).toHaveClass("focus-visible:ring-accent-soft");
       });
     });
 

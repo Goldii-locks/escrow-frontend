@@ -90,25 +90,29 @@ export default function CountdownTimer({
   const elapsedFired = useRef(false);
   const warningFired = useRef(false);
 
+  // A non-finite deadline (NaN, Infinity) can't be counted down to or
+  // converted to an ISO string, so it renders a fallback instead.
+  const hasValidDeadline = Number.isFinite(deadline);
   const remaining = deadline - now;
-  const isElapsed = remaining <= 0;
+  const isElapsed = hasValidDeadline && remaining <= 0;
+  const isTicking = hasValidDeadline && !isElapsed;
 
   // ISO string for the <time dateTime> attribute — stable per deadline.
-  const isoDeadline = new Date(deadline).toISOString();
+  const isoDeadline = hasValidDeadline ? new Date(deadline).toISOString() : "";
 
   useEffect(() => {
-    if (isElapsed) {
+    if (!isTicking) {
       return;
     }
 
     // The interval callback runs after mount, so this is not a synchronous
     // setState within the effect. A deadline prop change re-renders and
     // recomputes `remaining` without needing an immediate setState here.
+    // `isTicking` is a dependency so the interval is cleared as soon as the
+    // countdown reaches zero, instead of re-rendering every second forever.
     const id = setInterval(() => setNow(Date.now()), intervalMs);
     return () => clearInterval(id);
-    // Re-arm whenever the deadline changes; isElapsed is derived from it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deadline, intervalMs]);
+  }, [deadline, intervalMs, isTicking]);
 
   useEffect(() => {
     if (isElapsed && !elapsedFired.current) {
@@ -133,6 +137,14 @@ export default function CountdownTimer({
       warningFired.current = false;
     }
   }, [remaining, warningThresholdMs, onWarningThreshold]);
+
+  if (!hasValidDeadline) {
+    return (
+      <span data-testid="countdown-unavailable" className={`text-xs text-text-muted ${className}`}>
+        Release time unavailable
+      </span>
+    );
+  }
 
   if (isElapsed) {
     return (
