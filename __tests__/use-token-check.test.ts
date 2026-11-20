@@ -3,14 +3,7 @@
  * Unit tests for app/(app)/create/useTokenCheck.ts (issue #864).
  */
 import { act, renderHook } from "@testing-library/react";
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ── module mocks (hoisted before imports of the hook) ────────────────────────
 
@@ -41,7 +34,7 @@ import { useTokenCheck } from "@/app/(app)/create/useTokenCheck";
 // ── constants ─────────────────────────────────────────────────────────────────
 
 /** Well-formed Stellar contract addresses (C + 55 base32 chars). Generated with StrKey.encodeContract. */
-const VALID_TOKEN  = "CAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQC526";
+const VALID_TOKEN = "CAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQC526";
 const LISTED_TOKEN = "CABAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAFNSZ";
 
 const WHITELIST = [{ address: LISTED_TOKEN, symbol: "USDC" }];
@@ -246,11 +239,16 @@ describe("useTokenCheck — debounced token validation", () => {
     renderHook(() => useTokenCheck(LISTED_TOKEN));
 
     // Flush only microtasks (the whitelist fetch promise) without advancing timers.
-    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
 
     // Now the whitelist is loaded → listed=true → needsValidation=false.
     // Advance past the full debounce — validation must NOT be called.
-    await act(async () => { vi.advanceTimersByTime(600); });
+    await act(async () => {
+      vi.advanceTimersByTime(600);
+    });
 
     expect(mockValidateTokenContract).not.toHaveBeenCalled();
   });
@@ -331,7 +329,9 @@ describe("useTokenCheck — confirmation flow", () => {
     const { result } = renderHook(() => useTokenCheck(VALID_TOKEN));
     await flushAll();
 
-    act(() => { result.current.setConfirmed(true); });
+    act(() => {
+      result.current.setConfirmed(true);
+    });
 
     expect(result.current.status.confirmed).toBe(true);
   });
@@ -343,8 +343,12 @@ describe("useTokenCheck — confirmation flow", () => {
     const { result } = renderHook(() => useTokenCheck(VALID_TOKEN));
     await flushAll();
 
-    act(() => { result.current.setConfirmed(true); });
-    act(() => { result.current.setConfirmed(false); });
+    act(() => {
+      result.current.setConfirmed(true);
+    });
+    act(() => {
+      result.current.setConfirmed(false);
+    });
 
     expect(result.current.status.confirmed).toBe(false);
   });
@@ -358,7 +362,9 @@ describe("useTokenCheck — confirmation flow", () => {
     const { result, rerender } = renderHook(() => useTokenCheck(token));
     await flushAll();
 
-    act(() => { result.current.setConfirmed(true); });
+    act(() => {
+      result.current.setConfirmed(true);
+    });
     expect(result.current.status.confirmed).toBe(true);
 
     token = TOKEN2;

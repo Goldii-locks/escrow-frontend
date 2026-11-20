@@ -39,7 +39,8 @@ vi.mock("@/app/lib/default_arbiter", () => ({
 // submitCreateJob: spy so we can resolve / reject it.
 const mockSubmitCreateJob = vi.fn<() => Promise<string>>();
 vi.mock("@/app/(app)/create/submit", () => ({
-  submitCreateJob: (...args: unknown[]) => (mockSubmitCreateJob as (...a: unknown[]) => unknown)(...args),
+  submitCreateJob: (...args: unknown[]) =>
+    (mockSubmitCreateJob as (...a: unknown[]) => unknown)(...args),
 }));
 
 // useTokenCheck: return a neutral (no-issue) status by default.
@@ -68,10 +69,7 @@ vi.mock("@/app/lib/milestone_limits", () => ({
 
 // ── import hook after mocks ───────────────────────────────────────────────────
 import { useCreateJobForm } from "@/app/(app)/create/useCreateJobForm";
-import {
-  CREATE_JOB_DRAFT_DEBOUNCE_MS,
-  type CreateJobDraft,
-} from "@/app/lib/create_job_draft";
+import { CREATE_JOB_DRAFT_DEBOUNCE_MS, type CreateJobDraft } from "@/app/lib/create_job_draft";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -115,7 +113,11 @@ beforeEach(() => {
 
 afterEach(() => {
   // Guard: only flush/restore if fake timers are still active.
-  try { vi.runOnlyPendingTimers(); } catch { /* real timers were active */ }
+  try {
+    vi.runOnlyPendingTimers();
+  } catch {
+    /* real timers were active */
+  }
   vi.useRealTimers();
 });
 
@@ -152,20 +154,28 @@ describe("useCreateJobForm — initial state", () => {
 describe("useCreateJobForm — section navigation", () => {
   it("setActiveSection changes the active section", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.setActiveSection("milestones"); });
+    act(() => {
+      result.current.setActiveSection("milestones");
+    });
     expect(result.current.activeSection).toBe("milestones");
   });
 
   it("can navigate to review", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.setActiveSection("review"); });
+    act(() => {
+      result.current.setActiveSection("review");
+    });
     expect(result.current.activeSection).toBe("review");
   });
 
   it("can navigate back to details", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.setActiveSection("milestones"); });
-    act(() => { result.current.setActiveSection("details"); });
+    act(() => {
+      result.current.setActiveSection("milestones");
+    });
+    act(() => {
+      result.current.setActiveSection("details");
+    });
     expect(result.current.activeSection).toBe("details");
   });
 });
@@ -173,57 +183,81 @@ describe("useCreateJobForm — section navigation", () => {
 describe("useCreateJobForm — field handlers", () => {
   it("changeFreelancer updates the value", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.details.changeFreelancer(FREELANCER); });
+    act(() => {
+      result.current.details.changeFreelancer(FREELANCER);
+    });
     expect(result.current.details.freelancer).toBe(FREELANCER);
   });
 
   it("changeFreelancer sets an error for an invalid address", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.details.changeFreelancer("GNOT_VALID"); });
+    act(() => {
+      result.current.details.changeFreelancer("GNOT_VALID");
+    });
     expect(result.current.details.freelancerError).not.toBe("");
   });
 
   it("changeFreelancer clears the error for an empty address", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.details.changeFreelancer("GNOT_VALID"); });
-    act(() => { result.current.details.changeFreelancer(""); });
+    act(() => {
+      result.current.details.changeFreelancer("GNOT_VALID");
+    });
+    act(() => {
+      result.current.details.changeFreelancer("");
+    });
     expect(result.current.details.freelancerError).toBe("");
   });
 
   it("changeArbiter updates the value", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.details.changeArbiter(ARBITER); });
+    act(() => {
+      result.current.details.changeArbiter(ARBITER);
+    });
     expect(result.current.details.arbiter).toBe(ARBITER);
   });
 
   it("changeToken updates the value", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.details.changeToken("CTOKEN_BAD"); });
+    act(() => {
+      result.current.details.changeToken("CTOKEN_BAD");
+    });
     expect(result.current.details.token).toBe("CTOKEN_BAD");
   });
 
   it("changeDeadline updates autoReleaseDays and clears deadlineError", () => {
     const { result } = renderHook(() => useCreateJobForm());
     // First produce an error.
-    act(() => { result.current.details.blurDeadline(); });
+    act(() => {
+      result.current.details.blurDeadline();
+    });
     // Clear by changing.
-    act(() => { result.current.details.changeDeadline("30"); });
+    act(() => {
+      result.current.details.changeDeadline("30");
+    });
     expect(result.current.details.autoReleaseDays).toBe("30");
     expect(result.current.details.deadlineError).toBeNull();
   });
 
   it("blurDeadline sets a deadlineError for a non-numeric value", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.details.changeDeadline(""); });
-    act(() => { result.current.details.blurDeadline(); });
+    act(() => {
+      result.current.details.changeDeadline("");
+    });
+    act(() => {
+      result.current.details.blurDeadline();
+    });
     expect(result.current.details.deadlineError).toBeTruthy();
   });
 
   it("chooseArbiterMode switches mode and clears arbiterError when switching to default", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.details.changeArbiter("GNOT_VALID"); });
+    act(() => {
+      result.current.details.changeArbiter("GNOT_VALID");
+    });
     expect(result.current.details.arbiterError).not.toBe("");
-    act(() => { result.current.details.chooseArbiterMode("default"); });
+    act(() => {
+      result.current.details.chooseArbiterMode("default");
+    });
     expect(result.current.details.arbiterError).toBe("");
   });
 });
@@ -231,29 +265,43 @@ describe("useCreateJobForm — field handlers", () => {
 describe("useCreateJobForm — scope (milestones / assets / requirements)", () => {
   it("addMilestone appends a blank row", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.scope.addMilestone(); });
+    act(() => {
+      result.current.scope.addMilestone();
+    });
     expect(result.current.scope.milestones).toHaveLength(2);
   });
 
   it("removeMilestone removes a row by index", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.scope.addMilestone(); });
-    act(() => { result.current.scope.removeMilestone(0); });
+    act(() => {
+      result.current.scope.addMilestone();
+    });
+    act(() => {
+      result.current.scope.removeMilestone(0);
+    });
     expect(result.current.scope.milestones).toHaveLength(1);
   });
 
   it("updateMilestone changes the amount at an index", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.scope.updateMilestone(0, "500"); });
+    act(() => {
+      result.current.scope.updateMilestone(0, "500");
+    });
     expect(result.current.scope.milestones[0].amount).toBe("500");
   });
 
   it("addAcceptedAsset then removeAcceptedAsset round-trips", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.scope.addAcceptedAsset(); });
-    act(() => { result.current.scope.updateAcceptedAsset(0, "USDC"); });
+    act(() => {
+      result.current.scope.addAcceptedAsset();
+    });
+    act(() => {
+      result.current.scope.updateAcceptedAsset(0, "USDC");
+    });
     expect(result.current.scope.acceptedAssets).toContain("USDC");
-    act(() => { result.current.scope.removeAcceptedAsset(0); });
+    act(() => {
+      result.current.scope.removeAcceptedAsset(0);
+    });
     expect(result.current.scope.acceptedAssets).toHaveLength(0);
   });
 });
@@ -301,7 +349,9 @@ describe("useCreateJobForm — draft saving on change", () => {
   it("saves the draft after the debounce delay when a field changes", async () => {
     const { result } = renderHook(() => useCreateJobForm());
 
-    act(() => { result.current.details.changeFreelancer(FREELANCER); });
+    act(() => {
+      result.current.details.changeFreelancer(FREELANCER);
+    });
 
     // Not saved yet (within debounce window).
     expect(window.sessionStorage.getItem(DRAFT_KEY)).toBeNull();
@@ -319,7 +369,9 @@ describe("useCreateJobForm — draft saving on change", () => {
     walletAddress = null;
     const { result } = renderHook(() => useCreateJobForm());
 
-    act(() => { result.current.details.changeFreelancer(FREELANCER); });
+    act(() => {
+      result.current.details.changeFreelancer(FREELANCER);
+    });
     await act(async () => {
       vi.advanceTimersByTime(CREATE_JOB_DRAFT_DEBOUNCE_MS);
     });
@@ -376,7 +428,9 @@ describe("useCreateJobForm — discardDraft", () => {
 
     expect(result.current.draftRestored).toBe(true);
 
-    act(() => { result.current.discardDraft(); });
+    act(() => {
+      result.current.discardDraft();
+    });
 
     expect(result.current.draftRestored).toBe(false);
     expect(result.current.details.freelancer).toBe("");
@@ -406,7 +460,9 @@ describe("useCreateJobForm — wallet address switch mid-form", () => {
     walletAddress = ADDRESS;
     const { result } = renderHook(() => useCreateJobForm());
 
-    act(() => { result.current.details.changeFreelancer(FREELANCER); });
+    act(() => {
+      result.current.details.changeFreelancer(FREELANCER);
+    });
     await act(async () => {
       vi.advanceTimersByTime(CREATE_JOB_DRAFT_DEBOUNCE_MS);
     });
@@ -425,14 +481,18 @@ describe("useCreateJobForm — isSubmitDisabled", () => {
 
   it("is disabled when milestones list is empty", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.scope.removeMilestone(0); });
+    act(() => {
+      result.current.scope.removeMilestone(0);
+    });
     expect(result.current.isSubmitDisabled).toBe(true);
   });
 
   it("is disabled when agreed is false", () => {
     const { result } = renderHook(() => useCreateJobForm());
     // Fill milestones so that isn't the blocker.
-    act(() => { result.current.scope.updateMilestone(0, "100"); });
+    act(() => {
+      result.current.scope.updateMilestone(0, "100");
+    });
     expect(result.current.isSubmitDisabled).toBe(true);
   });
 
@@ -462,7 +522,9 @@ describe("useCreateJobForm — isSubmitDisabled", () => {
       void result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
     });
     // Flush the microtask that runs setLoading(true).
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     expect(result.current.loading).toBe(true);
     expect(result.current.isSubmitDisabled).toBe(true);
@@ -470,7 +532,9 @@ describe("useCreateJobForm — isSubmitDisabled", () => {
 });
 
 describe("useCreateJobForm — handleSubmit", () => {
-  function setupValidForm(result: ReturnType<typeof renderHook<ReturnType<typeof useCreateJobForm>>>["result"]) {
+  function setupValidForm(
+    result: ReturnType<typeof renderHook<ReturnType<typeof useCreateJobForm>>>["result"]
+  ) {
     mockTokenCheckReturn.listed = true;
     mockTokenCheckReturn.status = {
       token: FULL_DRAFT.token,
@@ -577,7 +641,9 @@ describe("useCreateJobForm — handleSubmit", () => {
     // Verify that loading flips to true during an in-flight request.
     let resolveSubmit!: (hash: string) => void;
     mockSubmitCreateJob.mockReturnValueOnce(
-      new Promise<string>((res) => { resolveSubmit = res; })
+      new Promise<string>((res) => {
+        resolveSubmit = res;
+      })
     );
 
     const { result } = renderHook(() => useCreateJobForm());
@@ -588,7 +654,9 @@ describe("useCreateJobForm — handleSubmit", () => {
       void result.current.handleSubmit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
     });
     // Flush the synchronous setLoading(true) call.
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     // loading=true means isSubmitDisabled=true; the UI would not let a second
     // submit fire. Verify the guard state is correct.
@@ -597,7 +665,9 @@ describe("useCreateJobForm — handleSubmit", () => {
     expect(mockSubmitCreateJob).toHaveBeenCalledTimes(1);
 
     // Resolve the pending submit.
-    await act(async () => { resolveSubmit("TX_1"); });
+    await act(async () => {
+      resolveSubmit("TX_1");
+    });
     expect(result.current.loading).toBe(false);
     expect(result.current.txHash).toBe("TX_1");
   });
@@ -633,9 +703,13 @@ describe("useCreateJobForm — handleSubmit", () => {
 describe("useCreateJobForm — review agreed flag", () => {
   it("setAgreed toggles the agreed value", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.review.setAgreed(true); });
+    act(() => {
+      result.current.review.setAgreed(true);
+    });
     expect(result.current.review.agreed).toBe(true);
-    act(() => { result.current.review.setAgreed(false); });
+    act(() => {
+      result.current.review.setAgreed(false);
+    });
     expect(result.current.review.agreed).toBe(false);
   });
 });
@@ -643,44 +717,60 @@ describe("useCreateJobForm — review agreed flag", () => {
 describe("useCreateJobForm — blur handlers and selectToken", () => {
   it("blurFreelancer sets an error for an invalid address", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.details.blurFreelancer("GNOT_VALID"); });
+    act(() => {
+      result.current.details.blurFreelancer("GNOT_VALID");
+    });
     expect(result.current.details.freelancerError).not.toBe("");
   });
 
   it("blurFreelancer clears the error for a valid address", () => {
     const { result } = renderHook(() => useCreateJobForm());
     // First produce an error.
-    act(() => { result.current.details.blurFreelancer("GNOT_VALID"); });
+    act(() => {
+      result.current.details.blurFreelancer("GNOT_VALID");
+    });
     // Now blur with a valid key.
-    act(() => { result.current.details.blurFreelancer(FREELANCER); });
+    act(() => {
+      result.current.details.blurFreelancer(FREELANCER);
+    });
     expect(result.current.details.freelancerError).toBe("");
   });
 
   it("blurArbiter sets an error for an invalid address", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.details.blurArbiter("GNOT_VALID"); });
+    act(() => {
+      result.current.details.blurArbiter("GNOT_VALID");
+    });
     expect(result.current.details.arbiterError).not.toBe("");
   });
 
   it("blurToken sets an error for an invalid contract address", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.details.blurToken("not-a-contract"); });
+    act(() => {
+      result.current.details.blurToken("not-a-contract");
+    });
     // tokenError is internal; it flows through to hasValidationErrors.
     expect(result.current.hasValidationErrors).toBe(true);
   });
 
   it("blurToken clears the error for an empty value", () => {
     const { result } = renderHook(() => useCreateJobForm());
-    act(() => { result.current.details.blurToken("not-a-contract"); });
+    act(() => {
+      result.current.details.blurToken("not-a-contract");
+    });
     expect(result.current.hasValidationErrors).toBe(true);
-    act(() => { result.current.details.blurToken(""); });
+    act(() => {
+      result.current.details.blurToken("");
+    });
     expect(result.current.hasValidationErrors).toBe(false);
   });
 
   it("selectToken sets the token directly", () => {
     const { result } = renderHook(() => useCreateJobForm());
     act(() => {
-      result.current.details.selectToken("CAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQC526");
+      result.current.details.selectToken(
+        "CAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQC526"
+      );
     });
     expect(result.current.details.token).toBe(
       "CAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQC526"

@@ -153,7 +153,10 @@ describe("create_job_draft — per-address isolation", () => {
   });
 
   it("two addresses store independent drafts", () => {
-    const draftB: CreateJobDraft = { ...FULL_DRAFT, freelancer: "GDIFF00000000000000000000000000000000000000000000000001" };
+    const draftB: CreateJobDraft = {
+      ...FULL_DRAFT,
+      freelancer: "GDIFF00000000000000000000000000000000000000000000000001",
+    };
     saveCreateJobDraft(ADDR_A, FULL_DRAFT);
     saveCreateJobDraft(ADDR_B, draftB);
     expect(loadCreateJobDraft(ADDR_A)?.freelancer).toBe(FULL_DRAFT.freelancer);
