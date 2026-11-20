@@ -96,11 +96,18 @@ test("enforcing Content-Security-Policy header is present (not report-only)", as
     "Content-Security-Policy-Report-Only must be absent when enforcing"
   ).toBeFalsy();
 
-  // The policy must not contain 'unsafe-inline' for scripts.
-  expect(cspEnforcing).not.toContain("'unsafe-inline'");
+  // script-src must not allow 'unsafe-inline' (style-src still does, for
+  // Tailwind/Next inline styles); inline scripts are allowed by hash instead.
+  const scriptSrc =
+    cspEnforcing!
+      .split(";")
+      .map((d) => d.trim())
+      .find((d) => d.startsWith("script-src ")) ?? "";
+  expect(scriptSrc, "script-src directive missing").not.toBe("");
+  expect(scriptSrc).not.toContain("'unsafe-inline'");
 
-  // The policy must have at least one SHA-256 hash (the inline scripts allowlist).
-  expect(cspEnforcing).toContain("'sha256-");
+  // script-src must have at least one SHA-256 hash (the inline scripts allowlist).
+  expect(scriptSrc).toContain("'sha256-");
 });
 
 for (const { path, check } of routes) {
