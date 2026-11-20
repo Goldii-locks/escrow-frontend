@@ -1,9 +1,23 @@
 ## Summary
 
-<!-- What does this change and why? Link the issue it closes, e.g. "Closes #123". -->
+<!-- What does this change and why? -->
+
+Closes #
 
 ## Checklist
 
-- [ ] Tests live in `__tests__/` (`npm run check-test-locations`)
-- [ ] `npm run lint`, `npm run type-check` and `npm test` pass
-- [ ] If this adds a user-visible feature to `CHANGELOG.md` under "Added", it is reachable from a route: a page, layout or route handler imports it (`npm run reachability` doesn't list it). Otherwise it goes under "Not user-visible" or is left out.
+See [CONTRIBUTING.md](../CONTRIBUTING.md#pull-request-checklist).
+
+- [ ] `npm run lint` completes with zero warnings
+- [ ] `npm run type-check` passes
+- [ ] `npm test` passes
+- [ ] `npm run check-test-locations` passes
+- [ ] Is this change reachable from a route? (The changed module is imported from a page, a layout, or a component those routes mount; `npm run reachability` doesn't list it. See "Live vs unreferenced code" in CONTRIBUTING.md.)
+- [ ] UI changes include screenshots below
+- [ ] The PR links the related issue
+- [ ] User-visible change → one line under `[Unreleased]` in `CHANGELOG.md`
+- [ ] Touches signing, wallet, amounts or recipients? Say how you checked that the wallet is asked to sign exactly what the user saw.
+
+## Screenshots
+
+<!-- For UI changes. Delete if not applicable. -->

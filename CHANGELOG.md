@@ -9,6 +9,10 @@ Production deploys to milestonepay.app are recorded under dated headings.
 
 ### Added
 
+- Recover stray tokens from an escrow with "Recover excess funds" (#898)
+- Approve several delivered milestones in one transaction (#899)
+- Arbiter fee and payout shown before a dispute is resolved (#900)
+
 ### Changed
 
 ### Fixed

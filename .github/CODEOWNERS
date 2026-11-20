@@ -1,0 +1,33 @@
+# Code owners (#901). Changes to these paths automatically request review from
+# the listed owners. With "Require review from Code Owners" enabled on `main`,
+# a code owner must approve before merge.
+#
+# Later rules take precedence over earlier ones.
+
+# Transaction building and signing path
+/app/lib/transactions.ts            @godamongstmen897
+/app/lib/transaction_signer.ts      @godamongstmen897
+/app/lib/transaction_signer_component.ts @godamongstmen897
+/app/lib/contract_read.ts           @godamongstmen897
+
+# Wallet context and session state
+/app/context/WalletContext.tsx      @godamongstmen897
+/app/lib/wallet_session.ts          @godamongstmen897
+/app/lib/wallet_session_storage_cleanup.ts @godamongstmen897
+/app/lib/wallet_state_context.ts    @godamongstmen897
+/app/lib/wallet_state_store.ts      @godamongstmen897
+
+# Deployment configuration and security headers
+/app/lib/config.ts                  @godamongstmen897
+/app/lib/network_config.ts          @godamongstmen897
+/next.config.ts                     @godamongstmen897
+/nginx.conf                         @godamongstmen897
+/Dockerfile                         @godamongstmen897
+
+# CI, deploy and repository policy
+/.github/workflows/                 @godamongstmen897
+/.github/dependabot.yml             @godamongstmen897
+/.github/CODEOWNERS                 @godamongstmen897
+/SECURITY.md                        @godamongstmen897
+/package.json                       @godamongstmen897
+/package-lock.json                  @godamongstmen897

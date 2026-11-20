@@ -10,6 +10,7 @@ import ArbiterActionPanel from "@/app/components/ArbiterActionPanel";
 import { formatBaseUnits } from "@/app/lib/amounts";
 import { getClaimEligibility, CLAIM_UNKNOWN_DEADLINE_NOTE } from "@/app/lib/claimEligibility";
 import ReleaseConfirmModal from "@/app/components/ReleaseConfirmModal";
+import { formatFeeBps, getArbiterResolutionBreakdown } from "@/app/lib/arbiter_fee";
 
 interface Milestone {
   index: number;
@@ -85,6 +86,23 @@ interface Props {
   onDispute?: (i: number) => void;
   /** Full address of the freelancer (recipient of approve/partial releases), shown shortened in the confirmation modal. */
   freelancerAddress?: string | null;
+  /**
+   * Escrow's arbiter fee in basis points (`get_arbiter_fee_bps`, #900). Used
+   * to show the remaining amount, fee and payout on a disputed milestone.
+   * `null` means unknown; `undefined` hides the breakdown.
+   */
+  arbiterFeeBps?: number | null;
+  /** Whether the arbiter fee rate is still being read. */
+  isArbiterFeeLoading?: boolean;
+  /**
+   * Batch approval (#899): when true, a Delivered milestone shows a checkbox
+   * so the client can approve several in one transaction.
+   */
+  selectable?: boolean;
+  /** Whether this milestone is selected for batch approval. */
+  selected?: boolean;
+  /** Called when the batch-approval checkbox changes. */
+  onSelectChange?: (index: number, selected: boolean) => void;
 }
 
 const statusColor: Record<string, string> = {
@@ -174,6 +192,11 @@ export default function MilestoneCard({
   freelancerAddress,
   escrowLocked = false,
   lockTooltip = "",
+  arbiterFeeBps,
+  isArbiterFeeLoading = false,
+  selectable = false,
+  selected = false,
+  onSelectChange,
   ...unusedProps
 }: Props) {
   void unusedProps;
@@ -327,6 +350,16 @@ export default function MilestoneCard({
   const releasePercent = isPartiallyReleased
     ? getReleasePercent(milestone.releasedAmount, milestone.amount)
     : null;
+  const isDisputed = milestone.status === "Disputed";
+  const feeBreakdown =
+    isDisputed && arbiterFeeBps !== undefined
+      ? getArbiterResolutionBreakdown({
+          amount: milestone.amount,
+          releasedAmount: milestone.releasedAmount,
+          feeBps: arbiterFeeBps,
+        })
+      : null;
+  const showBatchCheckbox = selectable && isClient && milestone.status === "Delivered";
 
   return (
     <div
@@ -360,9 +393,24 @@ export default function MilestoneCard({
 
       {/* Milestone info */}
       <div className="min-w-0 flex-1">
-        <p className="text-sm text-text-muted" aria-hidden="true">
-          {milestoneLabel}
-        </p>
+        {showBatchCheckbox ? (
+          <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer">
+            <input
+              type="checkbox"
+              data-testid="milestone-batch-select"
+              checked={selected}
+              onChange={(e) => onSelectChange?.(milestone.index, e.target.checked)}
+              disabled={!onSelectChange}
+              aria-label={`Select ${milestoneLabel} for batch approval`}
+              className="h-4 w-4 cursor-pointer rounded accent-accent-soft disabled:cursor-not-allowed"
+            />
+            <span aria-hidden="true">{milestoneLabel}</span>
+          </label>
+        ) : (
+          <p className="text-sm text-text-muted" aria-hidden="true">
+            {milestoneLabel}
+          </p>
+        )}
         <p
           className="font-mono text-text-primary text-sm mt-1 truncate"
           aria-label={`${milestoneLabel} amount: ${displayAmount} ${amountSymbol}`}
@@ -546,7 +594,44 @@ export default function MilestoneCard({
           onResolve={onResolveDispute}
           isPending={isResolveDisputePending}
           resolveState={resolveDisputeState}
+          feeBreakdown={feeBreakdown}
+          feeLoading={isArbiterFeeLoading}
+          amountDecimals={amountDecimals}
+          amountSymbol={amountSymbol}
         />
+      )}
+
+      {/* The parties see the same split the arbiter sees (#900). */}
+      {!isArbiter && (isClient || isFreelancer) && feeBreakdown && (
+        <p
+          data-testid="milestone-dispute-payout"
+          className="w-full mt-1 pt-3 border-t border-border-subtle text-xs text-text-muted"
+        >
+          On resolution:{" "}
+          <span className="font-mono">
+            {formatBaseUnits(feeBreakdown.remaining.toString(), { decimals: amountDecimals })}{" "}
+            {amountSymbol}
+          </span>{" "}
+          remaining · arbiter fee{" "}
+          {feeBreakdown.fee !== null && feeBreakdown.feeBps !== null ? (
+            <span className="font-mono">
+              {formatBaseUnits(feeBreakdown.fee.toString(), { decimals: amountDecimals })}{" "}
+              {amountSymbol} ({formatFeeBps(feeBreakdown.feeBps)})
+            </span>
+          ) : (
+            <span>{isArbiterFeeLoading ? "loading…" : "unknown"}</span>
+          )}{" "}
+          · the side the arbiter rules for receives{" "}
+          {feeBreakdown.payout !== null ? (
+            <span className="font-mono">
+              {formatBaseUnits(feeBreakdown.payout.toString(), { decimals: amountDecimals })}{" "}
+              {amountSymbol}
+            </span>
+          ) : (
+            <span>the remainder</span>
+          )}
+          .
+        </p>
       )}
 
       {/* Partial release form — visible to client when milestone is Delivered or PartiallyReleased */}
