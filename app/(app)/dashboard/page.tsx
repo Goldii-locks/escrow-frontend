@@ -341,7 +341,11 @@ export default function Dashboard() {
 
           if (requestId !== detailsRequestIdRef.current) return;
 
-          const payload = validateResponse(JobDetailResponseSchema, rawPayload, `/api/jobs/${jobId}`);
+          const payload = validateResponse(
+            JobDetailResponseSchema,
+            rawPayload,
+            `/api/jobs/${jobId}`
+          );
           candidate = normalizeJob(payload.data);
 
           // If the indexer ledger is stale, prefer fresh contract state (#895).
