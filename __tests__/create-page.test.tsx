@@ -85,6 +85,22 @@ describe("Create page", () => {
     expect(scopeStep).toHaveClass("border-accent-soft");
   });
 
+  it("lets clients add up to the contract's 50 milestones, then disables Add", () => {
+    render(<CreateJob />);
+
+    expect(screen.getByTestId("milestone-limit-hint")).toHaveTextContent(
+      "Up to 50 milestones per escrow"
+    );
+    const add = screen.getByRole("button", { name: "Add milestone" });
+    for (let i = 0; i < 60 && !(add as HTMLButtonElement).disabled; i++) {
+      fireEvent.click(add);
+    }
+
+    expect(add).toBeDisabled();
+    expect(screen.getByLabelText("Milestone 50 amount")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Milestone 51 amount")).not.toBeInTheDocument();
+  });
+
   it("renders a milestone empty state and supports recovery action", () => {
     render(<CreateJob />);
 
