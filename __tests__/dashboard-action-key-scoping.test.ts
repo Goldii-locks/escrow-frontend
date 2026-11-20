@@ -66,9 +66,7 @@ describe("actionKey scoping (#891)", () => {
       result.current.setError(actionKey(JOB_A, "approve", 0), "Simulation failed");
     });
 
-    expect(result.current.getState(actionKey(JOB_A, "approve", 0)).error).toBe(
-      "Simulation failed"
-    );
+    expect(result.current.getState(actionKey(JOB_A, "approve", 0)).error).toBe("Simulation failed");
     expect(result.current.getState(actionKey(JOB_B, "approve", 0)).error).toBeNull();
   });
 

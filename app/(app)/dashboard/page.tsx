@@ -724,7 +724,9 @@ export default function Dashboard() {
   const handleFund = async () => {
     if (!address || !expandedJob) return;
 
-    await executeTx(actionKey(expandedJob.id, "fund"), "fund", [{ type: "address", value: address }]);
+    await executeTx(actionKey(expandedJob.id, "fund"), "fund", [
+      { type: "address", value: address },
+    ]);
   };
 
   const handleApprove = async (i: number) => {
@@ -1167,13 +1169,25 @@ export default function Dashboard() {
                                         amountDecimals={expandedJob.tokenDecimals ?? 7}
                                         amountSymbol={expandedJob.tokenSymbol ?? "XLM"}
                                         freelancerAddress={expandedJob.freelancer}
-                                        resolveDisputeState={getState(actionKey(expandedJob.id, "resolve", m.index))}
-                                        isResolveDisputePending={isPending(actionKey(expandedJob.id, "resolve", m.index))}
+                                        resolveDisputeState={getState(
+                                          actionKey(expandedJob.id, "resolve", m.index)
+                                        )}
+                                        isResolveDisputePending={isPending(
+                                          actionKey(expandedJob.id, "resolve", m.index)
+                                        )}
                                         onResolveDispute={handleResolveDispute}
-                                        partialReleaseState={getState(actionKey(expandedJob.id, "partial", m.index))}
-                                        claimAutoReleaseState={getState(actionKey(expandedJob.id, "claim", m.index))}
-                                        isPartialReleasePending={isPending(actionKey(expandedJob.id, "partial", m.index))}
-                                        isClaimAutoReleasePending={isPending(actionKey(expandedJob.id, "claim", m.index))}
+                                        partialReleaseState={getState(
+                                          actionKey(expandedJob.id, "partial", m.index)
+                                        )}
+                                        claimAutoReleaseState={getState(
+                                          actionKey(expandedJob.id, "claim", m.index)
+                                        )}
+                                        isPartialReleasePending={isPending(
+                                          actionKey(expandedJob.id, "partial", m.index)
+                                        )}
+                                        isClaimAutoReleasePending={isPending(
+                                          actionKey(expandedJob.id, "claim", m.index)
+                                        )}
                                         autoReleaseDeadline={autoReleaseDeadlines[m.index] ?? null}
                                         onPartialRelease={handlePartialRelease}
                                         onClaimAutoRelease={handleClaimAutoRelease}
