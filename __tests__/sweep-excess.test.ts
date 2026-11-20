@@ -17,11 +17,15 @@ import {
 import { ERROR_MESSAGES } from "@/app/lib/errors";
 
 const ESCROW = "CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH";
-const CLIENT = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+const CLIENT = "GAODBHVR63Z56MVQRBEJSYM2H5423LJ4WAPUUBOFG4JYY72S6ROKVZRX";
 const TOKEN = "CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH";
 
 describe("sweep_excess helpers (#898)", () => {
-  beforeEach(() => simulateContractRead.mockReset());
+  // Braces matter: a function returned from beforeEach is run as teardown,
+  // and mockReset() returns the mock itself.
+  beforeEach(() => {
+    simulateContractRead.mockReset();
+  });
 
   it("reads the contract error code from a simulation error", () => {
     expect(parseSimulationContractErrorCode("HostError: Error(Contract, #42)")).toBe(42);
