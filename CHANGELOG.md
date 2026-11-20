@@ -11,6 +11,8 @@ Production deploys to milestonepay.app are recorded under dated headings.
 
 ### Changed
 
+- Landing page contract link now points at the escrow factory instead of the legacy single escrow (#855)
+
 ### Fixed
 
 ### Removed
