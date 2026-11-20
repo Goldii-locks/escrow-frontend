@@ -44,6 +44,7 @@ export const ERROR_MESSAGES: Record<number, string> = {
   35: "The fee is higher than the contract allows.",
   36: "The amount is too large to process.",
   37: "The escrow balance is too low for this action.",
+  42: "There's nothing to recover: this escrow holds no tokens beyond what it still owes.",
 };
 
 export class WalletRejectedError extends Error {

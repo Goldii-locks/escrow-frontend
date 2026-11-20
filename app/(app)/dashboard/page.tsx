@@ -10,6 +10,8 @@ import LoadingSkeleton from "@/app/components/LoadingSkeleton";
 import EmptyStateCard from "@/app/components/EmptyStateCard";
 import JobActivityTimeline from "@/app/components/JobActivityTimeline";
 import DisputeRaiseModal from "@/app/components/DisputeRaiseModal";
+import BatchApproveModal from "@/app/components/BatchApproveModal";
+import RecoverExcessFunds from "@/app/components/RecoverExcessFunds";
 import { ArbiterPanelPlaceholder } from "@/app/components/ArbiterActionPanel";
 import { getArbiterJobEmptyState } from "@/app/lib/arbiter_action_panel";
 import { useActionStates } from "@/app/hooks/useActionStates";
@@ -37,6 +39,20 @@ import {
   shortAddress,
 } from "@/app/lib/job_list_summary";
 import { hashDisputeReason } from "@/app/lib/dispute_reason";
+import { fetchArbiterFeeBps } from "@/app/lib/arbiter_fee";
+import {
+  MAX_BATCH_APPROVALS,
+  buildApproveMilestonesArgs,
+  getBatchApprovalTotal,
+  pruneBatchSelection,
+  shouldOfferBatchApproval,
+  toggleBatchSelection,
+  validateBatchSelection,
+} from "@/app/lib/batch_approval";
+import { buildSweepExcessArgs } from "@/app/lib/sweep_excess";
+
+/** Action key for the batch `approve_milestones` transaction (#899). */
+const BATCH_APPROVE_KEY = "approve-batch";
 
 type RoleFilter = "all" | "client" | "freelancer" | "arbiter";
 
@@ -158,6 +174,13 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
   const [disputeMilestoneIndex, setDisputeMilestoneIndex] = useState<number | null>(null);
+  /** Delivered milestones selected for batch approval, keyed by job (#899). */
+  const [batchSelection, setBatchSelection] = useState<{ jobId: string | null; indices: number[] }>(
+    { jobId: null, indices: [] }
+  );
+  const [batchModalOpen, setBatchModalOpen] = useState(false);
+  /** Arbiter fee (bps) per job; null = unreadable, absent = not read yet (#900). */
+  const [arbiterFeeBps, setArbiterFeeBps] = useState<Record<string, number | null>>({});
 
   const { getState, isPending, setPhase, setError: setActionError, setTxHash } = useActionStates();
 
@@ -591,6 +614,43 @@ export default function Dashboard() {
     cancelLocked: expandedJob?.cancelLocked,
   });
 
+  // Batch approval (#899): the selection belongs to the expanded job and only
+  // ever holds milestones that are still Delivered.
+  const offerBatchApproval = isClient && shouldOfferBatchApproval(milestoneList);
+  const selectedForBatch =
+    offerBatchApproval && batchSelection.jobId === expandedJobId
+      ? pruneBatchSelection(batchSelection.indices, milestoneList)
+      : [];
+  const batchTotal = getBatchApprovalTotal(selectedForBatch, milestoneList);
+
+  const handleBatchSelectChange = useCallback(
+    (index: number, selected: boolean) => {
+      setBatchSelection((current) => {
+        const base = current.jobId === expandedJobId ? current.indices : [];
+        return { jobId: expandedJobId, indices: toggleBatchSelection(base, index, selected) };
+      });
+    },
+    [expandedJobId]
+  );
+
+  // Arbiter fee (#900): read once per job that has a disputed milestone, so
+  // the arbiter and both parties see the split before resolution.
+  const expandedJobHasDispute = milestoneList.some((m) => m.status === "Disputed");
+  const expandedJobFeeBps =
+    expandedJobId && expandedJobId in arbiterFeeBps ? arbiterFeeBps[expandedJobId] : undefined;
+
+  useEffect(() => {
+    if (!expandedJobId || !expandedJobHasDispute || expandedJobId in arbiterFeeBps) return;
+    let active = true;
+    const jobId = expandedJobId;
+    void fetchArbiterFeeBps(jobId).then((bps) => {
+      if (active) setArbiterFeeBps((current) => ({ ...current, [jobId]: bps }));
+    });
+    return () => {
+      active = false;
+    };
+  }, [expandedJobId, expandedJobHasDispute, arbiterFeeBps]);
+
   const [autoReleaseDeadlines, setAutoReleaseDeadlines] = useState<Record<number, number | null>>(
     {}
   );
@@ -736,6 +796,26 @@ export default function Dashboard() {
       { type: "address", value: address },
       { type: "u32", value: i.toString() },
     ]);
+  };
+
+  const handleBatchApprove = async () => {
+    if (!address || validateBatchSelection(selectedForBatch) !== null) return;
+
+    const txHash = await executeTx(
+      BATCH_APPROVE_KEY,
+      "approve_milestones",
+      buildApproveMilestonesArgs(address, selectedForBatch)
+    );
+    if (txHash !== null) {
+      setBatchModalOpen(false);
+      setBatchSelection({ jobId: null, indices: [] });
+    }
+  };
+
+  const handleSweepExcess = async (token: string) => {
+    if (!address) return null;
+
+    return executeTx(`sweep-${token}`, "sweep_excess", buildSweepExcessArgs(address, token));
   };
 
   const handleDispute = (i: number) => {
@@ -1144,6 +1224,36 @@ export default function Dashboard() {
                                     Live from the contract; history may be delayed.
                                   </p>
                                 )}
+                                {offerBatchApproval && (
+                                  <div
+                                    data-testid="batch-approve-bar"
+                                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border border-border-subtle bg-surface-field px-3 py-2"
+                                  >
+                                    <p className="text-xs text-text-muted" aria-live="polite">
+                                      {selectedForBatch.length === 0
+                                        ? `Select delivered milestones to approve them in one transaction (up to ${MAX_BATCH_APPROVALS}).`
+                                        : `${selectedForBatch.length} selected`}
+                                    </p>
+                                    <button
+                                      type="button"
+                                      data-testid="batch-approve-button"
+                                      onClick={() => setBatchModalOpen(true)}
+                                      disabled={
+                                        selectedForBatch.length === 0 ||
+                                        isPending(BATCH_APPROVE_KEY) ||
+                                        escrowLock.actionsDisabled
+                                      }
+                                      title={
+                                        escrowLock.actionsDisabled ? escrowLock.tooltip : undefined
+                                      }
+                                      className="text-xs px-3 py-1.5 rounded-lg bg-success text-surface-page font-medium hover:bg-success/80 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-success-soft disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                      {isPending(BATCH_APPROVE_KEY)
+                                        ? "Approving…"
+                                        : `Approve selected${selectedForBatch.length > 0 ? ` (${selectedForBatch.length})` : ""}`}
+                                    </button>
+                                  </div>
+                                )}
                                 <div
                                   className="space-y-3 sm:space-y-4"
                                   role="region"
@@ -1195,6 +1305,18 @@ export default function Dashboard() {
                                         onDispute={handleDispute}
                                         escrowLocked={escrowLock.actionsDisabled}
                                         lockTooltip={escrowLock.tooltip}
+
+                                        arbiterFeeBps={
+                                          expandedJobHasDispute
+                                            ? (expandedJobFeeBps ?? null)
+                                            : undefined
+                                        }
+                                        isArbiterFeeLoading={
+                                          expandedJobHasDispute && expandedJobFeeBps === undefined
+                                        }
+                                        selectable={offerBatchApproval}
+                                        selected={selectedForBatch.includes(m.index)}
+                                        onSelectChange={handleBatchSelectChange}
                                       />
                                     ))
                                   ) : (
@@ -1209,6 +1331,19 @@ export default function Dashboard() {
                                     />
                                   )}
                                 </div>
+
+                                {isClient && (
+                                  <RecoverExcessFunds
+                                    contractId={expandedJob.id}
+                                    clientAddress={address}
+                                    jobToken={expandedJob.token ?? null}
+                                    jobTokenSymbol={expandedJob.tokenSymbol ?? "XLM"}
+                                    jobTokenDecimals={expandedJob.tokenDecimals ?? 7}
+                                    onSweep={handleSweepExcess}
+                                    getSweepState={(token) => getState(`sweep-${token}`)}
+                                    isSweepPending={(token) => isPending(`sweep-${token}`)}
+                                  />
+                                )}
 
                                 <JobActivityTimeline contractId={expandedJob.id} />
                               </>
@@ -1277,6 +1412,22 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* Batch approval confirmation (#899) */}
+      {batchModalOpen && expandedJob && (
+        <BatchApproveModal
+          isOpen
+          onClose={() => setBatchModalOpen(false)}
+          onConfirm={() => void handleBatchApprove()}
+          milestones={milestoneList.filter((m) => selectedForBatch.includes(m.index))}
+          totalStroops={(batchTotal ?? BigInt(0)).toString()}
+          decimals={expandedJob.tokenDecimals ?? 7}
+          symbol={expandedJob.tokenSymbol ?? "XLM"}
+          recipientAddress={expandedJob.freelancer}
+          isConfirming={isPending(BATCH_APPROVE_KEY)}
+          errorMessage={getState(BATCH_APPROVE_KEY).error}
+        />
+      )}
 
       {/* Dispute Raise Modal */}
       {disputeMilestoneIndex !== null && (
