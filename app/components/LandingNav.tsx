@@ -4,7 +4,7 @@
  * Landing page navigation.
  *
  * Marketing chrome only: logo, network badge, the four reference links and the
- * Launch App pill, exactly as design/landing-reference.html shows it.
+ * Launch App pill.
  *
  * The notification bell, wallet selector and Connect Wallet button deliberately
  * do NOT live here. They belong to the signed-in app experience and are mounted
