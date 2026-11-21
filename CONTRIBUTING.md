@@ -27,7 +27,7 @@ cp .env.local.example .env.local
 
 Variables in `.env.local.example`:
 
-- `NEXT_PUBLIC_CONTRACT_ID` — Soroban contract ID. README lists the testnet ID `CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH`.
+- `NEXT_PUBLIC_FACTORY_CONTRACT_ID` — escrow-factory contract new escrows are created through. Empty disables escrow creation. There is no single escrow contract ID: every escrow is its own factory-created contract.
 - `NEXT_PUBLIC_BACKEND_URL` — backend origin. The example value is `http://localhost:3001`.
 - `NEXT_PUBLIC_SOROBAN_RPC_URL` — Soroban RPC. The example value is `https://soroban-testnet.stellar.org`.
 - `NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE` — network passphrase. The example value is `Test SDF Network ; September 2015`.

@@ -2,6 +2,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AdminPage from "@/app/(app)/admin/page";
+import { selectEscrow } from "@/__tests__/helpers/admin_escrow";
 
 const mockUseWallet = vi.fn();
 const mockIsAdmin = vi.fn();
@@ -88,6 +89,7 @@ describe("AdminPage", () => {
     stubFetch({ success: true, data: ["CTOKEN1", "CTOKEN2"] });
 
     render(<AdminPage />);
+    selectEscrow();
 
     await waitFor(() => {
       expect(screen.getByLabelText(/token contract address/i)).toBeInTheDocument();
@@ -105,6 +107,7 @@ describe("AdminPage", () => {
     stubFetch({ success: true, data: [] });
 
     render(<AdminPage />);
+    selectEscrow();
 
     await waitFor(() => {
       expect(screen.getByText(/no whitelisted tokens found/i)).toBeInTheDocument();
@@ -120,6 +123,7 @@ describe("AdminPage", () => {
     stubFetch({ error: "Backend error" }, false);
 
     render(<AdminPage />);
+    selectEscrow();
 
     await waitFor(() => {
       expect(
@@ -137,6 +141,7 @@ describe("AdminPage", () => {
     stubFetch({ success: true, data: [] });
 
     render(<AdminPage />);
+    selectEscrow();
 
     await waitFor(() => {
       expect(screen.getByLabelText(/token contract address/i)).toBeInTheDocument();
@@ -153,6 +158,7 @@ describe("AdminPage", () => {
     stubFetch({ success: true, data: ["CTOKEN1", "CTOKEN2"] });
 
     render(<AdminPage />);
+    selectEscrow();
 
     await waitFor(() => {
       const removeButtons = screen.getAllByRole("button", { name: /remove/i });
@@ -171,7 +177,9 @@ describe("AdminPage", () => {
       expect(screen.getByTestId("admin-access-denied")).toBeInTheDocument();
       expect(screen.queryByLabelText(/token contract address/i)).not.toBeInTheDocument();
       expect(screen.queryByText("CTOKEN1")).not.toBeInTheDocument();
-      expect(fetch).not.toHaveBeenCalled();
+      expect(
+        vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes("whitelist"))
+      ).toBe(false);
     });
   });
 
@@ -194,6 +202,7 @@ describe("AdminPage", () => {
       stubFetch({ success: true, data: ["CTOKEN1"] });
 
       render(<AdminPage />);
+      selectEscrow();
 
       expect(screen.getAllByTestId("admin-whitelist-skeleton-row").length).toBeGreaterThan(0);
       await waitFor(() => expect(screen.getByText("CTOKEN1")).toBeInTheDocument());
@@ -225,6 +234,7 @@ describe("AdminPage", () => {
     it("disables add and remove with an explanation when the escrow is funded", async () => {
       stubFetchByMethod(true);
       render(<AdminPage />);
+      selectEscrow();
 
       await waitFor(() =>
         expect(screen.getByTestId("whitelist-locked-notice")).toBeInTheDocument()
@@ -240,6 +250,7 @@ describe("AdminPage", () => {
     it("keeps the actions enabled when the escrow is not funded", async () => {
       stubFetchByMethod(false);
       render(<AdminPage />);
+      selectEscrow();
 
       await waitFor(() =>
         expect(screen.getByTestId("escrow-funded-status")).toHaveTextContent("Not funded")

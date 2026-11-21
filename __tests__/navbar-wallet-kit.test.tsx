@@ -23,6 +23,18 @@ vi.mock("@/app/hooks/useIsAdmin", () => ({
   useIsAdmin: () => ({ isAdminUser: false }),
 }));
 
+vi.mock("@/app/hooks/useWalletNotifications", () => ({
+  useWalletNotifications: () => ({
+    notifications: [],
+    unreadCount: 0,
+    loading: false,
+    error: null,
+    markRead: vi.fn(),
+    markAllRead: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}));
+
 describe("Navbar wallet selector", () => {
   beforeEach(() => {
     vi.clearAllMocks();

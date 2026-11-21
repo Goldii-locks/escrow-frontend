@@ -2,6 +2,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AdminPage from "@/app/(app)/admin/page";
+import { selectEscrow } from "@/__tests__/helpers/admin_escrow";
 import {
   buildWhitelistCsv,
   downloadWhitelistCsv,
@@ -57,7 +58,9 @@ function renderAdmin(tokens: string[] = ["CTOKEN1", "CTOKEN2"]) {
   });
   mockIsAdmin.mockReturnValue({ loading: false, isAdminUser: true });
   stubFetch(tokens);
-  return render(<AdminPage />);
+  const view = render(<AdminPage />);
+  selectEscrow();
+  return view;
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -185,6 +188,7 @@ describe("AdminPage whitelist panel", () => {
     mockUseWallet.mockReturnValue({ address: "GADMIN123", signTransaction: vi.fn() });
     mockIsAdmin.mockReturnValue({ loading: false, isAdminUser: true });
     render(<AdminPage />);
+    selectEscrow();
     await waitFor(() =>
       expect(mockShowToast).toHaveBeenCalledWith(
         "Could not connect to backend to load whitelist.",

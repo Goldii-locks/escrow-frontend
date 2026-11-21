@@ -1,4 +1,4 @@
-import { BACKEND_URL, CONTRACT_ID, FACTORY_CONTRACT_ID } from "@/app/lib/config";
+import { BACKEND_URL, FACTORY_CONTRACT_ID } from "@/app/lib/config";
 import {
   formatTxError,
   PreparedTransactionMismatchError,
@@ -9,11 +9,15 @@ import { verifyPreparedTransaction } from "@/app/lib/tx_verification";
 import type { WalletSimulationResult } from "@/app/lib/wallet_session";
 
 /**
- * `BACKEND_URL`, `CONTRACT_ID` and `FACTORY_CONTRACT_ID` are deployment
- * settings and live in `app/lib/config.ts`; they are re-exported here because
- * every caller already imports this module and tests mock it.
+ * `BACKEND_URL` and `FACTORY_CONTRACT_ID` are deployment settings and live in
+ * `app/lib/config.ts`; they are re-exported here because every caller already
+ * imports this module and tests mock it.
+ *
+ * There is deliberately no single `CONTRACT_ID` any more (#836, #572): every
+ * escrow is its own factory-created contract, so each call names the contract
+ * it targets.
  */
-export { BACKEND_URL, CONTRACT_ID, FACTORY_CONTRACT_ID };
+export { BACKEND_URL, FACTORY_CONTRACT_ID };
 
 export type ContractArg = { type: string; value: unknown };
 
@@ -218,7 +222,7 @@ async function parseErrorResponse(res: Response, fallback: string): Promise<stri
 }
 
 export async function submitContractTransaction({
-  contractId = CONTRACT_ID,
+  contractId,
   method,
   args,
   sourceAddress,
@@ -227,11 +231,12 @@ export async function submitContractTransaction({
   setSimulationResult,
 }: {
   /**
-   * Contract to call. Defaults to the configured `CONTRACT_ID`; each escrow
-   * created through the factory is its own contract, so job actions pass the
-   * job's id, and the create flow passes `FACTORY_CONTRACT_ID`.
+   * Contract to call. Required (#836): each escrow created through the
+   * factory is its own contract, so job actions pass the job's id, admin
+   * actions pass the selected escrow or the factory, and the create flow
+   * passes `FACTORY_CONTRACT_ID`. There is no fallback contract.
    */
-  contractId?: string;
+  contractId: string;
   method: string;
   args: ContractArg[];
   sourceAddress: string;
@@ -240,6 +245,11 @@ export async function submitContractTransaction({
   /** Set after a Soroban simulation completes; triggers fee warning evaluation. */
   setSimulationResult?: (result: WalletSimulationResult | null) => void;
 }): Promise<string> {
+  // Guards JS callers and empty env values; TypeScript already requires it.
+  if (!contractId) {
+    throw new Error("No contract selected for this transaction.");
+  }
+
   onPhase?.("building");
 
   const buildTxRes = await fetch(`${BACKEND_URL}/api/jobs/build-tx`, {

@@ -9,7 +9,6 @@ import submitSuccessLegacyFlatHash from "@/__tests__/fixtures/backend/submit-suc
 import submitValidationError from "@/__tests__/fixtures/backend/submit-validation-error.json";
 import {
   BACKEND_URL,
-  CONTRACT_ID,
   extractBackendErrorMessage,
   extractSubmitTxHash,
   submitContractTransaction,
@@ -77,7 +76,11 @@ function bodyOf(call: FetchCall): Record<string, unknown> {
   return JSON.parse(String(call.init?.body ?? "{}")) as Record<string, unknown>;
 }
 
+/** Every call names its contract: there is no configured default (#836). */
+const CONTRACT_ID = "CESCROWCID6R37252VR7ZY4AFCEFO7HTGSJ7NX2EBYXUUNBZZMYNRLG2MPY";
+
 const BASE_TX = {
+  contractId: CONTRACT_ID,
   method: "add_whitelisted_token",
   args: [
     { type: "address", value: SOURCE_ADDRESS },
@@ -94,6 +97,24 @@ describe("submitContractTransaction against real backend response shapes (#686)"
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+  });
+
+  describe("contractId is required (#836)", () => {
+    it("rejects a call with no contract before contacting the backend", async () => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
+      const { contractId: _omitted, ...withoutContract } = BASE_TX;
+      void _omitted;
+
+      await expect(
+        // @ts-expect-error contractId is a required parameter: no legacy fallback.
+        submitContractTransaction({ ...withoutContract, signTransaction: vi.fn() })
+      ).rejects.toThrow("No contract selected for this transaction.");
+      await expect(
+        submitContractTransaction({ ...BASE_TX, contractId: "", signTransaction: vi.fn() })
+      ).rejects.toThrow("No contract selected for this transaction.");
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
   });
 
   describe("success path", () => {

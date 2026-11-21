@@ -5,7 +5,7 @@ import "../landing.css";
 import LandingNav from "@/app/components/LandingNav";
 import LandingLogo from "@/app/components/LandingLogo";
 import LandingArrow from "@/app/components/LandingArrow";
-import { CONTRACT_ID, NETWORK_PASSPHRASE } from "@/app/lib/network_config";
+import { FACTORY_CONTRACT_ID, NETWORK_PASSPHRASE } from "@/app/lib/network_config";
 import { networkProseName, stellarExpertContractUrl, truncateContractId } from "@/app/lib/network";
 
 const CONTRACT_REPO = "https://github.com/Goldii-locks/escrow-contract";
@@ -48,8 +48,9 @@ function OrbitChip({
 }
 
 export default function Home() {
-  const explorerUrl = stellarExpertContractUrl(CONTRACT_ID, NETWORK_PASSPHRASE);
-  const shortContract = truncateContractId(CONTRACT_ID);
+  // Every escrow is its own contract; the factory is the one fixed address.
+  const explorerUrl = stellarExpertContractUrl(FACTORY_CONTRACT_ID, NETWORK_PASSPHRASE);
+  const shortContract = truncateContractId(FACTORY_CONTRACT_ID);
 
   return (
     <div className="landing">

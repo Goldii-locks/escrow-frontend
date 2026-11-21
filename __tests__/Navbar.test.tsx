@@ -34,10 +34,31 @@ vi.mock("@/app/hooks/useIsAdmin", () => ({
   useIsAdmin: () => ({ isAdminUser: false }),
 }));
 
+const markRead = vi.fn();
+const markAllRead = vi.fn();
+const refresh = vi.fn();
+let notificationState: Record<string, unknown>;
+
+vi.mock("@/app/hooks/useWalletNotifications", () => ({
+  useWalletNotifications: () => notificationState,
+}));
+
 beforeEach(() => {
   connect.mockClear();
   disconnect.mockClear();
   setSelectedWalletId.mockClear();
+  markRead.mockClear();
+  markAllRead.mockClear();
+  refresh.mockClear();
+  notificationState = {
+    notifications: [],
+    unreadCount: 0,
+    loading: false,
+    error: null,
+    markRead,
+    markAllRead,
+    refresh,
+  };
   walletState = {
     address: null,
     connect,
@@ -108,5 +129,75 @@ describe("Navbar owns the bell and the wallet controls", () => {
     walletState.networkMismatchMessage = "Wallet is on PUBLIC, app expects TESTNET";
     render(<Navbar />);
     expect(screen.getByRole("alert")).toHaveTextContent(/Wallet is on PUBLIC, app expects TESTNET/);
+  });
+});
+
+describe("Navbar bell is backed by the wallet's real notifications (#839)", () => {
+  const ADDRESS = "GAODBHVR63Z56MVQRBEJSYM2H5423LJ4WAPUUBOFG4JYY72S6ROKVZRX";
+  const unread = {
+    id: "action:CJOB:0:review_delivery",
+    title: "Review delivery",
+    message: "Milestone 1 of Job CJOB. Open the dashboard to act on it.",
+    timestamp: "Action needed",
+    read: false,
+  };
+  const read = {
+    id: "history:CJOB:7",
+    title: "Milestone released",
+    message: "Job CJOB · ledger 7",
+    timestamp: "",
+    read: true,
+  };
+
+  beforeEach(() => {
+    walletState.address = ADDRESS;
+    notificationState = { ...notificationState, notifications: [unread, read], unreadCount: 1 };
+  });
+
+  it("shows the unread count instead of a hardcoded zero", () => {
+    render(<Navbar />);
+    const bell = screen.getByRole("button", { name: "Notifications (1 unread)" });
+    expect(bell).toHaveAttribute("data-unread-count", "1");
+    expect(screen.getByTestId("notification-badge")).toHaveTextContent("1");
+  });
+
+  it("refreshes on open and lists the pending action and history items", () => {
+    render(<Navbar />);
+    fireEvent.click(screen.getByRole("button", { name: /notifications/i }));
+
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId(`notification-item-${unread.id}`)).toHaveAttribute(
+      "data-read",
+      "false"
+    );
+    expect(screen.getByTestId(`notification-item-${read.id}`)).toHaveAttribute(
+      "data-read",
+      "true"
+    );
+  });
+
+  it("marks an item read when clicked, and all read from the header", () => {
+    render(<Navbar />);
+    fireEvent.click(screen.getByRole("button", { name: /notifications/i }));
+
+    fireEvent.click(screen.getByTestId(`notification-item-${unread.id}`));
+    expect(markRead).toHaveBeenCalledWith(unread.id);
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark all as read" }));
+    expect(markAllRead).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the load error from the notification source", () => {
+    notificationState = {
+      ...notificationState,
+      notifications: [],
+      unreadCount: 0,
+      error: "Couldn't load notifications.",
+    };
+    render(<Navbar />);
+    fireEvent.click(screen.getByRole("button", { name: /notifications/i }));
+    expect(screen.getByTestId("notification-error")).toHaveTextContent(
+      "Couldn't load notifications."
+    );
   });
 });

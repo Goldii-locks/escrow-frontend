@@ -9,13 +9,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Use vi.hoisted so the constant is available inside the vi.mock factory,
 // which is hoisted to the top of the file before variable declarations.
-const { FACTORY } = vi.hoisted(() => ({
+const { FACTORY, factoryConfig } = vi.hoisted(() => ({
   FACTORY: "CFACTORY000000000000000000000000000000000000000000000001",
+  factoryConfig: { id: "CFACTORY000000000000000000000000000000000000000000000001" },
 }));
 
+// No legacy CONTRACT_ID (#836): the factory is the only source of tokens.
+// A getter so a test can simulate a deployment without a factory.
 vi.mock("@/app/lib/transactions", () => ({
-  CONTRACT_ID: FACTORY,
-  FACTORY_CONTRACT_ID: FACTORY,
+  get FACTORY_CONTRACT_ID() {
+    return factoryConfig.id;
+  },
 }));
 
 const mockFetchWhitelistedTokens = vi.fn();
@@ -29,7 +33,7 @@ vi.mock("@/app/lib/token_validation", () => ({
 }));
 
 // ── import hook after mocks ───────────────────────────────────────────────────
-import { useTokenCheck } from "@/app/(app)/create/useTokenCheck";
+import { NO_FACTORY_WHITELIST_ERROR, useTokenCheck } from "@/app/(app)/create/useTokenCheck";
 
 // ── constants ─────────────────────────────────────────────────────────────────
 
@@ -66,6 +70,7 @@ async function flushAll() {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  factoryConfig.id = FACTORY;
   mockFetchWhitelistedTokens.mockReset();
   mockValidateTokenContract.mockReset();
 });
@@ -111,6 +116,17 @@ describe("useTokenCheck — whitelist fetch on mount", () => {
       FACTORY,
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
+  });
+
+  it("has no legacy contract fallback when no factory is configured (#836)", async () => {
+    factoryConfig.id = "";
+    const { result } = renderHook(() => useTokenCheck(""));
+
+    await flushAll();
+
+    expect(mockFetchWhitelistedTokens).not.toHaveBeenCalled();
+    expect(result.current.whitelistLoading).toBe(false);
+    expect(result.current.whitelistError).toBe(NO_FACTORY_WHITELIST_ERROR);
   });
 });
 

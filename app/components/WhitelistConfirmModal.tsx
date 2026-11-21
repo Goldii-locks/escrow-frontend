@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { getConfirmCopy, type WhitelistAction } from "@/app/lib/admin_whitelist_panel";
-import { CONTRACT_ID, NETWORK_PASSPHRASE } from "@/app/lib/config";
+import { NETWORK_PASSPHRASE } from "@/app/lib/config";
 import { networkLabel, truncateContractId } from "@/app/lib/network";
 
 export interface WhitelistConfirmModalProps {
@@ -10,7 +10,7 @@ export interface WhitelistConfirmModalProps {
   action: WhitelistAction | null;
   onCancel: () => void;
   onConfirm: (action: WhitelistAction) => void;
-  /** Contract the transaction targets; defaults to the configured one. */
+  /** Contract the transaction targets (the selected escrow or the factory). */
   contractId?: string;
   /** Network the transaction targets; defaults to the configured one. */
   networkPassphrase?: string;
@@ -25,7 +25,7 @@ export default function WhitelistConfirmModal({
   action,
   onCancel,
   onConfirm,
-  contractId = CONTRACT_ID,
+  contractId = "",
   networkPassphrase = NETWORK_PASSPHRASE,
 }: WhitelistConfirmModalProps) {
   if (!action) return null;

@@ -25,6 +25,7 @@ describe("submitContractTransaction simulation result wiring (#631)", () => {
 
     await expect(
       submitContractTransaction({
+        contractId: "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
         method: "initialize",
         args: [],
         sourceAddress: "GCLIENT",
@@ -48,6 +49,7 @@ describe("submitContractTransaction simulation result wiring (#631)", () => {
 
     await expect(
       submitContractTransaction({
+        contractId: "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
         method: "initialize",
         args: [],
         sourceAddress: "GCLIENT",
@@ -69,6 +71,7 @@ describe("submitContractTransaction simulation result wiring (#631)", () => {
 
     await expect(
       submitContractTransaction({
+        contractId: "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
         method: "initialize",
         args: [],
         sourceAddress: "GCLIENT",

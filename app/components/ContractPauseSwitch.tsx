@@ -74,7 +74,7 @@ export default function ContractPauseSwitch({
     const controller = new AbortController();
     startTransition(() => setLoading(true));
 
-    fetchContractPauseState({ apiUrl: apiEndpoint, signal: controller.signal })
+    fetchContractPauseState({ contractId, apiUrl: apiEndpoint, signal: controller.signal })
       .then((data) => {
         if (!isMounted) return;
         startTransition(() => {
@@ -98,7 +98,7 @@ export default function ContractPauseSwitch({
       isMounted = false;
       controller.abort();
     };
-  }, [initialState, apiEndpoint]);
+  }, [initialState, apiEndpoint, contractId]);
 
   // Controlled mode wins; otherwise fall back to the resolved snapshot.
   const isPaused = paused ?? state?.paused ?? false;

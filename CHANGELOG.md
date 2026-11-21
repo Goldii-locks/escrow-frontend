@@ -13,16 +13,22 @@ Production deploys to milestonepay.app are recorded under dated headings.
 - Approve several delivered milestones in one transaction (#899)
 - Arbiter fee and payout shown before a dispute is resolved (#900)
 - "Needs your action" list at the top of the dashboard, sorted by deadline (#888)
+- The navbar bell shows your pending actions and recent job activity, and remembers what you have read (#839)
+- Escrow factory administration on /admin: allowed tokens and the escrow WASM hash (#837)
 
 ### Changed
 
 - Transactions prepared by the backend are checked against the requested call before the wallet is asked to sign (#889)
+- /admin manages the escrow you pick instead of one configured contract (#837)
+- Delegated role holders can use /admin: Operators pause and resume, FeeManagers manage the whitelist, and the header shows your roles (#838)
 
 ### Fixed
 
 - The job activity timeline refreshes after an action and when the dashboard poll sees new activity (#892)
 
 ### Removed
+
+- `NEXT_PUBLIC_CONTRACT_ID` is no longer read or required at build or deploy time (#836, #572)
 
 ## [2026-10-18] - 689017a
 
