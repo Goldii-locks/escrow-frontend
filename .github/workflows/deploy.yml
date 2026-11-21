@@ -92,6 +92,16 @@ jobs:
           fi
           echo "Contract ID format is valid: ${CID}"
 
+      - name: Validate factory contract ID
+        env:
+          FID: ${{ vars.FACTORY_CONTRACT_ID }}
+        run: |
+          [ -n "$FID" ] || { echo "::error::no FACTORY_CONTRACT_ID — set the repo variable"; exit 1; }
+          if ! echo "$FID" | grep -qE '^C[A-Z2-7]{55}$'; then
+            echo "::error::Invalid factory contract ID '${FID}'. Expected ^C[A-Z2-7]{55}$."
+            exit 1
+          fi
+
       - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
@@ -162,5 +172,9 @@ jobs:
           curl -fsS --max-time 10 "${BASE}/healthz"
           # Deep link must return the exported .html, not a 404 and not index.
           curl -fsS --max-time 10 -o /dev/null -w '%{http_code}\n' "${BASE}/dashboard"
-          curl -fsS --max-time 15 "${BASE}/health" \
-            || echo "::warning::backend /health unreachable — expected while the soroban-sdk migration is outstanding"
+          curl -fsS --max-time 15 "${BASE}/health"
+          # A build without the factory ID renders the "not available" page.
+          if curl -fsS --max-time 10 "${BASE}/create" | grep -q "isn't available yet"; then
+            echo "::error::/create shows 'isn't available yet' — factory contract ID missing from build"
+            exit 1
+          fi
