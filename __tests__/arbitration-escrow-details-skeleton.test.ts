@@ -3,7 +3,7 @@ import {
   ARBITRATION_SKELETON_ARIA,
   ARBITRATION_SKELETON_FRAMES,
   getArbitrationSkeleton,
-} from "@/app/lib/arbitration_escrow_details_skeleton";
+} from "@/app/lib/arbitration_escrow_details_logic";
 
 describe("arbitration_escrow_details loading skeletons (#481)", () => {
   it("returns structured placeholder wireframe frames when loading is true", () => {

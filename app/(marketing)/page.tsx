@@ -509,6 +509,7 @@ export default function Home() {
         </div>
         <div className="landing-footer-links">
           <a href="#security">Security</a>
+          <a href="/stats">Stats</a>
           <a href="https://github.com/Goldii-locks" target="_blank" rel="noopener noreferrer">
             GitHub
           </a>

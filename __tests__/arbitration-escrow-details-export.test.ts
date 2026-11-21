@@ -7,7 +7,7 @@ import {
   buildArbitrationCsv,
   escapeArbitrationCsvCell,
   handleArbitrationExport,
-} from "@/app/lib/arbitration_escrow_details_export";
+} from "@/app/lib/arbitration_escrow_details_logic";
 
 describe("arbitration_escrow_details export helpers (#487)", () => {
   it("escapes cells and neutralises spreadsheet formulas", () => {
