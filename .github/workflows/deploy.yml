@@ -23,6 +23,7 @@ on:
 permissions:
   id-token: write
   contents: read
+  actions: read
 
 env:
   AWS_REGION: af-south-1
@@ -48,6 +49,15 @@ jobs:
     outputs:
       image_tag: ${{ steps.meta.outputs.tag }}
     steps:
+      - name: Require successful CI for the selected SHA
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          OK=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow CI --commit "$GITHUB_SHA" \
+            --status success --json conclusion --jq 'length')
+          [ "${OK:-0}" -gt 0 ] || { echo "::error::CI has not succeeded for ${GITHUB_SHA}; refusing to deploy"; exit 1; }
+
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           # Pin to the exact commit that CI passed, not whatever HEAD is now.
@@ -120,6 +130,8 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    # Configure required reviewers on this environment in repo settings.
+    environment: production
     steps:
       - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
@@ -135,6 +147,23 @@ jobs:
             echo "- Commit: ${{ github.event.workflow_run.head_sha || github.sha }}"
             echo "- Record in CHANGELOG.md under a dated heading, using PR titles labelled user-facing."
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Record previous tag
+        id: prev
+        run: |
+          set -euo pipefail
+          # deploy.sh records the running tag in /opt/escrow/state/frontend.tag
+          # before replacing it; read it here so a rollback target exists.
+          CMD_ID=$(aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --targets "Key=tag:Role,Values=escrow-prod" \
+            --parameters 'commands=["cat /opt/escrow/state/frontend.tag 2>/dev/null || true"]' \
+            --query 'Command.CommandId' --output text)
+          sleep 10
+          PREV=$(aws ssm list-command-invocations --command-id "$CMD_ID" --details \
+            --query 'CommandInvocations[0].CommandPlugins[0].Output' --output text | tr -d '[:space:]')
+          [ "$PREV" != "None" ] || PREV=""
+          echo "tag=${PREV}" >> "$GITHUB_OUTPUT"
 
       - id: send
         run: |
@@ -178,3 +207,16 @@ jobs:
             echo "::error::/create shows 'isn't available yet' — factory contract ID missing from build"
             exit 1
           fi
+
+      - name: Roll back to previous tag
+        if: failure() && steps.prev.outputs.tag != ''
+        run: |
+          set -euo pipefail
+          PREV="${{ steps.prev.outputs.tag }}"
+          aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --targets "Key=tag:Role,Values=escrow-prod" \
+            --comment "rollback frontend ${PREV}" \
+            --parameters "commands=[\"/opt/escrow/deploy.sh frontend ${PREV}\"]" >/dev/null
+          echo "::error::deploy failed; rolled back to ${PREV}"
+          exit 1
