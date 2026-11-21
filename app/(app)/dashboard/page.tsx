@@ -17,6 +17,8 @@ import { ArbiterPanelPlaceholder } from "@/app/components/ArbiterActionPanel";
 import { getArbiterJobEmptyState } from "@/app/lib/arbiter_action_panel";
 import { useActionStates } from "@/app/hooks/useActionStates";
 import { BACKEND_URL, runContractAction, submitContractTransaction } from "@/app/lib/transactions";
+import { formatTxError } from "@/app/lib/errors";
+import JobTermsSection from "@/app/components/JobTermsSection";
 import { fetchJobStateFromContract, isIndexerStale } from "@/app/lib/contract_job_state";
 import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
 import EscrowLockBanner from "@/app/components/EscrowLockBanner";
@@ -693,7 +695,40 @@ export default function Dashboard() {
 
       // Stage the action so the global signature-timeout alert can rebuild
       // and re-sign it with a fresh XDR (#676).
-      registerPendingAction({ contractId, method, args, sourceAddress: address });
+      // Post-success refresh shared by the normal path and a retry from the
+      // signature-timeout alert (#879).
+      const afterSuccess = async () => {
+        startUpdatingPoll(contractId);
+        const contractJob = await fetchJobStateFromContract(contractId);
+        if (contractJob) {
+          setJobDetails((current) => ({ ...current, [contractId]: contractJob }));
+          setContractFallbackIds((prev) => {
+            const next = new Set(prev);
+            next.add(contractId);
+            return next;
+          });
+        }
+        await fetchJobs();
+        await fetchJobDetails(contractId, true);
+      };
+
+      registerPendingAction({
+        contractId,
+        method,
+        args,
+        sourceAddress: address,
+        onSettled: (outcome) => {
+          if ("txHash" in outcome) {
+            setPhase(actionKey, "success");
+            setActionError(actionKey, null);
+            setTxHash(actionKey, outcome.txHash || null);
+            void afterSuccess();
+          } else {
+            setPhase(actionKey, "error");
+            setActionError(actionKey, formatTxError(outcome.error));
+          }
+        },
+      });
 
       const txHash = await runContractAction(
         actionKey,
@@ -1201,6 +1236,8 @@ export default function Dashboard() {
                                     </p>
                                   </div>
                                 </div>
+
+                                <JobTermsSection contractId={expandedJob.id} />
 
                                 {canFund(expandedJob, isClient) && (
                                   <div className="bg-amber-950/40 border border-amber-600/50 rounded-lg p-3 sm:p-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

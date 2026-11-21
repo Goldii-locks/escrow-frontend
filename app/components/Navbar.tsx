@@ -6,6 +6,7 @@ import Link from "next/link";
 import NotificationBell from "./NotificationBell";
 import WalletConnectButton from "./WalletConnectButton";
 import LandingLogo from "./LandingLogo";
+import ArbitrationNavLink from "./ArbitrationNavLink";
 
 import WalletBadge, { formatAddress } from "@/app/components/WalletBadge";
 
@@ -69,6 +70,7 @@ export default function Navbar() {
               >
                 + New Job
               </Link>
+              <ArbitrationNavLink address={address} />
               {isAdminUser && (
                 <Link
                   href="/admin"

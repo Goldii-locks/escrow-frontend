@@ -99,6 +99,11 @@ interface PendingContractAction {
   method: string;
   args: ContractArg[];
   sourceAddress: string;
+  /**
+   * Called with the outcome when {@link retryLastAction} re-runs this action,
+   * so the caller can update its own action state, banner and job data (#879).
+   */
+  onSettled?: (outcome: { txHash: string } | { error: unknown }) => void;
 }
 
 interface WalletContextType {
@@ -590,14 +595,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     // Clear the staged action so a stale retry cannot re-submit it twice.
     setLastPendingAction(null);
     try {
-      return await submitContractTransaction({
+      const retryHash = await submitContractTransaction({
         contractId: action.contractId,
         method: action.method,
         args: action.args,
         sourceAddress: action.sourceAddress,
         signTransaction,
       });
+      action.onSettled?.({ txHash: retryHash });
+      return retryHash;
     } catch (err) {
+      action.onSettled?.({ error: err });
       logWalletWarning("RETRY LAST ACTION FAILED", "Retrying the last contract action failed", {
         err: err instanceof Error ? err : new Error(String(err)),
         phase: "error",

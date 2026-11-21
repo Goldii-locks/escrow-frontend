@@ -282,6 +282,10 @@ export interface ContractPauseState {
   updatedBy: string;
   /** Human-readable note explaining the last transition. */
   reason: string;
+  /** `paused.admin` from `get_escrow_state` (#874). Cleared by the admin. */
+  adminPaused?: boolean;
+  /** `paused.emergency` from `get_escrow_state` (#874). Cleared separately. */
+  emergencyPaused?: boolean;
 }
 
 /** One entry in the freeze transition log. */
@@ -340,6 +344,37 @@ export function getContractPauseReadouts(state: ContractPauseState): {
 }
 
 /**
+ * Maps the backend's `{ success, data: { result } }` envelope for
+ * `get_escrow_state` onto a pause snapshot (#874). Returns null unless
+ * `result.paused.admin` and `result.paused.emergency` are both booleans.
+ */
+export function mapEscrowStateToPauseState(
+  body: unknown,
+  contractId: string
+): ContractPauseState | null {
+  if (typeof body !== "object" || body === null) return null;
+  const data = (body as { data?: unknown }).data;
+  const result =
+    typeof data === "object" && data !== null ? (data as { result?: unknown }).result : undefined;
+  const paused =
+    typeof result === "object" && result !== null
+      ? (result as { paused?: unknown }).paused
+      : undefined;
+  if (typeof paused !== "object" || paused === null) return null;
+  const { admin, emergency } = paused as { admin?: unknown; emergency?: unknown };
+  if (typeof admin !== "boolean" || typeof emergency !== "boolean") return null;
+  return {
+    contractId,
+    paused: admin || emergency,
+    updatedAt: "",
+    updatedBy: "",
+    reason: "",
+    adminPaused: admin,
+    emergencyPaused: emergency,
+  };
+}
+
+/**
  * Queries the emergency freeze state for a contract.
  *
  * Pulls from the backend when an endpoint is reachable and the payload carries
@@ -361,24 +396,21 @@ export async function fetchContractPauseState(options?: {
   signal?: AbortSignal;
 }): Promise<ContractPauseState | null> {
   const contractId = CONTRACT_ID || "";
-  const url =
-    options?.apiUrl ??
-    `${BACKEND_URL}/api/jobs/query?contractId=${encodeURIComponent(contractId)}&method=is_paused`;
+  const url = options?.apiUrl ?? `${BACKEND_URL}/api/jobs/query`;
 
   try {
-    const res = await fetch(url, { signal: options?.signal });
+    // #874: the contract has no `is_paused`; the flags live in
+    // `get_escrow_state` (`paused.admin`, `paused.emergency`).
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contractId, method: "get_escrow_state" }),
+      signal: options?.signal,
+    });
     if (res.ok) {
       const data: unknown = await res.json();
-      // The backend may return the snapshot bare or wrapped in a success
-      // envelope; accept either, but only when the payload is complete.
-      const payload =
-        typeof data === "object" && data !== null && "success" in data && "data" in data
-          ? (data as { data: unknown }).data
-          : data;
-
-      if (isContractPauseState(payload)) {
-        return payload;
-      }
+      const state = mapEscrowStateToPauseState(data, contractId);
+      if (state) return state;
       console.warn(`${LOG_PREFIX} pause state response missing fields, returning null`);
     } else {
       console.warn(
