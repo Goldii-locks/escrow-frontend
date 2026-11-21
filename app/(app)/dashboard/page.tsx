@@ -18,6 +18,7 @@ import { getArbiterJobEmptyState } from "@/app/lib/arbiter_action_panel";
 import { useActionStates } from "@/app/hooks/useActionStates";
 import { BACKEND_URL, runContractAction, submitContractTransaction } from "@/app/lib/transactions";
 import { formatTxError } from "@/app/lib/errors";
+import JobTermsSection from "@/app/components/JobTermsSection";
 import { fetchJobStateFromContract, isIndexerStale } from "@/app/lib/contract_job_state";
 import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
 import EscrowLockBanner from "@/app/components/EscrowLockBanner";
@@ -1235,6 +1236,8 @@ export default function Dashboard() {
                                     </p>
                                   </div>
                                 </div>
+
+                                <JobTermsSection contractId={expandedJob.id} />
 
                                 {canFund(expandedJob, isClient) && (
                                   <div className="bg-amber-950/40 border border-amber-600/50 rounded-lg p-3 sm:p-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
