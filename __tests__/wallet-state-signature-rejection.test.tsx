@@ -139,6 +139,7 @@ describe("wallet_state_context signature rejection handling (#115)", () => {
 
     await expect(
       submitContractTransaction({
+        contractId: "C" + "A".repeat(55),
         method: "create_job",
         args: [],
         sourceAddress: "GTESTADDRESS",

@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AdminPage from "@/app/(app)/admin/page";
+import { selectEscrow } from "@/__tests__/helpers/admin_escrow";
 
 /**
  * End-to-end admin check (#599): unlike admin-page.test.tsx, useIsAdmin is
@@ -68,6 +69,7 @@ describe("AdminPage admin check against a mocked backend", () => {
     mockUseWallet.mockReturnValue({ address: ADMIN, signTransaction: vi.fn() });
 
     render(<AdminPage />);
+    selectEscrow();
 
     expect(await screen.findByLabelText(/token contract address/i)).toBeInTheDocument();
     expect(await screen.findByText("CTOKEN1")).toBeInTheDocument();
@@ -78,6 +80,7 @@ describe("AdminPage admin check against a mocked backend", () => {
     mockUseWallet.mockReturnValue({ address: OTHER, signTransaction: vi.fn() });
 
     render(<AdminPage />);
+    selectEscrow();
 
     expect(await screen.findByTestId("admin-access-denied")).toBeInTheDocument();
     expect(screen.queryByLabelText(/token contract address/i)).not.toBeInTheDocument();

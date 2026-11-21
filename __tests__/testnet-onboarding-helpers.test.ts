@@ -15,7 +15,6 @@ vi.mock("@/app/lib/network_config", () => ({
     FUTURENET: "Test SDF Future Network ; October 2022",
   },
   NETWORK_PASSPHRASE: "Test SDF Network ; September 2015",
-  CONTRACT_ID: "",
   FACTORY_CONTRACT_ID: "",
 }));
 

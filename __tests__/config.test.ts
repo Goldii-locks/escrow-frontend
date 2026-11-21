@@ -18,7 +18,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   BACKEND_URL,
-  CONTRACT_ID,
+  FACTORY_CONTRACT_ID,
   NETWORK_PASSPHRASE,
   RPC_URL,
   createRpcServer,
@@ -63,7 +63,25 @@ describe("app/lib/config.ts", () => {
     expect(RPC_URL).toMatch(/^https?:\/\//);
     expect(NETWORK_PASSPHRASE.length).toBeGreaterThan(0);
     expect(typeof BACKEND_URL).toBe("string");
-    expect(typeof CONTRACT_ID).toBe("string");
+    expect(typeof FACTORY_CONTRACT_ID).toBe("string");
+  });
+
+  it("no longer reads the retired NEXT_PUBLIC_CONTRACT_ID (#836, #572)", async () => {
+    const config: Record<string, unknown> = await import("@/app/lib/config");
+    expect("CONTRACT_ID" in config).toBe(false);
+    const networkConfig = readFileSync(resolve(REPO_ROOT, "app/lib/network_config.ts"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+    expect(networkConfig).not.toContain("NEXT_PUBLIC_CONTRACT_ID");
+  });
+
+  it("does not require NEXT_PUBLIC_CONTRACT_ID to build or deploy", () => {
+    const dockerfile = readFileSync(resolve(REPO_ROOT, "Dockerfile"), "utf8");
+    expect(dockerfile).not.toMatch(/^ARG NEXT_PUBLIC_CONTRACT_ID/m);
+    expect(dockerfile).not.toMatch(/test -n "\$NEXT_PUBLIC_CONTRACT_ID"/);
+    const deploy = readFileSync(resolve(REPO_ROOT, ".github/workflows/deploy.yml"), "utf8");
+    expect(deploy).not.toMatch(/^\s*NEXT_PUBLIC_CONTRACT_ID=/m);
+    expect(deploy).not.toContain("vars.CONTRACT_ID");
   });
 
   it("exports no transaction builders", () => {

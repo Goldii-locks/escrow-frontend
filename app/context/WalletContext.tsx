@@ -94,8 +94,8 @@ interface KitSignResult {
 }
 
 interface PendingContractAction {
-  /** The job's contract; omitted means the configured `CONTRACT_ID`. */
-  contractId?: string;
+  /** The job's contract. Required: there is no default contract (#836). */
+  contractId: string;
   method: string;
   args: ContractArg[];
   sourceAddress: string;

@@ -2,6 +2,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AdminPage from "@/app/(app)/admin/page";
+import { selectEscrow } from "@/__tests__/helpers/admin_escrow";
 import {
   containsCodeTags,
   getAddStatusBadge,
@@ -56,6 +57,7 @@ describe("sanitization (#432)", () => {
   it("form ignores typed/pasted code tags", () => {
     stubFetch({ success: true, data: [] });
     render(<AdminPage />);
+    selectEscrow();
     const input = screen.getByLabelText(/token contract address/i);
     return waitFor(() => expect(input).toBeEnabled()).then(() => {
       fireEvent.change(input, { target: { value: "CABC" } });
@@ -83,6 +85,7 @@ describe("backend data mapping (#433)", () => {
   it("renders values loaded from the mock dataset", async () => {
     stubFetch(MOCK_DATASET);
     render(<AdminPage />);
+    selectEscrow();
     expect(await screen.findByText("CUSDC")).toBeInTheDocument();
     expect(screen.getByText("USDC")).toBeInTheDocument();
     expect(screen.getByText("Lumens")).toBeInTheDocument();
@@ -111,6 +114,7 @@ describe("status badges (#434)", () => {
     stubFetch({ success: true, data: ["CTOKEN1"] });
     mockSubmit.mockRejectedValue(new Error("rejected"));
     render(<AdminPage />);
+    selectEscrow();
 
     const badge = await screen.findByTestId("status-badge-CTOKEN1");
     expect(badge).toHaveAttribute("data-status", "active");
@@ -134,6 +138,7 @@ describe("confirmation modal (#435)", () => {
     stubFetch({ success: true, data: [] });
     mockSubmit.mockResolvedValue("HASH");
     render(<AdminPage />);
+    selectEscrow();
 
     fireEvent.change(await screen.findByLabelText(/token contract address/i), {
       target: { value: "CNEWTOKEN" },
@@ -163,6 +168,7 @@ describe("confirmation modal (#435)", () => {
   it("cancel closes the dialog without signing", async () => {
     stubFetch({ success: true, data: ["CTOKEN1"] });
     render(<AdminPage />);
+    selectEscrow();
 
     fireEvent.click(await screen.findByRole("button", { name: /^remove$/i }));
     expect(screen.getByTestId("whitelist-confirm-modal")).toBeInTheDocument();

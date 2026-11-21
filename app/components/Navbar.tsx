@@ -1,6 +1,8 @@
 "use client";
+import { useState } from "react";
 import { useWallet } from "@/app/context/WalletContext";
 import { useIsAdmin } from "@/app/hooks/useIsAdmin";
+import { useWalletNotifications } from "@/app/hooks/useWalletNotifications";
 import { SUPPORTED_WALLETS } from "@/app/context/WalletContext";
 import Link from "next/link";
 import NotificationBell from "./NotificationBell";
@@ -12,7 +14,25 @@ import WalletBadge, { formatAddress } from "@/app/components/WalletBadge";
 export default function Navbar() {
   const { address, disconnect, isConnecting, networkMismatchMessage, selectedWalletId } =
     useWallet();
+  // Factory admin by default: the one contract the deployment is built with.
   const { isAdminUser } = useIsAdmin(address);
+  // Real pending actions and job history for this wallet (#839).
+  const {
+    notifications,
+    unreadCount,
+    loading: notificationsLoading,
+    error: notificationsError,
+    markRead,
+    markAllRead,
+    refresh: refreshNotifications,
+  } = useWalletNotifications(address);
+  const [bellOpen, setBellOpen] = useState(false);
+
+  const toggleBell = () => {
+    // Opening re-reads the jobs so the list isn't stale since page load.
+    if (!bellOpen && address) refreshNotifications();
+    setBellOpen(!bellOpen);
+  };
 
   const focusRing =
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 rounded";
@@ -54,7 +74,16 @@ export default function Navbar() {
          * `min-w-0` prevents flex children from refusing to shrink.
          */}
         <div className="flex items-center gap-2 sm:gap-4 flex-wrap min-w-0">
-          <NotificationBell count={0} />
+          <NotificationBell
+            unreadCount={unreadCount}
+            isOpen={bellOpen}
+            onBellClick={toggleBell}
+            isLoading={notificationsLoading}
+            error={notificationsError}
+            notifications={notifications}
+            onMarkAllAsRead={markAllRead}
+            onNotificationClick={(item) => markRead(item.id)}
+          />
           {address ? (
             <>
               <Link

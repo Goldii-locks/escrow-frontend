@@ -18,9 +18,10 @@ COPY . .
 
 # NEXT_PUBLIC_* are inlined into the bundle at build time. They cannot be
 # changed by setting env vars on the running container — one image per
-# environment, and a contract redeploy means a rebuild, not a restart.
+# environment, and a factory redeploy means a rebuild, not a restart. There is
+# no NEXT_PUBLIC_CONTRACT_ID: every escrow is its own factory-created contract
+# (#836, #572).
 ARG NEXT_PUBLIC_BACKEND_URL
-ARG NEXT_PUBLIC_CONTRACT_ID
 # escrow-factory instance new escrows are created through. Optional: without
 # it the create page says escrow creation isn't available yet.
 ARG NEXT_PUBLIC_FACTORY_CONTRACT_ID
@@ -30,7 +31,6 @@ ARG NEXT_PUBLIC_SOROBAN_RPC_URL
 ARG NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE
 
 ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL \
-    NEXT_PUBLIC_CONTRACT_ID=$NEXT_PUBLIC_CONTRACT_ID \
     NEXT_PUBLIC_FACTORY_CONTRACT_ID=$NEXT_PUBLIC_FACTORY_CONTRACT_ID \
     NEXT_PUBLIC_SOROBAN_RPC_URL=$NEXT_PUBLIC_SOROBAN_RPC_URL \
     NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=$NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE
@@ -42,8 +42,10 @@ RUN case "$NEXT_PUBLIC_BACKEND_URL" in \
       ""|https://*|http://localhost|http://localhost:*|http://localhost/*|http://127.0.0.1|http://127.0.0.1:*|http://127.0.0.1/*|http://\[::1\]|http://\[::1\]:*|http://\[::1\]/*) ;; \
       *) echo "ERROR: NEXT_PUBLIC_BACKEND_URL must start with https:// (got \"$NEXT_PUBLIC_BACKEND_URL\"). Use https://, a localhost URL for local dev, or leave it empty to use same-origin /api." && exit 1 ;; \
     esac
-RUN test -n "$NEXT_PUBLIC_CONTRACT_ID" \
-      || (echo "ERROR: NEXT_PUBLIC_CONTRACT_ID must be set at build time" && exit 1)
+# The factory is optional, but a value that is set must be a contract address.
+RUN [ -z "$NEXT_PUBLIC_FACTORY_CONTRACT_ID" ] \
+      || echo "$NEXT_PUBLIC_FACTORY_CONTRACT_ID" | grep -qE '^C[A-Z2-7]{55}$' \
+      || (echo "ERROR: NEXT_PUBLIC_FACTORY_CONTRACT_ID is not a Stellar contract address" && exit 1)
 RUN test -n "$NEXT_PUBLIC_SOROBAN_RPC_URL" \
       || (echo "ERROR: NEXT_PUBLIC_SOROBAN_RPC_URL must be set at build time" && exit 1)
 RUN test -n "$NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE" \

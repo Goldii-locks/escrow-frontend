@@ -2,7 +2,9 @@
 #
 # Differs from the backend workflow because NEXT_PUBLIC_* values must be
 # passed as build args — they're inlined into the bundle, so the image is
-# environment-specific and a contract change requires a rebuild.
+# environment-specific and a factory change requires a rebuild. There is no
+# per-escrow NEXT_PUBLIC_CONTRACT_ID: every escrow is its own factory-created
+# contract (#836, #572).
 #
 # Triggered only after the CI workflow completes successfully on main, so a
 # failing test or build never ships to production.
@@ -15,10 +17,6 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
-    inputs:
-      contract_id:
-        description: "Override NEXT_PUBLIC_CONTRACT_ID (leave blank to use the repo variable)"
-        required: false
 
 permissions:
   id-token: write
@@ -68,29 +66,21 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: Resolve contract ID
-        id: contract
-        # Inputs go through env, not ${{ }} in the script, so a crafted
-        # contract_id cannot inject shell.
+      - name: Validate factory contract ID format
+        # Optional: without it the create page says escrow creation isn't
+        # available. A value that is set must be a Stellar contract address.
         env:
-          INPUT_CID: ${{ inputs.contract_id }}
-          VAR_CID: ${{ vars.CONTRACT_ID }}
+          CID: ${{ vars.FACTORY_CONTRACT_ID }}
         run: |
-          CID="$INPUT_CID"
-          [ -n "$CID" ] || CID="$VAR_CID"
-          [ -n "$CID" ] || { echo "::error::no CONTRACT_ID — set the repo variable"; exit 1; }
-          echo "id=${CID}" >> "$GITHUB_OUTPUT"
-
-      - name: Validate contract ID format
-        env:
-          CID: ${{ steps.contract.outputs.id }}
-        run: |
-          # Stellar contract addresses start with C followed by 55 base-32 chars (A-Z2-7)
+          if [ -z "$CID" ]; then
+            echo "::warning::FACTORY_CONTRACT_ID is not set; escrow creation will be unavailable."
+            exit 0
+          fi
           if ! echo "$CID" | grep -qE '^C[A-Z2-7]{55}$'; then
-            echo "::error::Invalid contract ID '${CID}'. Expected a Stellar contract address matching ^C[A-Z2-7]{55}$ (56 characters, starts with C, base-32 alphabet)."
+            echo "::error::Invalid FACTORY_CONTRACT_ID '${CID}'. Expected a Stellar contract address matching ^C[A-Z2-7]{55}$."
             exit 1
           fi
-          echo "Contract ID format is valid: ${CID}"
+          echo "Factory contract ID format is valid: ${CID}"
 
       - uses: docker/build-push-action@v6
         with:
@@ -99,7 +89,6 @@ jobs:
           platforms: linux/arm64
           build-args: |
             NEXT_PUBLIC_BACKEND_URL=${{ vars.PUBLIC_ORIGIN }}
-            NEXT_PUBLIC_CONTRACT_ID=${{ steps.contract.outputs.id }}
             NEXT_PUBLIC_FACTORY_CONTRACT_ID=${{ vars.FACTORY_CONTRACT_ID }}
             NEXT_PUBLIC_SOROBAN_RPC_URL=${{ vars.SOROBAN_RPC_URL }}
             NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=${{ vars.SOROBAN_NETWORK_PASSPHRASE }}

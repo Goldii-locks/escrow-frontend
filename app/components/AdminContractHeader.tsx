@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { CONTRACT_ID, NETWORK_PASSPHRASE } from "@/app/lib/config";
+import { NETWORK_PASSPHRASE } from "@/app/lib/config";
+import { ADMIN_ROLE_DESCRIPTIONS, type AdminRole } from "@/app/lib/admin";
 import {
   networkKind,
   networkLabel,
@@ -10,8 +11,17 @@ import {
 } from "@/app/lib/network";
 
 export interface AdminContractHeaderProps {
+  /** Contract the admin actions target: the selected escrow or the factory. */
   contractId?: string;
+  /** What `contractId` is, e.g. "Escrow" or "Factory". */
+  contractLabel?: string;
   networkPassphrase?: string;
+  /**
+   * The connected wallet's access on `contractId` (#838). Omit both to hide
+   * the roles row (e.g. before a wallet is connected).
+   */
+  isAdmin?: boolean;
+  roles?: readonly AdminRole[];
 }
 
 /** Badge colours: mainnet is red so privileged actions there stand out. */
@@ -23,14 +33,20 @@ export function networkBadgeClass(passphrase: string): string {
 
 /**
  * Header strip for /admin showing which network and contract the admin
- * actions target, so the admin can confirm before signing.
+ * actions target, so the admin can confirm before signing, and which roles
+ * the connected wallet holds there.
  */
 export default function AdminContractHeader({
-  contractId = CONTRACT_ID,
+  contractId = "",
+  contractLabel = "Contract",
   networkPassphrase = NETWORK_PASSPHRASE,
+  isAdmin,
+  roles,
 }: AdminContractHeaderProps) {
   const [copied, setCopied] = useState(false);
   const explorerUrl = stellarExpertContractUrl(contractId, networkPassphrase);
+  const showAccess = isAdmin !== undefined || roles !== undefined;
+  const badges = [...(isAdmin ? ["Admin"] : []), ...(roles ?? [])];
 
   const handleCopy = async () => {
     try {
@@ -53,9 +69,9 @@ export default function AdminContractHeader({
       >
         {networkLabel(networkPassphrase)}
       </span>
-      <span className="text-gray-400">Contract</span>
+      <span className="text-gray-400">{contractLabel}</span>
       <span data-testid="admin-contract-id" title={contractId} className="font-mono text-gray-200">
-        {contractId ? truncateContractId(contractId) : "Not configured"}
+        {contractId ? truncateContractId(contractId) : "Not selected"}
       </span>
       {contractId && (
         <button
@@ -76,6 +92,29 @@ export default function AdminContractHeader({
         >
           View on explorer
         </a>
+      )}
+      {showAccess && (
+        <span data-testid="admin-wallet-roles" className="flex flex-wrap items-center gap-2 w-full">
+          <span className="text-gray-400">Your roles</span>
+          {badges.length === 0 ? (
+            <span className="text-xs text-gray-500">None</span>
+          ) : (
+            badges.map((role) => (
+              <span
+                key={role}
+                data-testid={`admin-role-badge-${role}`}
+                title={
+                  role === "Admin"
+                    ? "Stored contract admin: every admin action"
+                    : ADMIN_ROLE_DESCRIPTIONS[role as AdminRole]
+                }
+                className="rounded-full border border-emerald-700 bg-emerald-950/60 px-2.5 py-0.5 text-xs font-medium text-emerald-200"
+              >
+                {role}
+              </span>
+            ))
+          )}
+        </span>
       )}
     </div>
   );

@@ -13,7 +13,7 @@
  * `app/lib/arbiter_action_panel.ts`.
  */
 
-import { BACKEND_URL, CONTRACT_ID } from "@/app/lib/transactions";
+import { BACKEND_URL } from "@/app/lib/transactions";
 import type { ToastType } from "@/app/context/ToastContext";
 
 const LOG_PREFIX = "[contract_pause_switch]";
@@ -353,14 +353,17 @@ export function getContractPauseReadouts(state: ContractPauseState): {
  * mock is now a test fixture only, and the component renders an error state
  * and disables the toggle when the read fails.
  *
- * Defaults to `BACKEND_URL` + the configured `CONTRACT_ID` so the panel in
- * production hits the same backend all other queries use.
+ * Queries `BACKEND_URL` for `contractId` (the escrow picked on /admin; there
+ * is no configured default contract since #836). Without a contract or an
+ * explicit `apiUrl` there is nothing to read, so it returns `null`.
  */
 export async function fetchContractPauseState(options?: {
+  contractId?: string;
   apiUrl?: string;
   signal?: AbortSignal;
 }): Promise<ContractPauseState | null> {
-  const contractId = CONTRACT_ID || "";
+  const contractId = options?.contractId ?? "";
+  if (!options?.apiUrl && !contractId) return null;
   const url =
     options?.apiUrl ??
     `${BACKEND_URL}/api/jobs/query?contractId=${encodeURIComponent(contractId)}&method=is_paused`;

@@ -4,17 +4,18 @@ Next.js frontend for the Soroban milestone escrow smart contract on Stellar.
 
 ## Live Contract
 
-The contract ID is injected at build time via the `NEXT_PUBLIC_CONTRACT_ID`
-environment variable. In CI it comes from the `CONTRACT_ID` repo variable
-(see [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — the
-deploy workflow resolves the ID with this priority: manual override → repo
-variable → error). The value below is a stale snapshot kept for reference
-only; point your browser at the deployed site and copy the ID from the
-admin page, or read it from the repo variable.
+Every escrow is its own contract, created through the escrow factory
+(`create_escrow`). The only contract address the frontend is built against is
+the factory's, injected at build time via `NEXT_PUBLIC_FACTORY_CONTRACT_ID`
+(in CI, the `FACTORY_CONTRACT_ID` repo variable; see
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)). Job actions
+target the job's own contract ID, and `/admin` lets an admin pick the escrow
+to manage. The legacy single-escrow `NEXT_PUBLIC_CONTRACT_ID` is no longer
+read (#836, #572).
 
-| Network | Contract ID                                                        |
-| ------- | ------------------------------------------------------------------ |
-| Testnet | `NEXT_PUBLIC_CONTRACT_ID` (set at build time; see deploy workflow) |
+| Network | Factory contract ID                                                        |
+| ------- | -------------------------------------------------------------------------- |
+| Testnet | `NEXT_PUBLIC_FACTORY_CONTRACT_ID` (set at build time; see deploy workflow) |
 
 ## Tech Stack
 
@@ -76,7 +77,6 @@ bundle.
 
 | Variable                                 | Default                                             | Purpose                                                                                                                                                                                                                                      |
 | ---------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_CONTRACT_ID`                | _(required)_                                        | Soroban contract ID the frontend talks to. In CI this comes from the `CONTRACT_ID` repo variable; the deploy workflow allows a manual override via the `contract_id` input.                                                                  |
 | `NEXT_PUBLIC_FACTORY_CONTRACT_ID`        | _(empty)_                                           | escrow-factory contract the create page calls (`create_escrow`); each escrow it creates is its own contract. In CI this comes from the `FACTORY_CONTRACT_ID` repo variable. Empty: the create page says escrow creation isn't available yet. |
 | `NEXT_PUBLIC_BACKEND_URL`                | `http://localhost:3001`                             | Base URL of the escrow backend API (used by `app/lib/transactions.ts`).                                                                                                                                                                      |
 | `NEXT_PUBLIC_SOROBAN_RPC_URL`            | `https://soroban-testnet.stellar.org`               | Soroban RPC endpoint used by `app/lib/contract.ts`.                                                                                                                                                                                          |
@@ -97,25 +97,25 @@ Accepted values:
 ```bash
 # Production (recommended): empty - same-origin /api
 docker build -t escrow-frontend \
-  --build-arg NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH \
+  --build-arg NEXT_PUBLIC_FACTORY_CONTRACT_ID=<factory contract ID> \
   .
 
 # HTTPS backend
 docker build -t escrow-frontend \
   --build-arg NEXT_PUBLIC_BACKEND_URL=https://api.example.com \
-  --build-arg NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH \
+  --build-arg NEXT_PUBLIC_FACTORY_CONTRACT_ID=<factory contract ID> \
   .
 
 # Local loopback
 docker build -t escrow-frontend \
   --build-arg NEXT_PUBLIC_BACKEND_URL=http://localhost:3001 \
-  --build-arg NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH \
+  --build-arg NEXT_PUBLIC_FACTORY_CONTRACT_ID=<factory contract ID> \
   .
 
 # Rejected: plain HTTP remote (fails the build)
 docker build -t escrow-frontend \
   --build-arg NEXT_PUBLIC_BACKEND_URL=http://example.com \
-  --build-arg NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH \
+  --build-arg NEXT_PUBLIC_FACTORY_CONTRACT_ID=<factory contract ID> \
   .
 ```
 
