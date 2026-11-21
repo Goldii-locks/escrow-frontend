@@ -10,6 +10,12 @@ import {
 } from "@/app/lib/wallet_session";
 import { isWalletRejectedError } from "@/app/lib/errors";
 import { useToast } from "@/app/context/ToastContext";
+import {
+  LEDGER_CONFIRM_MESSAGE,
+  LEDGER_UNSUPPORTED_MESSAGE,
+  LEDGER_WALLET_ID,
+  isLedgerSupported,
+} from "@/app/lib/ledger_support";
 import { SUPPORTED_WALLETS, type SupportedWalletId } from "@/app/context/WalletContext";
 import {
   checkNetworkMismatch,
@@ -378,6 +384,7 @@ export default function WalletSelectorModal({
           {SUPPORTED_WALLETS.filter(isWalletSelectable).map((wallet) => {
             const isSelected = wallet.id === selectedWalletId;
             const isConnected = activeAddress !== null && wallet.id === selectedWalletId;
+            const ledgerUnsupported = wallet.id === LEDGER_WALLET_ID && !isLedgerSupported();
 
             return (
               <button
@@ -385,7 +392,7 @@ export default function WalletSelectorModal({
                 type="button"
                 data-testid={`wallet-selector-option-${wallet.id}`}
                 onClick={() => handleConnect(wallet.id)}
-                disabled={effectiveLoading}
+                disabled={effectiveLoading || ledgerUnsupported}
                 data-selected={isSelected}
                 data-connected={isConnected}
                 className={`w-full text-left px-4 py-3 rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
@@ -405,6 +412,16 @@ export default function WalletSelectorModal({
                     </span>
                   )}
                 </div>
+                {ledgerUnsupported && (
+                  <p data-testid="wallet-selector-ledger-unsupported" className="mt-1 text-xs">
+                    {LEDGER_UNSUPPORTED_MESSAGE}
+                  </p>
+                )}
+                {wallet.id === LEDGER_WALLET_ID && isSelected && status === "signing" && (
+                  <p data-testid="wallet-selector-ledger-confirm" className="mt-1 text-xs">
+                    {LEDGER_CONFIRM_MESSAGE}
+                  </p>
+                )}
               </button>
             );
           })}
