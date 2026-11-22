@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { APP_METADATA } from "./lib/app_metadata";
 import "./globals.css";
 import { ToastProvider } from "./context/ToastContext";
 import Toast from "./components/Toast";
@@ -14,26 +15,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "Milestone Escrow",
-    template: "%s · Milestone Escrow",
-  },
-  description: "Trustless milestone-based escrow on Stellar",
-  openGraph: {
-    type: "website",
-    siteName: "Milestone Escrow",
-    title: "Milestone Escrow",
-    description: "Trustless milestone-based escrow on Stellar",
-    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "Milestone Escrow" }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Milestone Escrow",
-    description: "Trustless milestone-based escrow on Stellar",
-    images: ["/og-image.svg"],
-  },
-};
+export const metadata: Metadata = APP_METADATA;
 
 export default function RootLayout({
   children,

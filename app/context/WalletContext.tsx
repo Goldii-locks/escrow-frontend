@@ -13,6 +13,7 @@ import { Networks, StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
 import { defaultModules } from "@creit.tech/stellar-wallets-kit/modules/utils";
 import { NETWORK_PASSPHRASE } from "@/app/lib/config";
 import { NETWORK_PASSPHRASES } from "@/app/lib/network_config";
+import { WALLETCONNECT_METADATA } from "@/app/lib/app_metadata";
 import { assertWalletNetwork } from "@/app/lib/network";
 import { useToast } from "./ToastContext";
 import {
@@ -225,12 +226,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         wcModules.push(
           new WalletConnectModule({
             projectId: walletConnectProjectId,
-            metadata: {
-              name: "Goldii Escrow",
-              description: "Soroban milestone escrow on Stellar",
-              url: window.location.origin,
-              icons: [`${window.location.origin}/favicon.ico`],
-            },
+            metadata: WALLETCONNECT_METADATA,
             allowedChains: [wcChain],
           })
         );
