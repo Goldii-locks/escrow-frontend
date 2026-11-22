@@ -1,0 +1,3 @@
+# Rendered at container start by scripts/nginx-entrypoint.sh (#811).
+# Only CSP_CONNECT_ORIGINS is envsubst'd; nginx's own $variables stay intact.
+set $csp_connect_origins "${CSP_CONNECT_ORIGINS}";

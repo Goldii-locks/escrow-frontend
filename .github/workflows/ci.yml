@@ -42,6 +42,13 @@ jobs:
       - name: Lint
         run: npm run lint -- --max-warnings=0
 
+      # Fails when a new file becomes unreachable from a route/layout/API
+      # entry, a new export is unused, or a dependency becomes unused (#809).
+      # Current findings are allowlisted in knip.json; shrink that list as the
+      # dead-code issues land.
+      - name: Unreachable files and unused exports (knip)
+        run: npx knip --include files,exports,dependencies
+
       - name: Type check
         run: npx tsc --noEmit
 

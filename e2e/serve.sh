@@ -18,6 +18,8 @@ docker run -d --name escrow-smoke -p 8080:80 \
   -v "$PWD/out:/usr/share/nginx/html:ro" \
   -v "$PWD/$conf:/etc/nginx/conf.d/default.conf:ro" \
   -v "$PWD/nginx/csp-hashes.conf:/etc/nginx/csp-hashes.conf:ro" \
+  -v "$PWD/nginx/security_headers.conf:/etc/nginx/security_headers.conf:ro" \
+  -v "$PWD/nginx/csp-origins.conf:/etc/nginx/conf.d/csp-origins.conf:ro" \
   nginx:1.28-alpine@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236 >/dev/null
 
 for _ in $(seq 1 30); do
