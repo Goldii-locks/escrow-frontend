@@ -7,6 +7,8 @@
  * `docs/client-error-reporting.md` for what is and isn't collected.
  */
 
+import { BACKEND_URL } from "@/app/lib/config";
+
 export type ClientErrorSource = "api" | "tx" | "render" | "unhandled";
 
 export interface ClientErrorReport {
@@ -34,8 +36,7 @@ function isEnabled(): boolean {
 }
 
 function endpoint(): string {
-  const base = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
-  return `${base}/api/client-errors`;
+  return `${BACKEND_URL}/api/client-errors`;
 }
 
 /** Truncate addresses, redact XDR blobs and cap the length. */
