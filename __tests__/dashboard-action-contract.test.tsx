@@ -73,6 +73,7 @@ describe("Dashboard actions target the job's own contract", () => {
     const expand = await screen.findByRole("button", { name: /Job #CJJJJJJJ/ });
     if (expand.getAttribute("aria-expanded") !== "true") fireEvent.click(expand);
     fireEvent.click(await screen.findByRole("button", { name: "Fund escrow" }));
+    fireEvent.click(await screen.findByTestId("fund-confirm-modal-confirm"));
 
     await waitFor(() => expect(mockSubmit).toHaveBeenCalled());
     expect(mockSubmit).toHaveBeenCalledWith(

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatTokenAmount, insufficientBalanceMessage } from "@/app/lib/balance_check";
 import { agreementLines } from "@/app/lib/escrow_agreement";
 import type { CreateJobForm } from "../useCreateJobForm";
 import { StepPanel } from "../ui";
@@ -33,6 +34,29 @@ export default function Review({ form }: { form: CreateJobForm }) {
           </div>
         ))}
       </dl>
+
+      <div
+        data-testid="review-balance"
+        className="mt-5 rounded-xl border border-border-subtle bg-surface-field px-4 py-3 text-sm"
+      >
+        <p className="text-text-secondary">
+          {r.balanceLoading
+            ? "Checking token balance…"
+            : `Balance: ${formatTokenAmount(r.balance, { decimals: r.tokenDecimals, symbol: r.tokenSymbol })}. Total escrow: ${formatTokenAmount(r.totalRequired, { decimals: r.tokenDecimals, symbol: r.tokenSymbol })}`}
+        </p>
+        {r.insufficientBalance && (
+          <p
+            data-testid="review-balance-warning"
+            role="status"
+            className="mt-2 text-amber-300"
+          >
+            {insufficientBalanceMessage(r.balance, r.totalRequired, {
+              decimals: r.tokenDecimals,
+              symbol: r.tokenSymbol,
+            })}
+          </p>
+        )}
+      </div>
 
       {/*
        * "What you're agreeing to" panel (issue #669). A plain-language summary

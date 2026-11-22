@@ -10,9 +10,17 @@ import LoadingSkeleton from "@/app/components/LoadingSkeleton";
 import EmptyStateCard from "@/app/components/EmptyStateCard";
 import JobActivityTimeline from "@/app/components/JobActivityTimeline";
 import DisputeRaiseModal from "@/app/components/DisputeRaiseModal";
+import FundConfirmModal from "@/app/components/FundConfirmModal";
 import { ArbiterPanelPlaceholder } from "@/app/components/ArbiterActionPanel";
 import { getArbiterJobEmptyState } from "@/app/lib/arbiter_action_panel";
 import { useActionStates } from "@/app/hooks/useActionStates";
+import { useTokenBalance } from "@/app/hooks/useTokenBalance";
+import {
+  formatTokenAmount,
+  hasInsufficientBalance,
+  insufficientBalanceMessage,
+  sumBaseUnits,
+} from "@/app/lib/balance_check";
 import { BACKEND_URL, runContractAction, submitContractTransaction } from "@/app/lib/transactions";
 import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
 import {
@@ -140,6 +148,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
   const [disputeMilestoneIndex, setDisputeMilestoneIndex] = useState<number | null>(null);
+  const [fundModalOpen, setFundModalOpen] = useState(false);
 
   const { getState, isPending, setPhase, setError: setActionError, setTxHash } = useActionStates();
 
@@ -517,7 +526,10 @@ export default function Dashboard() {
   }, [address, expandedJobId, fetchJobs, fetchJobDetails]);
 
   const expandedJob = expandedJobId ? (jobDetails[expandedJobId] ?? null) : null;
-  const milestoneList = Array.isArray(expandedJob?.milestones) ? expandedJob.milestones : [];
+  const milestoneList = useMemo(
+    () => (Array.isArray(expandedJob?.milestones) ? expandedJob.milestones : []),
+    [expandedJob]
+  );
 
   const isClient = !!(expandedJob && address === expandedJob.client);
   const isFreelancer = !!(expandedJob && address === expandedJob.freelancer);
@@ -526,6 +538,22 @@ export default function Dashboard() {
   // so the arbiter placeholder only covers "milestones, but none disputed".
   const showArbiterNoDisputes =
     isArbiter && getArbiterJobEmptyState(milestoneList) === "no-disputes";
+
+  const fundRequired = useMemo(
+    () => sumBaseUnits(milestoneList.map((milestone) => milestone.amount)),
+    [milestoneList]
+  );
+  const { balance: clientTokenBalance, loading: balanceLoading } = useTokenBalance(
+    isClient && expandedJob && !expandedJob.funded ? expandedJob.token ?? null : null,
+    address
+  );
+  const fundDecimals = expandedJob?.tokenDecimals ?? 7;
+  const fundSymbol = expandedJob?.tokenSymbol ?? "XLM";
+  const insufficientFunds = hasInsufficientBalance(clientTokenBalance, fundRequired);
+  const insufficientFundsMessage = insufficientBalanceMessage(clientTokenBalance, fundRequired, {
+    decimals: fundDecimals,
+    symbol: fundSymbol,
+  });
 
   const [autoReleaseDeadlines, setAutoReleaseDeadlines] = useState<Record<number, number | null>>(
     {}
@@ -641,9 +669,14 @@ export default function Dashboard() {
     ]);
   };
 
-  const handleFund = async () => {
-    if (!address || !expandedJob) return;
+  const handleFund = () => {
+    if (!address || !expandedJob || insufficientFunds) return;
+    setFundModalOpen(true);
+  };
 
+  const handleFundConfirm = async () => {
+    if (!address || !expandedJob || insufficientFunds) return;
+    setFundModalOpen(false);
     await executeTx(`fund-${expandedJob.id}`, "fund", [{ type: "address", value: address }]);
   };
 
@@ -1040,12 +1073,31 @@ export default function Dashboard() {
                                         Deposit the escrow tokens so the freelancer can begin
                                         delivery.
                                       </p>
+                                      <p
+                                        data-testid="fund-balance"
+                                        className="text-amber-200/80 text-xs mt-0.5"
+                                      >
+                                        {balanceLoading
+                                          ? "Checking token balance…"
+                                          : `Balance: ${formatTokenAmount(clientTokenBalance, { decimals: fundDecimals, symbol: fundSymbol })}. Total escrow: ${formatTokenAmount(fundRequired, { decimals: fundDecimals, symbol: fundSymbol })}`}
+                                      </p>
+                                      {insufficientFunds && (
+                                        <p
+                                          data-testid="fund-insufficient-balance"
+                                          role="alert"
+                                          className="text-red-300 text-xs mt-0.5"
+                                        >
+                                          {insufficientFundsMessage}
+                                        </p>
+                                      )}
                                     </div>
                                     <button
                                       type="button"
                                       onClick={handleFund}
-                                      disabled={isPending("fund-" + expandedJob.id)}
-                                      className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-semibold transition"
+                                      disabled={
+                                        isPending("fund-" + expandedJob.id) || insufficientFunds
+                                      }
+                                      className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                       {isPending("fund-" + expandedJob.id)
                                         ? "Funding..."
@@ -1180,6 +1232,20 @@ export default function Dashboard() {
           milestoneIndex={disputeMilestoneIndex}
           isLoading={isPending(`dispute-${disputeMilestoneIndex}`)}
           submissionError={getState(`dispute-${disputeMilestoneIndex}`)?.error}
+        />
+      )}
+
+      {fundModalOpen && expandedJob && (
+        <FundConfirmModal
+          isOpen={fundModalOpen}
+          onClose={() => setFundModalOpen(false)}
+          onConfirm={() => void handleFundConfirm()}
+          amountStroops={fundRequired ?? "0"}
+          decimals={fundDecimals}
+          symbol={fundSymbol}
+          tokenAddress={expandedJob.token}
+          escrowAddress={expandedJob.id}
+          isConfirming={isPending(`fund-${expandedJob.id}`)}
         />
       )}
     </div>

@@ -3,7 +3,10 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { useToast } from "@/app/context/ToastContext";
 import { useWallet } from "@/app/context/WalletContext";
+import { useTokenBalance } from "@/app/hooks/useTokenBalance";
 import { getDefaultArbiter } from "@/app/lib/default_arbiter";
+import { hasInsufficientBalance, sumBaseUnits } from "@/app/lib/balance_check";
+import { parseDecimalToBaseUnits } from "@/app/lib/amounts";
 import { formatCreateEscrowError } from "@/app/lib/errors";
 import { isMilestoneCapReached } from "@/app/lib/milestone_limits";
 import type { TxPhase } from "@/app/lib/transactions";
@@ -169,6 +172,22 @@ export function useCreateJobForm() {
   // ── Derived state ─────────────────────────────────────────────────────────
   const milestoneSummary = summarizeMilestones(milestones);
   const { hasNoMilestones, hasPartialMilestones } = milestoneSummary;
+  const tokenDecimals = tokenCheck.status.validation?.decimals ?? 7;
+  const tokenSymbol = tokenCheck.status.validation?.symbol ?? "tokens";
+  const { balance: tokenBalance, loading: balanceLoading } = useTokenBalance(
+    address ? token : null,
+    address
+  );
+  const totalRequired = sumBaseUnits(
+    milestoneSummary.milestones.map((milestone) => {
+      try {
+        return parseDecimalToBaseUnits(milestone.amount, tokenDecimals).toString();
+      } catch {
+        return "";
+      }
+    })
+  );
+  const insufficientBalance = hasInsufficientBalance(tokenBalance, totalRequired);
   const hasValidationErrors = !!freelancerError || !!arbiterError || !!tokenError;
   const isSubmitDisabled =
     loading ||
@@ -287,6 +306,12 @@ export function useCreateJobForm() {
       arbiter,
       agreed,
       setAgreed,
+      balance: tokenBalance,
+      balanceLoading,
+      totalRequired,
+      tokenDecimals,
+      tokenSymbol,
+      insufficientBalance,
     },
     hasValidationErrors,
     isSubmitDisabled,
