@@ -23,6 +23,7 @@ import {
   type Job,
 } from "@/app/lib/api_schemas";
 import { reportApiResponse } from "@/app/lib/errorReporter";
+import { readJsonApiResponse } from "@/app/lib/api_response";
 import {
   formatLatestActivity,
   formatMilestoneProgress,
@@ -238,7 +239,9 @@ export default function Dashboard() {
         setJobs([]);
         return;
       }
-      const rawData: unknown = await res.json();
+      const rawData: unknown = await readJsonApiResponse(res, {
+        fallbackMessage: "We couldn't load your jobs. Please try again.",
+      });
 
       // Drop stale responses again after the body read.
       if (requestId !== jobsRequestIdRef.current) return;
@@ -327,10 +330,9 @@ export default function Dashboard() {
         if (requestId !== detailsRequestIdRef.current) return;
 
         reportApiResponse(res, "/api/jobs/:contractId");
-        if (!res.ok) {
-          throw new Error(`Failed to load job details: HTTP ${res.status}`);
-        }
-        const rawPayload: unknown = await res.json();
+        const rawPayload: unknown = await readJsonApiResponse(res, {
+          fallbackMessage: "We couldn't load job details. Please try again.",
+        });
 
         if (requestId !== detailsRequestIdRef.current) return;
 
