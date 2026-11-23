@@ -4,7 +4,9 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WalletProvider, useWallet } from "@/app/context/WalletContext";
 import { ToastProvider } from "@/app/context/ToastContext";
+import { getSafeStorage, resetSafeStorageCache } from "@/app/lib/safe_storage";
 import { isWalletLoading } from "@/app/lib/wallet_state_context";
+import { walletStateStore } from "@/app/lib/wallet_state_store";
 
 const kitState = {
   getAddress: vi.fn(),
@@ -113,12 +115,14 @@ describe("wallet_state_context / WalletContext (#122)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    walletStateStore.clear();
     kitState.getNetwork.mockResolvedValue({
       networkPassphrase: "Test SDF Network ; September 2015",
     });
   });
 
   afterEach(() => {
+    walletStateStore.clear();
     localStorage.clear();
   });
 
@@ -131,6 +135,38 @@ describe("wallet_state_context / WalletContext (#122)", () => {
     await waitFor(() => {
       expect(screen.getByTestId("address")).toHaveTextContent("GCONNECTED");
     });
+  });
+
+  it("renders and connects when accessing localStorage throws", async () => {
+    const localStorageDescriptor = Object.getOwnPropertyDescriptor(window, "localStorage");
+    expect(localStorageDescriptor).toBeDefined();
+
+    try {
+      Object.defineProperty(window, "localStorage", {
+        configurable: true,
+        get() {
+          throw new DOMException("Storage access is blocked", "SecurityError");
+        },
+      });
+      resetSafeStorageCache();
+      walletStateStore.overrideStorage(getSafeStorage());
+      kitState.authModal.mockResolvedValue({ address: "GSESSION" });
+
+      renderWallet();
+      screen.getByText("connect").click();
+
+      await waitFor(() => {
+        expect(screen.getByTestId("address")).toHaveTextContent("GSESSION");
+      });
+      expect(walletStateStore.getActiveState()).toEqual(
+        expect.objectContaining({ address: "GSESSION" })
+      );
+    } finally {
+      walletStateStore.clear();
+      Object.defineProperty(window, "localStorage", localStorageDescriptor!);
+      resetSafeStorageCache();
+      walletStateStore.overrideStorage(getSafeStorage());
+    }
   });
 
   it("connect() leaves the address unset and logs a warning block on failure", async () => {

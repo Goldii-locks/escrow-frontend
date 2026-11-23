@@ -186,6 +186,43 @@ describe("#595 — mid-session wallet changes are detected", () => {
 
   // ── network change ─────────────────────────────────────────────────────
 
+  it("checks Freighter's reported network on connect and during polling", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    vi.mocked(freighterActiveAddress.getActiveAddress).mockReturnValue({
+      address: "GORIGINALADDRESS",
+      network: "Test SDF Network ; September 2015",
+      connectedAt: Date.now(),
+    });
+    kitState.getNetwork.mockResolvedValue({
+      networkPassphrase: "Public Global Stellar Network ; September 2015",
+    });
+    kitState.authModal.mockResolvedValue({ address: "GORIGINALADDRESS" });
+
+    renderWithProviders();
+    screen.getByText("connect").click();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(screen.getByTestId("address")).toHaveTextContent("GORIGINALADDRESS");
+    expect(screen.getByTestId("mismatch").textContent).toContain("Please switch networks");
+    expect(freighterActiveAddress.setActiveAddress).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: "GORIGINALADDRESS",
+        network: "Public Global Stellar Network ; September 2015",
+      })
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3100);
+    });
+
+    expect(kitState.getNetwork).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId("mismatch").textContent).toContain("Please switch networks");
+  });
+
   it("network change: shows the mismatch banner when the wallet moves to a different network", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
