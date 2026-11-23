@@ -24,6 +24,12 @@ interface Milestone {
   autoReleaseSeconds?: number | null;
   /** Total deadline extension in seconds. */
   extensionSeconds?: number | null;
+  /** Whether this milestone is funded (per-milestone funding only). */
+  funded?: boolean | null;
+  /** SHA-256 of the freelancer's deliverable, when one was attached (#823). */
+  deliverableHash?: string | null;
+  /** Whether the displayed deliverable hash matches the content on file. */
+  deliverableHashMatch?: boolean | null;
 }
 
 /**
@@ -104,6 +110,31 @@ interface Props {
   selected?: boolean;
   /** Called when the batch-approval checkbox changes. */
   onSelectChange?: (index: number, selected: boolean) => void;
+  /**
+   * The job's funding mode ("Upfront" | "PerMilestone"). When "PerMilestone"
+   * and the milestone is Pending and unfunded, a per-milestone "Fund" button
+   * is shown instead of the job-level button (#822).
+   */
+  fundingMode?: string | null;
+  /** Fund this milestone (per-milestone funding only). */
+  onFundMilestone?: (index: number) => void;
+  /** Whether a per-milestone fund is in flight for this milestone. */
+  isFundMilestonePending?: boolean;
+  /**
+   * SHA-256 of the freelancer's deliverable for this milestone (#823). When
+   * present, shown beneath the status with a match indicator.
+   */
+  deliverableHash?: string | null;
+  /** Whether the stored deliverable content matches `deliverableHash`. */
+  deliverableHashMatch?: boolean | null;
+  /**
+   * Evidence submission state for a Disputed milestone (#820).
+   * `remainingSlots` counts how many of the on-chain evidence entries are
+   * still free; `submitted` counts what this party has already attached.
+   */
+  evidenceState?: { remainingSlots: number; submitted: number } | null;
+  /** Open the evidence-attach flow for this disputed milestone. */
+  onAddEvidence?: (index: number) => void;
 }
 
 const statusColor: Record<string, string> = {
@@ -198,6 +229,13 @@ export default function MilestoneCard({
   selectable = false,
   selected = false,
   onSelectChange,
+  fundingMode = null,
+  onFundMilestone,
+  isFundMilestonePending = false,
+  deliverableHash = null,
+  deliverableHashMatch = null,
+  evidenceState = null,
+  onAddEvidence,
   ...unusedProps
 }: Props) {
   void unusedProps;
@@ -532,6 +570,22 @@ export default function MilestoneCard({
             </button>
           )}
 
+          {isClient &&
+            fundingMode === "PerMilestone" &&
+            milestone.status === "Pending" &&
+            !milestone.funded && (
+              <button
+                onClick={() => onFundMilestone?.(milestone.index)}
+                disabled={!onFundMilestone || isFundMilestonePending || escrowLocked}
+                aria-disabled={!onFundMilestone || isFundMilestonePending || escrowLocked}
+                title={escrowLocked ? lockTooltip : undefined}
+                aria-label={`Fund ${milestoneLabel}`}
+                className={`${baseBtn} bg-amber-600 hover:bg-amber-500 text-white font-medium hover:bg-amber-500/90 active:scale-[0.97] focus-visible:ring-amber-soft disabled:hover:bg-amber-600 disabled:active:scale-100`}
+              >
+                {isFundMilestonePending ? "Funding…" : "Fund"}
+              </button>
+            )}
+
           {canApprove(milestone, isClient) && (
             <button
               onClick={() => {
@@ -543,9 +597,33 @@ export default function MilestoneCard({
               title={escrowLocked ? lockTooltip : undefined}
               aria-label={`Approve ${milestoneLabel}`}
               className={`${baseBtn} bg-success text-surface-page font-medium hover:bg-success/80 active:scale-[0.97] focus-visible:ring-success-soft disabled:hover:bg-success disabled:active:scale-100`}
+              >
+                Approve
+              </button>
+            )}
+
+          {deliverableHash && (
+            <div
+              className="w-full mt-2 pt-2 border-t border-border-subtle flex flex-col gap-1 text-xs"
+              data-testid="milestone-deliverable"
             >
-              Approve
-            </button>
+              <span className="text-text-muted">Deliverable</span>
+              <span
+                className={`font-mono break-all text-text-primary ${
+                  deliverableHashMatch === false ? "text-danger-soft" : "text-success-soft"
+                }`}
+                data-testid="milestone-deliverable-hash"
+              >
+                {deliverableHash}
+              </span>
+              {deliverableHashMatch === null ? (
+                <span className="text-text-muted">hash on record</span>
+              ) : deliverableHashMatch === true ? (
+                <span className="text-success-soft">content matches hash</span>
+              ) : (
+                <span className="text-danger-soft">hash mismatch</span>
+              )}
+            </div>
           )}
 
           {isFreelancer &&
@@ -583,8 +661,48 @@ export default function MilestoneCard({
                 Dispute
               </button>
             )}
+
+          {(isClient || isFreelancer) &&
+            milestone.status === "Disputed" &&
+            onAddEvidence && (
+              <button
+                onClick={() => onAddEvidence(milestone.index)}
+                disabled={escrowLocked || (evidenceState?.remainingSlots ?? 0) <= 0}
+                aria-disabled={escrowLocked || (evidenceState?.remainingSlots ?? 0) <= 0}
+                title={
+                  escrowLocked
+                    ? lockTooltip
+                    : (evidenceState?.remainingSlots ?? 0) <= 0
+                    ? "No evidence slots remain"
+                    : undefined
+                }
+                aria-label={`Add evidence to ${milestoneLabel} dispute`}
+                className={`${baseBtn} bg-warning-soft text-surface-page font-medium hover:bg-warning-soft/80 active:scale-[0.97] focus-visible:ring-warning-soft disabled:hover:bg-warning-soft disabled:active:scale-100`}
+              >
+                {evidenceState && evidenceState.remainingSlots <= 0
+                  ? "Evidence full"
+                  : "Add evidence"}
+              </button>
+            )}
         </div>
       </div>
+
+      {milestone.status === "Disputed" && evidenceState && (
+        <p
+          className="w-full text-xs text-text-muted"
+          data-testid="milestone-evidence-slots"
+          aria-label={`Evidence slots: ${evidenceState.submitted} submitted, ${evidenceState.remainingSlots} remaining`}
+        >
+          Dispute evidence:{" "}
+          <span className="font-mono">
+            {evidenceState.submitted} submitted
+          </span>{" "}
+          ·{" "}
+          <span className="font-mono">
+            {evidenceState.remainingSlots} slot{evidenceState.remainingSlots === 1 ? "" : "s"} remaining
+          </span>
+        </p>
+      })
 
       {/* Arbiter resolution panel — full-width row beneath the card summary */}
       {canResolveDispute(milestone, !!isArbiter) && (

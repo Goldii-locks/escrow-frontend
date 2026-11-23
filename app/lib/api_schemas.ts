@@ -58,6 +58,10 @@ export const MilestoneSchema = z.object({
   amount: z.string(),
   status: z.string(),
   releasedAmount: z.string().optional(),
+  /** Whether this milestone has been funded (only meaningful for per-milestone funding). */
+  funded: z.boolean().default(false).optional(),
+  /** On-chain due timestamp (epoch seconds or ms) for reclaim-overdue eligibility. */
+  dueAt: z.union([z.number(), z.string()]).nullish().optional(),
 });
 
 export type Milestone = z.infer<typeof MilestoneSchema>;
@@ -94,6 +98,15 @@ export const JobSchema = z.object({
     .boolean()
     .nullish()
     .transform((v) => v ?? undefined),
+  /** How the escrow is funded: "Upfront" (job-level) or "PerMilestone". */
+  fundingMode: z
+    .union([z.literal("Upfront"), z.literal("PerMilestone")])
+    .nullish()
+    .transform((v) => v ?? undefined),
+  /** Funding timestamp (epoch ms) for withdraw_unaccepted eligibility. */
+  fundedAt: z.union([z.number(), z.string()]).nullish().optional(),
+  /** Number of milestones accepted (released) so far. */
+  acceptedCount: z.number().int().nonnegative().nullish().optional(),
   // By-wallet summary fields shown on the dashboard rows (#638). The backend
   // may send null for unknown values, which is treated as absent.
   role: z
