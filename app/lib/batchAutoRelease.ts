@@ -1,61 +1,85 @@
-import { BACKEND_URL } from "@/app/lib/transactions";
-import { fetchAutoReleaseInfo } from "@/app/lib/autoRelease";
+import type { Job } from "@/app/lib/api_schemas";
+import { simulateContractRead } from "@/app/lib/contract_read";
 
-/**
- * Fetch auto-release deadlines for all delivered milestones in one request.
- *
- * Endpoint: GET `${BACKEND_URL}/api/jobs/:jobId/deadlines`
- * Expected response shape:
- *   { success: true, data: { deadlines: { [milestoneIndex: number]: number | null } } }
- *
- * Falls back to the individual per-milestone endpoint if the batch endpoint
- * returns a non-OK status, so the UI degrades gracefully when the backend
- * hasn't deployed the new route yet.
- *
- * Returns a map of milestoneIndex → deadlineMs (or null).
- */
-export async function fetchAllAutoReleaseDeadlines(
-  jobId: string,
-  milestoneIndexes: number[],
-  options?: { signal?: AbortSignal; now?: () => number }
-): Promise<Record<number, number | null>> {
-  if (milestoneIndexes.length === 0) return {};
+type JobTiming = Pick<Job, "id" | "milestones" | "autoReleaseSeconds">;
+type Deadlines = Record<number, number | null>;
 
-  // Try the batch endpoint first (one request for all milestones).
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/jobs/${encodeURIComponent(jobId)}/deadlines`, {
-      signal: options?.signal,
-    });
+function seconds(value: unknown): number | null {
+  if (typeof value !== "bigint" && typeof value !== "number") return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
+}
 
-    if (res.ok) {
-      interface BatchResponse {
-        success?: boolean;
-        data?: { deadlines?: Record<string, number | null> };
-        error?: string;
-      }
-      const body = (await res.json()) as BatchResponse;
-      const rawDeadlines = body.data?.deadlines ?? {};
-      const result: Record<number, number | null> = {};
+function deadlineMs(deliveredAt: unknown, duration: unknown, extension: unknown): number | null {
+  const delivered = seconds(deliveredAt);
+  const window = seconds(duration);
+  const extra = seconds(extension);
+  if (!delivered || window === null || extra === null) return null;
+  const deadline = (delivered + window + extra) * 1000;
+  return Number.isSafeInteger(deadline) ? deadline : null;
+}
 
-      for (const index of milestoneIndexes) {
-        const raw = rawDeadlines[String(index)];
-        result[index] = typeof raw === "number" && Number.isFinite(raw) ? raw : null;
-      }
-
-      return result;
-    }
-  } catch {
-    // Fall through to individual fetches on network or parse error.
-    if (options?.signal?.aborted) return {};
+export function getJobAutoReleaseDeadlines(job: JobTiming): Deadlines {
+  const deadlines: Deadlines = {};
+  for (const milestone of job.milestones ?? []) {
+    if (milestone.status !== "Delivered") continue;
+    deadlines[milestone.index] = deadlineMs(
+      milestone.deliveredAt,
+      milestone.autoReleaseSeconds ?? job.autoReleaseSeconds,
+      milestone.extensionSeconds ?? 0
+    );
   }
+  return deadlines;
+}
 
-  // Fallback: fetch each milestone individually (original N+1 behaviour).
-  // This keeps the app working if the backend hasn't shipped the batch route.
-  const entries = await Promise.all(
-    milestoneIndexes.map(async (index) => {
-      const info = await fetchAutoReleaseInfo(jobId, index, options);
-      return [index, info.deadlineMs] as const;
-    })
-  );
-  return Object.fromEntries(entries);
+interface EscrowTimingSnapshot {
+  job?: {
+    auto_release_seconds?: unknown;
+    milestones?: { delivered_at?: unknown }[];
+  };
+  milestone_timing?: { extension_seconds?: unknown; deadline?: unknown }[];
+}
+
+// The dashboard and its action panel can request the same job concurrently.
+const pendingTimingReads = new Map<string, Promise<EscrowTimingSnapshot | null>>();
+
+function readJobTiming(jobId: string): Promise<EscrowTimingSnapshot | null> {
+  const pending = pendingTimingReads.get(jobId);
+  if (pending) return pending;
+
+  const read = simulateContractRead(jobId, "get_escrow_state")
+    .then((value) => value as EscrowTimingSnapshot)
+    .catch(() => null)
+    .finally(() => pendingTimingReads.delete(jobId));
+  pendingTimingReads.set(jobId, read);
+  return read;
+}
+
+/** Read all extensions for a job in one simulation and calculate its deadlines. */
+export async function fetchAllAutoReleaseDeadlines(
+  job: JobTiming,
+  signal?: AbortSignal
+): Promise<Deadlines> {
+  const deadlines = getJobAutoReleaseDeadlines(job);
+  const delivered = (job.milestones ?? []).filter((milestone) => milestone.status === "Delivered");
+  if (delivered.length === 0 || signal?.aborted) return deadlines;
+
+  const snapshot = await readJobTiming(job.id);
+  if (!snapshot || signal?.aborted) return deadlines;
+
+  for (const milestone of delivered) {
+    const index = milestone.index;
+    const timing = snapshot.milestone_timing?.[index];
+    const extension = seconds(timing?.extension_seconds);
+    const chainDeadline = seconds(timing?.deadline);
+    if (chainDeadline === null || extension === null) continue;
+    const computed = deadlineMs(
+      snapshot.job?.milestones?.[index]?.delivered_at ?? milestone.deliveredAt,
+      snapshot.job?.auto_release_seconds ?? milestone.autoReleaseSeconds ?? job.autoReleaseSeconds,
+      extension
+    );
+    const reported = chainDeadline * 1000;
+    deadlines[index] = computed ?? (Number.isSafeInteger(reported) ? reported : deadlines[index]);
+  }
+  return deadlines;
 }

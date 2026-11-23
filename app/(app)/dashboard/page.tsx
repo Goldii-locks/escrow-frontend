@@ -18,7 +18,10 @@ import { getArbiterJobEmptyState } from "@/app/lib/arbiter_action_panel";
 import { useActionStates } from "@/app/hooks/useActionStates";
 import { BACKEND_URL, runContractAction, submitContractTransaction } from "@/app/lib/transactions";
 import { fetchJobStateFromContract, isIndexerStale } from "@/app/lib/contract_job_state";
-import { fetchAllAutoReleaseDeadlines } from "@/app/lib/batchAutoRelease";
+import {
+  fetchAllAutoReleaseDeadlines,
+  getJobAutoReleaseDeadlines,
+} from "@/app/lib/batchAutoRelease";
 import EscrowLockBanner from "@/app/components/EscrowLockBanner";
 import { getEscrowLockState } from "@/app/lib/escrow_lock_state";
 import {
@@ -653,33 +656,23 @@ export default function Dashboard() {
     };
   }, [expandedJobId, expandedJobHasDispute, arbiterFeeBps]);
 
-  const [autoReleaseDeadlines, setAutoReleaseDeadlines] = useState<Record<number, number | null>>(
-    {}
-  );
+  const [deadlineSnapshot, setDeadlineSnapshot] = useState<{
+    job: Job;
+    deadlines: Record<number, number | null>;
+  } | null>(null);
+  const autoReleaseDeadlines =
+    deadlineSnapshot && deadlineSnapshot.job === expandedJob
+      ? deadlineSnapshot.deadlines
+      : expandedJob
+        ? getJobAutoReleaseDeadlines(expandedJob)
+        : {};
 
   useEffect(() => {
+    if (!expandedJob) return;
     const controller = new AbortController();
-    const jobId = expandedJob?.id;
-    const deliveredIndexes = (Array.isArray(expandedJob?.milestones) ? expandedJob.milestones : [])
-      .filter((m) => m.status === "Delivered")
-      .map((m) => m.index);
-
-    (async () => {
-      if (!jobId || deliveredIndexes.length === 0) {
-        await Promise.resolve();
-        if (!controller.signal.aborted) setAutoReleaseDeadlines({});
-        return;
-      }
-
-      // Issue #671: fetch ALL milestone deadlines in one request instead of
-      // one request per delivered milestone (N+1 problem).
-      const deadlines = await fetchAllAutoReleaseDeadlines(jobId, deliveredIndexes, {
-        signal: controller.signal,
-      });
-      if (!controller.signal.aborted) {
-        setAutoReleaseDeadlines(deadlines);
-      }
-    })();
+    void fetchAllAutoReleaseDeadlines(expandedJob, controller.signal).then((deadlines) => {
+      if (!controller.signal.aborted) setDeadlineSnapshot({ job: expandedJob, deadlines });
+    });
 
     return () => controller.abort();
   }, [expandedJob]);

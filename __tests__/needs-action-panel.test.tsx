@@ -14,6 +14,13 @@ vi.mock("@/app/context/ToastContext", () => ({
   useToast: () => ({ showToast: vi.fn(), toasts: [], hideToast: vi.fn() }),
 }));
 
+vi.mock("@/app/lib/contract_read", () => ({
+  simulateContractRead: async (jobId: string, method: string) => {
+    const response = await fetch(`/rpc/${jobId}/${method}`);
+    return response.json();
+  },
+}));
+
 vi.mock("@/app/components/Navbar", () => ({ default: () => <div data-testid="navbar" /> }));
 vi.mock("@/app/components/MilestoneCard", () => ({
   default: ({ milestone }: { milestone: { index: number } | null }) => (
@@ -57,27 +64,32 @@ const jobB = {
   ],
 };
 
+const deadlineRead = `/rpc/${JOB_B}/get_escrow_state`;
+
 function json(body: unknown) {
   return { ok: true, status: 200, json: async () => body };
 }
 
-function stubBackend() {
+function stubBackend(job = jobB) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.includes("/by-wallet/")) {
-      return json({ success: true, data: [jobA, jobB], page: 1, limit: 5, total: 2 });
+      return json({ success: true, data: [jobA, job], page: 1, limit: 5, total: 2 });
     }
-    if (url.includes("/deadlines")) {
+    if (url === deadlineRead) {
       return json({
-        success: true,
-        data: { deadlines: { "1": Date.now() + 2 * 24 * 3_600_000 } },
+        milestone_timing: job.milestones.map((milestone) =>
+          milestone.status === "Delivered"
+            ? { extension_seconds: 0, deadline: Math.ceil(Date.now() / 1000) + 2 * 86_400 }
+            : {}
+        ),
       });
     }
     if (url.includes("/history")) return json({ success: true, events: [], total: 0 });
     const detail = /\/api\/jobs\/([^/?]+)$/.exec(url);
     if (detail) {
       const id = decodeURIComponent(detail[1]);
-      return json({ success: true, data: [jobA, jobB].find((j) => j.id === id) });
+      return json({ success: true, data: [jobA, job].find((j) => j.id === id) });
     }
     return json({ success: true });
   });
@@ -131,6 +143,26 @@ describe("Dashboard 'Needs your action' rows (#888)", () => {
       registerPendingAction: vi.fn(),
     });
     stubBackend();
+  });
+
+  it("makes one deadline request when expanding a job with three delivered milestones", async () => {
+    const fetchMock = stubBackend({
+      ...jobB,
+      milestones: [0, 1, 2].map((index) => ({ index, amount: "100", status: "Delivered" })),
+    });
+    render(<Dashboard />);
+
+    // Let the action panel finish its initial, independent load.
+    await screen.findAllByTestId("needs-action-item");
+    const countDeadlineReads = () =>
+      fetchMock.mock.calls.filter(([url]) =>
+        /get_escrow_state|deadlines|time-remaining|auto-release/.test(String(url))
+      ).length;
+    const beforeExpansion = countDeadlineReads();
+
+    fireEvent.click(screen.getByRole("button", { name: /Job #CBBBBBBB/ }));
+    await screen.findByText("card-2");
+    await waitFor(() => expect(countDeadlineReads() - beforeExpansion).toBe(1));
   });
 
   it("opens the right job and milestone when a row is clicked", async () => {

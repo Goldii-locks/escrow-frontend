@@ -248,15 +248,7 @@ export async function loadNeedsActions(
   const deadlines: JobDeadlines = {};
   await mapLimit(jobs, DETAIL_CONCURRENCY, async (job) => {
     if (job.client !== address && job.freelancer !== address) return;
-    const delivered = milestonesOf(job)
-      .filter((m) => m.status === "Delivered")
-      .map((m) => m.index);
-    if (delivered.length === 0) return;
-    try {
-      deadlines[job.id] = await fetchAllAutoReleaseDeadlines(job.id, delivered, { signal });
-    } catch {
-      // Fall back to the on-chain fields, or an unknown deadline.
-    }
+    deadlines[job.id] = await fetchAllAutoReleaseDeadlines(job, signal);
   });
 
   return { items: deriveNeedsActions(jobs, address, { now: now(), deadlines }), jobs };
