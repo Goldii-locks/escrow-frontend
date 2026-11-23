@@ -84,6 +84,9 @@ describe("Dashboard — client-side search filter (issue #684)", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "Content-Type": "application/json" }),
         json: async () => ({
           success: true,
           data: jobList,
@@ -184,7 +187,7 @@ describe("Dashboard — client-side search filter (issue #684)", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("dashboard-filter-hint")).toBeInTheDocument();
-      expect(screen.getByTestId("dashboard-filter-hint")).toHaveTextContent(/Filtering this page/);
+      expect(screen.getByTestId("dashboard-filter-hint")).toHaveTextContent(/on this page/);
     });
   });
 
@@ -206,6 +209,9 @@ describe("Dashboard — client-side search filter (issue #684)", () => {
 
   it("does not send contractId as a backend parameter", async () => {
     const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "Content-Type": "application/json" }),
       json: async () => ({
         success: true,
         data: jobs,

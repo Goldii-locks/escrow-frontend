@@ -179,6 +179,10 @@ export const JobDetailResponseSchema = z.object({
 
 export type JobDetailResponse = z.infer<typeof JobDetailResponseSchema>;
 
+export const EscrowFundedResponseDataSchema = z
+  .object({ funded: z.boolean().optional() })
+  .passthrough();
+
 // ---------------------------------------------------------------------------
 // Whitelist response
 // ---------------------------------------------------------------------------
@@ -196,11 +200,13 @@ export type WhitelistToken = z.infer<typeof WhitelistTokenSchema>;
  * Exact body of `GET /api/jobs/:contractId/whitelist` (the backend's
  * `sendSuccess`): `{ success: true, data: { tokens: [...] } }` (#618).
  */
+export const WhitelistResponseDataSchema = z.object({
+  tokens: z.array(z.unknown()),
+});
+
 export const WhitelistResponseSchema = z.object({
   success: z.literal(true),
-  data: z.object({
-    tokens: z.array(z.unknown()),
-  }),
+  data: WhitelistResponseDataSchema,
 });
 
 export type WhitelistResponse = z.infer<typeof WhitelistResponseSchema>;
@@ -216,15 +222,17 @@ export type WhitelistResponse = z.infer<typeof WhitelistResponseSchema>;
  * `EscrowState`. Only `admin` is read here; the rest of the state passes
  * through untouched.
  */
+export const AdminResponseDataSchema = z.object({
+  result: z
+    .object({
+      admin: z.string().regex(/^G[A-Z2-7]{55}$/, "admin must be a Stellar account (G...)"),
+    })
+    .passthrough(),
+});
+
 export const AdminResponseSchema = z.object({
   success: z.literal(true),
-  data: z.object({
-    result: z
-      .object({
-        admin: z.string().regex(/^G[A-Z2-7]{55}$/, "admin must be a Stellar account (G...)"),
-      })
-      .passthrough(),
-  }),
+  data: AdminResponseDataSchema,
 });
 
 export type AdminResponse = z.infer<typeof AdminResponseSchema>;
@@ -242,25 +250,29 @@ export type AdminResponse = z.infer<typeof AdminResponseSchema>;
  * releasedAmount? }` objects, which matches `MilestoneSchema`. Addresses and
  * token fields may be absent in older contract versions so they are optional.
  */
+export const EscrowStateResponseDataSchema = z.object({
+  result: z.object({
+    admin: z.string().optional(),
+    job: z
+      .object({
+        client: z.string().optional(),
+        freelancer: z.string().optional(),
+        arbiter: z.string().optional(),
+        funded: z.boolean().optional(),
+        token: z.string().optional(),
+        tokenSymbol: z.string().optional(),
+        tokenDecimals: z.number().finite().optional(),
+        milestones: z.array(MilestoneSchema).optional(),
+      })
+      .passthrough(),
+  }),
+});
+
+export const EscrowStateDataSchema = EscrowStateResponseDataSchema;
+
 export const EscrowStateResponseSchema = z.object({
   success: z.literal(true),
-  data: z.object({
-    result: z.object({
-      admin: z.string().optional(),
-      job: z
-        .object({
-          client: z.string().optional(),
-          freelancer: z.string().optional(),
-          arbiter: z.string().optional(),
-          funded: z.boolean().optional(),
-          token: z.string().optional(),
-          tokenSymbol: z.string().optional(),
-          tokenDecimals: z.number().finite().optional(),
-          milestones: z.array(MilestoneSchema).optional(),
-        })
-        .passthrough(),
-    }),
-  }),
+  data: EscrowStateResponseDataSchema,
 });
 
 export type EscrowStateResponse = z.infer<typeof EscrowStateResponseSchema>;
@@ -269,16 +281,16 @@ export type EscrowStateResponse = z.infer<typeof EscrowStateResponseSchema>;
 // Auto-release response
 // ---------------------------------------------------------------------------
 
+export const AutoReleaseResponseDataSchema = z.object({
+  deadline: z.union([z.number(), z.string()]).optional(),
+  autoReleaseAt: z.union([z.number(), z.string()]).optional(),
+  secondsRemaining: z.number().optional(),
+  eligible: z.boolean().optional(),
+});
+
 export const AutoReleaseResponseSchema = z.object({
   success: z.boolean().optional(),
-  data: z
-    .object({
-      deadline: z.union([z.number(), z.string()]).optional(),
-      autoReleaseAt: z.union([z.number(), z.string()]).optional(),
-      secondsRemaining: z.number().optional(),
-      eligible: z.boolean().optional(),
-    })
-    .optional(),
+  data: AutoReleaseResponseDataSchema.optional(),
   error: z.string().optional(),
 });
 
@@ -301,4 +313,86 @@ export function validateResponse<T>(schema: z.ZodSchema<T>, data: unknown, endpo
     throw new ApiShapeError(endpoint, result.error);
   }
   return result.data;
+}
+
+// ---------------------------------------------------------------------------
+// Response-shape normalisation (#622)
+// ---------------------------------------------------------------------------
+
+/** snake_case fields the by-wallet summary sends, mapped to the Job schema (#638). */
+const SUMMARY_FIELD_ALIASES: Record<string, string> = {
+  contract_id: "id",
+  milestone_count: "milestoneCount",
+  released_count: "releasedCount",
+  latest_event_type: "latestEventType",
+  latest_event_at: "latestEventAt",
+  latest_ledger: "latestLedger",
+};
+
+/**
+ * Normalises raw (unknown-typed) data from the backend into a `Job`.
+ * Uses Zod's `safeParse` so that a bad shape never silently produces
+ * empty data — it returns `null` so the caller can show an error or fall
+ * back gracefully.
+ */
+export function normalizeJob(item: unknown): Job | null {
+  let input = item;
+  if (typeof item === "object" && item !== null && !Array.isArray(item)) {
+    const mapped: Record<string, unknown> = { ...(item as Record<string, unknown>) };
+    for (const [from, to] of Object.entries(SUMMARY_FIELD_ALIASES)) {
+      if (mapped[to] === undefined && mapped[from] !== undefined) mapped[to] = mapped[from];
+    }
+    input = mapped;
+  }
+  const result = JobSchema.safeParse(input);
+  return result.success ? result.data : null;
+}
+
+/** Reads every known job-list envelope into one shape. */
+export function parsePageResponse(payload: ReturnType<typeof JobListResponseSchema.parse>): {
+  jobs: Job[];
+  page: number;
+  limit: number;
+  total: number;
+} {
+  const fallback = { jobs: [] as Job[], page: 1, limit: 5, total: 0 };
+
+  if (!payload || payload.success === false) {
+    return fallback;
+  }
+
+  let rows: unknown[] = [];
+  let page = payload.page ?? payload.pagination?.page ?? 1;
+  let limit = payload.limit ?? payload.pagination?.limit ?? 5;
+  let total = payload.total ?? payload.totalItems ?? payload.pagination?.total ?? 0;
+
+  if (Array.isArray(payload.data)) {
+    rows = payload.data;
+  } else if (payload.data && typeof payload.data === "object") {
+    const embedded = payload.data as Record<string, unknown>;
+    if (Array.isArray(embedded.jobs)) {
+      rows = embedded.jobs;
+    } else if (Array.isArray(embedded.items)) {
+      rows = embedded.items;
+    } else if (typeof embedded.id === "string") {
+      rows = [embedded];
+      page = 1;
+      limit = 1;
+      total = 1;
+    }
+
+    if (typeof embedded.page === "number") page = embedded.page;
+    if (typeof embedded.limit === "number") limit = embedded.limit;
+    if (typeof embedded.total === "number") total = embedded.total;
+    if (typeof embedded.totalItems === "number") total = embedded.totalItems;
+  }
+
+  const jobs = rows.map(normalizeJob).filter((job): job is Job => job !== null);
+
+  return {
+    jobs,
+    page,
+    limit,
+    total: total || jobs.length,
+  };
 }

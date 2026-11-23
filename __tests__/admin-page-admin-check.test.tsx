@@ -26,7 +26,12 @@ vi.mock("@/app/context/WalletContext", () => ({
 }));
 
 function json(body: unknown, ok = true) {
-  return { ok, status: ok ? 200 : 500, json: async () => body };
+  return {
+    ok,
+    status: ok ? 200 : 500,
+    headers: new Headers({ "Content-Type": "application/json" }),
+    json: async () => body,
+  };
 }
 
 /** A backend whose get_escrow_state view reports ADMIN as the admin. */

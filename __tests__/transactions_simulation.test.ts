@@ -20,6 +20,7 @@ describe("submitContractTransaction simulation result wiring (#631)", () => {
 
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
+      headers: new Headers({ "Content-Type": "application/json" }),
       json: async () => ({ xdr: "AAAA...", simulationResult: { fee: 1_500_000 } }),
     } as Response);
 
@@ -43,6 +44,7 @@ describe("submitContractTransaction simulation result wiring (#631)", () => {
 
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
+      headers: new Headers({ "Content-Type": "application/json" }),
       json: async () => ({ xdr: "AAAA...", simulationResult: { fee: 1_500_000 } }),
     } as Response);
 
@@ -64,6 +66,7 @@ describe("submitContractTransaction simulation result wiring (#631)", () => {
 
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
+      headers: new Headers({ "Content-Type": "application/json" }),
       json: async () => ({ xdr: "AAAA..." }),
     } as Response);
 

@@ -9,6 +9,9 @@
  * - Dynamic data queries and API bindings with mock fallbacks (Issue #423)
  */
 
+import { z } from "zod";
+import { apiGet } from "@/app/lib/api";
+
 export interface EvidenceItem {
   id: string;
   disputeId: string;
@@ -23,6 +26,21 @@ export interface EvidenceItem {
   hash: string;
   verified: boolean;
 }
+
+const EvidenceItemSchema = z.object({
+  id: z.string(),
+  disputeId: z.string(),
+  submittedBy: z.string(),
+  submitterRole: z.enum(["client", "freelancer"]),
+  title: z.string(),
+  description: z.string(),
+  fileUrl: z.string(),
+  fileType: z.string(),
+  fileSize: z.number(),
+  uploadedAt: z.string(),
+  hash: z.string(),
+  verified: z.boolean(),
+});
 
 export const UNAUTHORIZED_ARBITRATOR_WARNING =
   "Access Restricted: Only authorized arbiters assigned to this dispute can review submitted evidence.";
@@ -74,21 +92,10 @@ export async function fetchArbitratorEvidence(
   options?: { apiUrl?: string; signal?: AbortSignal }
 ): Promise<EvidenceItem[]> {
   const url = options?.apiUrl || `/api/disputes/${encodeURIComponent(disputeId)}/evidence`;
-
-  const res = await fetch(url, { signal: options?.signal });
-  if (!res.ok) {
-    throw new Error(`Failed to load evidence for dispute ${disputeId} (${res.status})`);
-  }
-  const data: unknown = await res.json();
-  // Accept the list bare or wrapped in the standard `{ success, data }` envelope.
-  const payload =
-    typeof data === "object" && data !== null && "success" in data && "data" in data
-      ? (data as { data: unknown }).data
-      : data;
-  if (!Array.isArray(payload)) {
-    throw new Error(`Invalid evidence response for dispute ${disputeId}`);
-  }
-  return payload as EvidenceItem[];
+  return apiGet(url, z.array(EvidenceItemSchema), {
+    signal: options?.signal,
+    envelope: "optional",
+  });
 }
 
 /* ------------------------------------------------------------------ *

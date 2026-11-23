@@ -29,7 +29,12 @@ export function wrapFetchWithJobDetails(): void {
       const id = decodeURIComponent(detail[1]);
       const job = lastList.find((j) => j.id === id);
       if (job) {
-        return { ok: true, status: 200, json: async () => ({ success: true, data: job }) };
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: async () => ({ success: true, data: job }),
+        };
       }
     }
     const res = await inner(url, init);

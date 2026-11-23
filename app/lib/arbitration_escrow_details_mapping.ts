@@ -9,6 +9,8 @@ import type {
   ArbitrationEscrowDetailsRecord,
   ArbitrationEscrowStatus,
 } from "./arbitration_escrow_details";
+import { z } from "zod";
+import { apiGet } from "@/app/lib/api";
 
 export const ARBITRATION_ESCROW_ENDPOINT = "/api/arbitration/escrow-details";
 
@@ -95,7 +97,6 @@ export function mapArbitrationPayload(payload: unknown): ArbitrationEscrowDetail
 export async function fetchArbitrationDataset(
   url = ARBITRATION_ESCROW_ENDPOINT
 ): Promise<ArbitrationEscrowDetailsRecord[]> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to load arbitration details (${res.status})`);
-  return mapArbitrationPayload(await res.json());
+  const payload = await apiGet(url, z.unknown(), { envelope: "optional" });
+  return mapArbitrationPayload(payload);
 }

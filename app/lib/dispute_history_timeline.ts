@@ -1,4 +1,6 @@
 import type { ToastType } from "@/app/context/ToastContext";
+import { z } from "zod";
+import { apiGet } from "@/app/lib/api";
 
 /**
  * dispute_history_timeline — Pure helpers and data services backing the
@@ -32,6 +34,18 @@ export interface DisputeHistoryEvent {
   /** Workflow state of the event; drives the badge and available actions. */
   status?: DisputeTimelineStatus;
 }
+
+const DisputeHistoryEventSchema = z.object({
+  id: z.string(),
+  disputeId: z.string(),
+  type: z.enum(["raised", "evidence_submitted", "response", "arbiter_assigned", "note", "resolved"]),
+  actor: z.string(),
+  actorRole: z.enum(["client", "freelancer", "arbiter"]),
+  title: z.string(),
+  description: z.string(),
+  timestamp: z.string(),
+  status: z.enum(["pending", "under_review", "escalated", "resolved", "rejected"]).optional(),
+});
 
 export const UNAUTHORIZED_TIMELINE_WARNING =
   "Access Restricted: Only wallets that are party to this dispute can view its history.";
@@ -82,16 +96,10 @@ export async function fetchDisputeHistory(
   options?: { apiUrl?: string; signal?: AbortSignal }
 ): Promise<DisputeHistoryEvent[]> {
   const url = options?.apiUrl || `/api/disputes/${encodeURIComponent(disputeId)}/history`;
-
-  const res = await fetch(url, { signal: options?.signal });
-  if (!res.ok) {
-    throw new Error(`Failed to load dispute history for ${disputeId} (${res.status})`);
-  }
-  const data = await res.json();
-  if (!Array.isArray(data)) {
-    throw new Error(`Invalid dispute history response for ${disputeId}`);
-  }
-  return data;
+  return apiGet(url, z.array(DisputeHistoryEventSchema), {
+    signal: options?.signal,
+    envelope: "optional",
+  });
 }
 
 // =============================================================

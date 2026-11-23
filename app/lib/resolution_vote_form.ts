@@ -9,6 +9,9 @@
  * - Vote submission shaping for the confirmation modal (Issue #455)
  */
 
+import { z } from "zod";
+import { apiGet, ApiHttpError } from "@/app/lib/api";
+
 /** Basis-point scale: a split is expressed as client + freelancer = 10 000. */
 export const RESOLUTION_BPS_SCALE = 10_000;
 
@@ -250,14 +253,16 @@ export async function fetchResolutionDispute(
   const url = options?.apiUrl || `/api/disputes/${encodeURIComponent(disputeId)}/resolution`;
 
   try {
-    const res = await fetch(url, { signal: options?.signal });
-    if (res.status === 404) return null;
-    if (res.ok) {
-      const normalized = normalizeResolutionDispute(await res.json());
-      if (normalized) return normalized;
-    }
-  } catch {
-    // Network or server error — fall through to the mock dataset.
+    const raw = await apiGet(url, z.record(z.string(), z.unknown()), {
+      signal: options?.signal,
+      envelope: "optional",
+    });
+    const normalized = normalizeResolutionDispute(raw);
+    if (normalized) return normalized;
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    if (error instanceof ApiHttpError && error.status === 404) return null;
+    // Other API failures use the mock record when available.
   }
 
   const mock = MOCK_RESOLUTION_DISPUTES[disputeId];

@@ -1,8 +1,7 @@
-import { BACKEND_URL } from "@/app/lib/transactions";
+import { apiGet } from "@/app/lib/api";
 import {
   ApiShapeError,
-  WhitelistResponseSchema,
-  validateResponse,
+  WhitelistResponseDataSchema,
   type WhitelistToken,
 } from "@/app/lib/api_schemas";
 
@@ -55,17 +54,12 @@ export async function fetchWhitelistedTokens(
   contractId: string,
   options?: { signal?: AbortSignal }
 ): Promise<WhitelistToken[]> {
-  const endpoint = `/api/jobs/${contractId}/whitelist`;
-  const res = await fetch(`${BACKEND_URL}/api/jobs/${encodeURIComponent(contractId)}/whitelist`, {
-    signal: options?.signal,
-  });
-  if (!res.ok) {
-    throw new Error(`Whitelist request failed with status ${res.status}`);
-  }
-
-  const rawBody: unknown = await res.json();
-  const body = validateResponse(WhitelistResponseSchema, rawBody, endpoint);
-  const list: unknown[] = body.data.tokens;
+  const body = await apiGet(
+    `/api/jobs/${encodeURIComponent(contractId)}/whitelist`,
+    WhitelistResponseDataSchema,
+    { signal: options?.signal }
+  );
+  const list: unknown[] = body.tokens;
 
   return list.map(normalizeToken).filter((token): token is WhitelistToken => token !== null);
 }

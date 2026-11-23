@@ -17,7 +17,12 @@ function stateEnvelope(admin: unknown) {
 }
 
 function stubFetch(body: unknown, ok = true, status = 200) {
-  const fetchMock = vi.fn().mockResolvedValue({ ok, status, json: async () => body });
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok,
+    status,
+    headers: new Headers({ "Content-Type": "application/json" }),
+    json: async () => body,
+  });
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
 }

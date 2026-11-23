@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { z } from "zod";
+import { apiGet } from "@/app/lib/api";
 import { useWallet } from "@/app/context/WalletContext";
 import Navbar from "@/app/components/Navbar";
 import AdminAccessGate from "@/app/components/AdminAccessGate";
@@ -33,7 +35,6 @@ import {
   whitelistSuccessToast,
 } from "@/app/lib/admin_whitelist_panel";
 import {
-  BACKEND_URL,
   CONTRACT_ID,
   getPhaseLabel,
   runContractAction,
@@ -102,21 +103,23 @@ export default function AdminPage() {
     setListLoading(true);
     setListError(null);
     try {
-      const res = await fetch(
-        `${BACKEND_URL}/api/jobs/whitelisted-tokens?contractId=${CONTRACT_ID}`
+      const data = await apiGet(
+        `/api/jobs/whitelisted-tokens?contractId=${encodeURIComponent(CONTRACT_ID)}`,
+        z.unknown(),
+        { envelope: "optional" }
       );
-      const data = await res.json();
       const entries = mapWhitelistResponse(data);
-      if (entries && (res.ok || data?.success)) {
+      if (entries) {
         setWhitelist(entries);
       } else {
-        const message = data?.error || "Could not load whitelisted tokens.";
+        const message = "Could not load whitelisted tokens.";
         setListError(message);
         const toast = whitelistLoadErrorToast(message);
         showToast(toast.message, toast.type);
       }
-    } catch {
-      const message = "Could not connect to backend to load whitelist.";
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Could not connect to backend to load whitelist.";
       setListError(message);
       const toast = whitelistLoadErrorToast(message);
       showToast(toast.message, toast.type);

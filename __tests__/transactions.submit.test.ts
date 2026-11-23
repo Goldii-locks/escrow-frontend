@@ -28,21 +28,33 @@ vi.mock("@/app/lib/tx_verification", () => ({ verifyPreparedTransaction: vi.fn()
  * JSON) usable without a `Blob`/`TextEncoder` round trip.
  */
 function jsonResponse(body: unknown, status = 200): Response {
-  return {
+  const response = {
     ok: status >= 200 && status < 300,
     status,
+    headers: new Headers({ "Content-Type": "application/json" }),
     json: async () => body,
-  } as unknown as Response;
+    text: async () => JSON.stringify(body),
+    clone() {
+      return this;
+    },
+  };
+  return response as unknown as Response;
 }
 
 function htmlResponse(status: number): Response {
-  return {
+  const response = {
     ok: false,
     status,
+    headers: new Headers({ "Content-Type": "text/html" }),
     json: async () => {
       throw new SyntaxError("Unexpected token '<', \"<!DOCTYPE\"... is not valid JSON");
     },
-  } as unknown as Response;
+    text: async () => "<!DOCTYPE html>",
+    clone() {
+      return this;
+    },
+  };
+  return response as unknown as Response;
 }
 
 const SOURCE_ADDRESS = "GADMIN7XQ7ZQ2ZQ2ZQ2ZQ2ZQ2ZQ2ZQ2ZQ2ZQ2ZQ2ZQ2ZQ2ZQ2ZQ2ZQ2ZQ";
@@ -125,9 +137,7 @@ describe("submitContractTransaction against real backend response shapes (#686)"
 
       const [buildTxCall, submitCall] = calls;
       expect(buildTxCall.init?.method).toBe("POST");
-      expect(buildTxCall.init?.headers).toEqual({
-        "Content-Type": "application/json",
-      });
+      expect(new Headers(buildTxCall.init?.headers).get("Content-Type")).toBe("application/json");
       expect(bodyOf(buildTxCall)).toEqual({
         contractId: CONTRACT_ID,
         method: BASE_TX.method,

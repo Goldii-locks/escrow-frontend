@@ -17,16 +17,15 @@
  * the backend returns carries no acceptance or credited-balance fields to
  * derive them from.
  */
-import { BACKEND_URL } from "@/app/lib/transactions";
 import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
+import { apiGet } from "@/app/lib/api";
 import {
   JobDetailResponseSchema,
   JobListResponseSchema,
-  validateResponse,
+  parsePageResponse,
   type Job,
 } from "@/app/lib/api_schemas";
-import { normalizeJob, parsePageResponse } from "@/app/lib/job_list_response";
-import { reportApiResponse } from "@/app/lib/errorReporter";
+import { normalizeJob } from "@/app/lib/api_schemas";
 import {
   canApprove,
   canClaimAutoRelease,
@@ -166,24 +165,16 @@ function isSettled(job: Job): boolean {
   );
 }
 
-async function fetchJson(url: string, route: string, signal?: AbortSignal): Promise<unknown> {
-  const res = await fetch(url, { signal });
-  reportApiResponse(res, route);
-  if (res.ok === false) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
 /** Every job summary for `address`, across pages. */
 async function fetchAllJobSummaries(address: string, signal?: AbortSignal): Promise<Job[]> {
   const jobs: Job[] = [];
   const seen = new Set<string>();
   for (let page = 1; page <= MAX_LIST_PAGES; page += 1) {
-    const raw = await fetchJson(
-      `${BACKEND_URL}/api/jobs/by-wallet/${encodeURIComponent(address)}?page=${page}&limit=${LIST_PAGE_SIZE}`,
-      "/api/jobs/by-wallet/:address",
-      signal
+    const data = await apiGet(
+      `/api/jobs/by-wallet/${encodeURIComponent(address)}?page=${page}&limit=${LIST_PAGE_SIZE}`,
+      JobListResponseSchema,
+      { signal, envelope: "none" }
     );
-    const data = validateResponse(JobListResponseSchema, raw, `/api/jobs/by-wallet/${address}`);
     if (data.success === false) throw new Error(data.error || "Failed to fetch jobs");
     const parsed = parsePageResponse(data);
     let added = 0;
@@ -199,12 +190,11 @@ async function fetchAllJobSummaries(address: string, signal?: AbortSignal): Prom
 }
 
 async function fetchJobDetail(jobId: string, signal?: AbortSignal): Promise<Job | null> {
-  const raw = await fetchJson(
-    `${BACKEND_URL}/api/jobs/${encodeURIComponent(jobId)}`,
-    "/api/jobs/:contractId",
-    signal
+  const payload = await apiGet(
+    `/api/jobs/${encodeURIComponent(jobId)}`,
+    JobDetailResponseSchema,
+    { signal, envelope: "none" }
   );
-  const payload = validateResponse(JobDetailResponseSchema, raw, `/api/jobs/${jobId}`);
   return normalizeJob(payload.data);
 }
 

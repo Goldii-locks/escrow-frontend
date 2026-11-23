@@ -9,6 +9,8 @@
  */
 import { NETWORK_PASSPHRASE, createRpcServer } from "@/app/lib/config";
 import { NETWORK_PASSPHRASES } from "@/app/lib/network_config";
+import { apiGet, ApiHttpError } from "@/app/lib/api";
+import { z } from "zod";
 
 /** True when the app is built against Stellar testnet. */
 export function isTestnet(): boolean {
@@ -24,20 +26,20 @@ export const FRIENDBOT_URL = "https://friendbot.stellar.org";
  */
 export async function fundWithFriendbot(address: string): Promise<void> {
   const url = `${FRIENDBOT_URL}?addr=${encodeURIComponent(address)}`;
-  const res = await fetch(url);
-  if (!res.ok) {
+  try {
+    await apiGet(url, z.unknown(), { envelope: "none" });
+  } catch (error) {
+    if (!(error instanceof ApiHttpError)) throw error;
     let detail = "";
-    try {
-      const body = (await res.json()) as {
-        detail?: string;
-        extras?: { result_codes?: unknown };
-      };
+    const body = error.payload as {
+      detail?: string;
+      extras?: { result_codes?: unknown };
+    } | undefined;
+    if (body) {
       detail = body.detail ?? JSON.stringify(body.extras?.result_codes ?? "");
-    } catch {
-      // ignore parse errors — the status code is enough
     }
     throw new Error(
-      `Friendbot returned HTTP ${res.status}${detail ? `: ${detail}` : ""}. Try again in a moment.`
+      `Friendbot returned HTTP ${error.status}${detail ? `: ${detail}` : ""}. Try again in a moment.`
     );
   }
 }
@@ -83,15 +85,16 @@ export async function fetchAccountStatus(
 
   // ── 1. Does the account exist? ────────────────────────────────────────────
   try {
-    const horizonRes = await fetch(
-      `https://horizon-testnet.stellar.org/accounts/${encodeURIComponent(address)}`
+    await apiGet(
+      `https://horizon-testnet.stellar.org/accounts/${encodeURIComponent(address)}`,
+      z.unknown(),
+      { envelope: "none" }
     );
-    if (horizonRes.status === 404) {
+  } catch (error) {
+    if (error instanceof ApiHttpError && error.status === 404) {
       return { notFound: true, missingTrustline: false, zeroBalance: false };
     }
     // Any other non-OK status: continue to the RPC check below.
-  } catch {
-    // Network error — continue to RPC trustline check.
   }
 
   // Skip trustline check when no token address is supplied.

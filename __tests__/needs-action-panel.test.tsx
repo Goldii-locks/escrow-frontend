@@ -58,7 +58,12 @@ const jobB = {
 };
 
 function json(body: unknown) {
-  return { ok: true, status: 200, json: async () => body };
+  return {
+    ok: true,
+    status: 200,
+    headers: new Headers({ "Content-Type": "application/json" }),
+    json: async () => body,
+  };
 }
 
 function stubBackend() {

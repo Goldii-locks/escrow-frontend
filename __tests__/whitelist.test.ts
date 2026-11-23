@@ -1,8 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ApiEnvelopeError } from "@/app/lib/api";
 import { ApiShapeError, fetchWhitelistedTokens, tokenLabel } from "@/app/lib/whitelist";
 
 function stubFetch(body: unknown, ok = true, status = 200) {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok, status, json: async () => body }));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok,
+      status,
+      headers: new Headers({ "Content-Type": "application/json" }),
+      json: async () => body,
+    })
+  );
 }
 
 describe("fetchWhitelistedTokens", () => {
@@ -37,7 +46,7 @@ describe("fetchWhitelistedTokens", () => {
   // An unexpected body is an error, not an empty whitelist (#678).
   it("throws ApiShapeError for unexpected shapes instead of returning []", async () => {
     stubFetch(["CAAA"]);
-    await expect(fetchWhitelistedTokens("CID")).rejects.toBeInstanceOf(ApiShapeError);
+    await expect(fetchWhitelistedTokens("CID")).rejects.toBeInstanceOf(ApiEnvelopeError);
     stubFetch({ success: true, data: ["CAAA"] });
     await expect(fetchWhitelistedTokens("CID")).rejects.toBeInstanceOf(ApiShapeError);
   });

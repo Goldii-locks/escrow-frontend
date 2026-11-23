@@ -15,7 +15,11 @@ function event(id: number, type: string) {
 }
 
 function respond(events: ReturnType<typeof event>[], total: number) {
-  return { ok: true, json: async () => ({ success: true, events, total, page: 1, limit: 10 }) };
+  return {
+    ok: true,
+    headers: new Headers({ "Content-Type": "application/json" }),
+    json: async () => ({ success: true, events, total, page: 1, limit: 10 }),
+  };
 }
 
 describe("JobActivityTimeline", () => {
@@ -127,10 +131,12 @@ describe("JobActivityTimeline", () => {
       .fn()
       .mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ "Content-Type": "application/json" }),
         json: async () => ({ success: true, events: newest, total: 12, order: "desc" }),
       })
       .mockResolvedValueOnce({
         ok: true,
+        headers: new Headers({ "Content-Type": "application/json" }),
         json: async () => ({
           success: true,
           events: [event(2, "funded"), event(1, "initialized")],
