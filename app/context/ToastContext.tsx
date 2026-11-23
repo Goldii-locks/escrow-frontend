@@ -21,19 +21,46 @@ interface ToastContextType {
   toasts: Toast[];
   showToast: (message: string, type: ToastType) => void;
   hideToast: (id: string) => void;
+  /** Suspend a toast's auto-dismiss countdown (hover/focus). */
+  pauseToast: (id: string) => void;
+  /** Resume a paused countdown with the time that was left. */
+  resumeToast: (id: string) => void;
 }
 
 const ToastContext = createContext<ToastContextType>({
   toasts: [],
   showToast: () => {},
   hideToast: () => {},
+  pauseToast: () => {},
+  resumeToast: () => {},
 });
 
 /** Maximum number of toasts visible at once; the oldest is evicted first. */
 export const MAX_VISIBLE_TOASTS = 4;
 
-/** Milliseconds a toast stays on screen before auto-dismissing. */
-const TOAST_DURATION_MS = 5000;
+/**
+ * Auto-dismiss durations per toast type. Errors and warnings stay longer
+ * because they usually need action; success/info confirmations are brief.
+ */
+export const TOAST_DURATIONS_MS: Record<ToastType, number> = {
+  success: 5000,
+  info: 5000,
+  warning: 15000,
+  error: 15000,
+};
+
+export function getToastDurationMs(type: ToastType): number {
+  return TOAST_DURATIONS_MS[type];
+}
+
+interface ToastTimer {
+  /** Pending timeout handle, or `null` while the countdown is paused. */
+  handle: ReturnType<typeof setTimeout> | null;
+  /** Wall-clock time the current countdown ends (when running). */
+  expiresAt: number;
+  /** Milliseconds left on the countdown (kept up to date on pause). */
+  remaining: number;
+}
 
 // Monotonic fallback so IDs stay unique even when `crypto.randomUUID` is
 // unavailable or several toasts are created within the same millisecond.
@@ -49,9 +76,9 @@ function createToastId(): string {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
-  // Auto-dismiss timer handles, keyed by toast ID, so they can be cancelled
-  // when a toast is dismissed manually, evicted by the cap, or unmounted.
-  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  // Auto-dismiss timers, keyed by toast ID, so they can be cancelled when a
+  // toast is dismissed manually, evicted by the cap, paused, or unmounted.
+  const timersRef = useRef<Map<string, ToastTimer>>(new Map());
 
   const hideToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -65,21 +92,40 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         ? next.slice(next.length - MAX_VISIBLE_TOASTS)
         : next;
     });
-    timersRef.current.set(
-      id,
-      setTimeout(() => {
+    const duration = getToastDurationMs(type);
+    timersRef.current.set(id, {
+      handle: setTimeout(() => {
         hideToast(id);
-      }, TOAST_DURATION_MS),
-    );
+      }, duration),
+      expiresAt: Date.now() + duration,
+      remaining: duration,
+    });
+  }, [hideToast]);
+
+  const pauseToast = useCallback((id: string) => {
+    const timer = timersRef.current.get(id);
+    if (!timer || timer.handle === null) return;
+    clearTimeout(timer.handle);
+    timer.handle = null;
+    timer.remaining = Math.max(0, timer.expiresAt - Date.now());
+  }, []);
+
+  const resumeToast = useCallback((id: string) => {
+    const timer = timersRef.current.get(id);
+    if (!timer || timer.handle !== null) return;
+    timer.expiresAt = Date.now() + timer.remaining;
+    timer.handle = setTimeout(() => {
+      hideToast(id);
+    }, timer.remaining);
   }, [hideToast]);
 
   // Cancel timers for toasts that are no longer visible (manual dismissal,
   // auto-dismiss or eviction by the stack cap) so they cannot leak.
   useEffect(() => {
     const visible = new Set(toasts.map((t) => t.id));
-    for (const [id, handle] of timersRef.current) {
+    for (const [id, timer] of timersRef.current) {
       if (!visible.has(id)) {
-        clearTimeout(handle);
+        if (timer.handle !== null) clearTimeout(timer.handle);
         timersRef.current.delete(id);
       }
     }
@@ -89,15 +135,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const timers = timersRef.current;
     return () => {
-      for (const handle of timers.values()) {
-        clearTimeout(handle);
+      for (const timer of timers.values()) {
+        if (timer.handle !== null) clearTimeout(timer.handle);
       }
       timers.clear();
     };
   }, []);
 
   return (
-    <ToastContext.Provider value={{ toasts, showToast, hideToast }}>
+    <ToastContext.Provider
+      value={{ toasts, showToast, hideToast, pauseToast, resumeToast }}
+    >
       {children}
     </ToastContext.Provider>
   );

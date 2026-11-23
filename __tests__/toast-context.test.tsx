@@ -113,7 +113,8 @@ describe("ToastContext identity and stack (#869)", () => {
       fireEvent.click(screen.getByText("show error"));
     });
 
-    // First toast expires at 5s; the second (created at 2s) survives.
+    // First toast (success, 5s) expires at 5s; the error (15s, created at
+    // 2s) survives until 17s.
     act(() => {
       vi.advanceTimersByTime(3000);
     });
@@ -121,7 +122,7 @@ describe("ToastContext identity and stack (#869)", () => {
     expect(screen.getByText("Failed")).toBeInTheDocument();
 
     act(() => {
-      vi.advanceTimersByTime(2000);
+      vi.advanceTimersByTime(12000);
     });
     expect(screen.queryByText("Failed")).not.toBeInTheDocument();
     expect(screen.getByTestId("toast-count").textContent).toBe("0");

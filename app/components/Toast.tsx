@@ -15,15 +15,28 @@ const getToastStyles = (type: ToastType) => {
 };
 
 export default function Toast() {
-  const { toasts, hideToast } = useToast();
+  const { toasts, hideToast, pauseToast, resumeToast } = useToast();
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 space-y-2">
+    // Persistent live region: it stays mounted so screen readers announce
+    // toasts as they are added, even when several appear in quick succession.
+    <div
+      className="fixed bottom-4 right-4 z-50 space-y-2"
+      role="region"
+      aria-label="Notifications"
+      aria-live="polite"
+      data-testid="toast-container"
+    >
       {toasts.map((toast) => (
         <div
           key={toast.id}
           className={`px-4 py-3 rounded-lg border shadow-lg animate-slide-in ${getToastStyles(toast.type)}`}
           role="alert"
+          data-testid="toast-item"
+          onMouseEnter={() => pauseToast(toast.id)}
+          onMouseLeave={() => resumeToast(toast.id)}
+          onFocus={() => pauseToast(toast.id)}
+          onBlur={() => resumeToast(toast.id)}
         >
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm">{toast.message}</p>
