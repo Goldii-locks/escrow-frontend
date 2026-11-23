@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import LoadingSkeleton from "./LoadingSkeleton";
+import TransactionHash from "./TransactionHash";
 import { useToast } from "@/app/context/ToastContext";
 import {
   DISPUTE_ACTIONS,
@@ -37,6 +38,8 @@ export interface DisputeHistoryTimelineProps {
   isLoading?: boolean;
   /** Optional backend API endpoint */
   apiEndpoint?: string;
+  /** Network passphrase used to decide whether event hashes get an explorer link. */
+  passphrase?: string;
   /**
    * Signs and submits the transaction for an action on an event. Only called
    * after the user has completed the confirmation dialog. Reject to surface
@@ -69,6 +72,7 @@ export default function DisputeHistoryTimeline({
   initialEvents,
   isLoading: externalLoading = false,
   apiEndpoint,
+  passphrase,
   onAction,
   className = "",
 }: DisputeHistoryTimelineProps) {
@@ -284,6 +288,13 @@ export default function DisputeHistoryTimeline({
                   <p className="mt-1 break-words text-xs text-gray-300">
                     {event.description}
                   </p>
+                  {event.txHash && (
+                    <TransactionHash
+                      txHash={event.txHash}
+                      passphrase={passphrase}
+                      className="mt-2"
+                    />
+                  )}
                   <p className="mt-1 text-[11px] uppercase tracking-wider text-gray-500">
                     {event.actorRole} ·{" "}
                     <span className="font-mono normal-case">{event.actor}</span>

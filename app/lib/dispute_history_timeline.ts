@@ -36,6 +36,8 @@ export interface DisputeHistoryEvent {
   timestamp: string;
   /** Workflow state of the event; drives the badge and available actions. */
   status?: DisputeTimelineStatus;
+  /** Optional transaction hash for the action recorded by this event. */
+  txHash?: string;
 }
 
 export const UNAUTHORIZED_TIMELINE_WARNING =
@@ -128,7 +130,16 @@ export async function fetchDisputeHistory(
     const res = await fetch(url, { signal: options?.signal });
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data)) return data;
+      if (Array.isArray(data)) {
+        // Backends may use snake_case for the hash; normalise it so the shared
+        // hash renderer can consume either shape (#867).
+        return (data as Array<DisputeHistoryEvent & { tx_hash?: string }>).map(
+          ({ tx_hash, ...event }) => ({
+            ...event,
+            txHash: event.txHash ?? tx_hash,
+          }),
+        );
+      }
     }
   } catch {
     // Network or server error - fall back to the mock dataset

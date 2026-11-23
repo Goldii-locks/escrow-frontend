@@ -1,16 +1,19 @@
-import { getStellarExpertTxUrl } from "@/app/lib/stellar";
+import TransactionHash from "@/app/components/TransactionHash";
 import { ActionState } from "@/app/hooks/useActionStates";
 import { getPhaseLabel } from "@/app/lib/transactions";
 
 interface Props {
   state: ActionState;
   successMessage?: string;
+  /** Network passphrase used to decide whether an explorer link exists. */
+  passphrase?: string;
   className?: string;
 }
 
 export default function TxStatusBanner({
   state,
   successMessage = "Transaction submitted successfully.",
+  passphrase,
   className = "",
 }: Props) {
   const { phase, error, txHash } = state;
@@ -34,14 +37,11 @@ export default function TxStatusBanner({
       >
         <p>{successMessage}</p>
         {txHash && (
-          <a
-            href={getStellarExpertTxUrl(txHash)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2"
-          >
-            View on Stellar Expert
-          </a>
+          <TransactionHash
+            txHash={txHash}
+            passphrase={passphrase}
+            className="text-indigo-400"
+          />
         )}
       </div>
     );

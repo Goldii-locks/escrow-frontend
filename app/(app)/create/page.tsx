@@ -6,6 +6,7 @@ import { useWallet } from "@/app/context/WalletContext";
 import Navbar from "@/app/components/Navbar";
 import ButtonSpinner from "@/app/components/ButtonSpinner";
 import TxStatusBanner from "@/app/components/TxStatusBanner";
+import TransactionHash from "@/app/components/TransactionHash";
 import { useRouter } from "next/navigation";
 import {
   CONTRACT_ID,
@@ -363,16 +364,9 @@ export default function CreateJob() {
             </div>
             <h2 className="text-xl font-bold mb-2">Job Created!</h2>
             <p className="text-text-muted text-sm mb-6">
-              Your escrow job is live on Stellar testnet.
+              Your escrow job transaction was submitted.
             </p>
-            <a
-              href={`https://stellar.expert/explorer/testnet/tx/${txHash}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-accent-soft hover:text-accent-soft-hover underline text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-surface-page rounded-sm"
-            >
-              View transaction on Stellar Expert →
-            </a>
+            <TransactionHash txHash={txHash} />
             <div className="mt-6">
               <button
                 onClick={() => router.push("/dashboard")}
