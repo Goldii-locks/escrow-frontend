@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { SITE_URL } from "./lib/site-url";
 
 // `output: export` requires metadata route handlers to be fully static.
 export const dynamic = "force-static";
@@ -20,6 +21,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/admin", "/create", "/dashboard"],
     },
-    sitemap: "https://milestonepay.app/sitemap.xml",
+    sitemap: new URL("/sitemap.xml", SITE_URL).href,
   };
 }
