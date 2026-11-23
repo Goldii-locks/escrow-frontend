@@ -68,6 +68,32 @@ interface Props {
   onMarkDelivered?: (i: number) => void;
   onApprove?: (i: number) => void;
   onDispute?: (i: number) => void;
+  /**
+   * #819: client requests changes on a Delivered milestone. Fires with the
+   * milestone index.
+   */
+  onRequestRevision?: (index: number) => void;
+  /** #819: number of revisions already requested for this milestone. */
+  revisionCount?: number | null;
+  /**
+   * #818: client/freelancer escalates a Disputed milestone. Fires with the
+   * milestone index.
+   */
+  onEscalate?: (index: number) => void;
+  /** #818: epoch ms when the dispute was raised. */
+  disputedAtMs?: number | null;
+  /** #818: escrow dispute timeout in ms. */
+  disputeTimeoutMs?: number | null;
+  /**
+   * #596: client extends the deadline on a Delivered milestone. Fires with the
+   * milestone index.
+   */
+  onExtend?: (index: number) => void;
+  /**
+   * #596: arbiter applies a dispute split on a Disputed milestone. Fires with
+   * the milestone index.
+   */
+  onSplit?: (index: number) => void;
 }
 
 const statusColor: Record<string, string> = {
@@ -160,6 +186,13 @@ export default function MilestoneCard({
   partialReleaseState,
   isPartialReleasePending,
   onPartialRelease,
+  onRequestRevision,
+  revisionCount = null,
+  onEscalate,
+  disputedAtMs = null,
+  disputeTimeoutMs = null,
+  onExtend,
+  onSplit,
   ...unusedProps
 }: Props) {
   void unusedProps;
@@ -182,6 +215,11 @@ export default function MilestoneCard({
   const isDeadlineElapsed =
     liveElapsed ||
     (typeof autoReleaseDeadline === "number" && autoReleaseDeadline <= mountedAt);
+
+  /** #819: true when the revision limit (3) has been reached. */
+  function atLimit(count: number | null): boolean {
+    return count != null && count >= 3;
+  }
 
   const warningThresholdMs = resolveDeadlineWarningThresholdMs(
     autoReleaseWindowMs,
@@ -445,6 +483,36 @@ export default function MilestoneCard({
             </button>
           )}
 
+          {isClient && milestone.status === "Delivered" && onExtend && (
+            <button
+              onClick={() => onExtend(milestone.index)}
+              disabled={!onExtend}
+              aria-disabled={!onExtend}
+              aria-label={`Extend deadline for ${milestoneLabel}`}
+              className={`${baseBtn} bg-amber-600 text-white hover:bg-amber-500 font-medium hover:bg-amber-500/90 active:scale-[0.97] focus-visible:ring-amber-soft disabled:hover:bg-amber-600 disabled:active:scale-100`}
+            >
+              Extend Deadline
+            </button>
+          )}
+
+          {isClient &&
+            milestone.status === "Delivered" &&
+            onRequestRevision &&
+            !atLimit(revisionCount) && (
+              <button
+                onClick={() => onRequestRevision(milestone.index)}
+                disabled={!onRequestRevision}
+                aria-disabled={!onRequestRevision}
+                aria-label={`Request changes for ${milestoneLabel}`}
+                className={`${baseBtn} bg-indigo-600 text-white hover:bg-indigo-500 font-medium hover:bg-indigo-500/90 active:scale-[0.97] focus-visible:ring-indigo-soft disabled:hover:bg-indigo-600 disabled:active:scale-100`}
+                data-testid="milestone-request-revision"
+              >
+                {revisionCount != null
+                  ? `Request Changes (${revisionCount} of 3)`
+                  : "Request Changes"}
+              </button>
+            )}
+
           {isFreelancer && milestone.status === "Delivered" && isDeadlineElapsed && (
             <button
               onClick={() => onClaimAutoRelease?.(milestone.index)}
@@ -467,6 +535,39 @@ export default function MilestoneCard({
                 className={`${baseBtn} bg-danger text-text-primary hover:bg-danger/80 active:scale-[0.97] focus-visible:ring-danger-soft disabled:hover:bg-danger disabled:active:scale-100`}
               >
                 Dispute
+              </button>
+            )}
+
+          {(isClient || isFreelancer) &&
+            milestone.status === "Disputed" &&
+            onEscalate && (
+              <button
+                onClick={() => onEscalate(milestone.index)}
+                disabled={!onEscalate}
+                aria-disabled={!onEscalate}
+                aria-label={`Escalate dispute for ${milestoneLabel}`}
+                className={`${baseBtn} bg-rose-600 text-white hover:bg-rose-500 font-medium hover:bg-rose-500/90 active:scale-[0.97] focus-visible:ring-rose-soft disabled:hover:bg-rose-600 disabled:active:scale-100`}
+                data-testid="milestone-escalate-dispute"
+              >
+                {disputeTimeoutMs != null && disputedAtMs != null &&
+                Date.now() < disputedAtMs + disputeTimeoutMs
+                  ? "Escalate (waiting)"
+                  : "Escalate Dispute"}
+              </button>
+            )}
+
+          {isArbiter &&
+            milestone.status === "Disputed" &&
+            onSplit && (
+              <button
+                onClick={() => onSplit(milestone.index)}
+                disabled={!onSplit}
+                aria-disabled={!onSplit}
+                aria-label={`Apply dispute split for ${milestoneLabel}`}
+                className={`${baseBtn} bg-purple-600 text-white hover:bg-purple-500 font-medium hover:bg-purple-500/90 active:scale-[0.97] focus-visible:ring-purple-soft disabled:hover:bg-purple-600 disabled:active:scale-100`}
+                data-testid="milestone-apply-split"
+              >
+                Apply Split
               </button>
             )}
         </div>

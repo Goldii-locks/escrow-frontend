@@ -12,6 +12,13 @@
 
 # testing
 /coverage
+__snapshots__/
+*.snap
+vitest-results/
+test-results/
+
+# vitest / playwright
+playwright-report/
 
 # next.js
 /.next/

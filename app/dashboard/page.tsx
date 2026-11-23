@@ -17,12 +17,39 @@ import {
   submitContractTransaction,
 } from "@/app/lib/transactions";
 import { fetchAutoReleaseInfo } from "@/app/lib/autoRelease";
+import {
+  buildCancelEscrow,
+  buildRevokeCancelApproval,
+  buildExtendMilestoneDeadline,
+  buildApplyDisputeArbitrationSplit,
+  buildAdminOverrideRelease,
+  buildAdminOverrideRefund,
+  buildEmergencyUnpause,
+  buildAdminPauseEscrow,
+  buildAdminResumeEscrow,
+  buildWithdraw,
+  buildEscalateDispute,
+  buildRequestRevision,
+} from "@/app/lib/contract_actions";
+import CancelRevokeModal from "@/app/components/CancelRevokeModal";
+import ExtendDeadlineModal from "@/app/components/ExtendDeadlineModal";
+import SplitResolutionModal from "@/app/components/SplitResolutionModal";
+import AdminOverrideModal from "@/app/components/AdminOverrideModal";
+import WithdrawOwedModal from "@/app/components/WithdrawOwedModal";
+import EscalateDisputeModal from "@/app/components/EscalateDisputeModal";
+import RequestRevisionModal from "@/app/components/RequestRevisionModal";
 
 interface Milestone {
   index: number;
   amount: string;
   status: string;
   releasedAmount?: string;
+  /** #819: number of revisions already requested for this milestone. */
+  revisionCount?: number | null;
+  /** #818: epoch ms when the dispute was raised. */
+  disputedAtMs?: number | null;
+  /** #818: escrow dispute timeout in ms. */
+  disputeTimeoutMs?: number | null;
 }
 
 interface Job {
@@ -36,6 +63,10 @@ interface Job {
   token?: string;
   tokenSymbol?: string;
   tokenDecimals?: number;
+  /** #817: owed base units (stroops) for the connected wallet on this job. */
+  owedBaseUnits?: string | null;
+  /** #596: whether a cancel approval is currently pending. */
+  cancelPending?: boolean;
 }
 
 type RoleFilter = "all" | "client" | "freelancer" | "arbiter";
@@ -70,7 +101,19 @@ function normalizeJob(item: unknown): Job | null {
     admin: typeof item.admin === "string" ? item.admin : undefined,
     funded: Boolean(item.funded),
     milestones: Array.isArray(item.milestones)
-      ? (item.milestones as Milestone[])
+      ? (item.milestones as Milestone[]).map((m) => ({
+          index: typeof m.index === "number" ? m.index : 0,
+          amount: typeof m.amount === "string" ? m.amount : "0",
+          status: typeof m.status === "string" ? m.status : "Pending",
+          releasedAmount:
+            typeof m.releasedAmount === "string" ? m.releasedAmount : undefined,
+          revisionCount:
+            typeof m.revisionCount === "number" ? m.revisionCount : null,
+          disputedAtMs:
+            typeof m.disputedAtMs === "number" ? m.disputedAtMs : null,
+          disputeTimeoutMs:
+            typeof m.disputeTimeoutMs === "number" ? m.disputeTimeoutMs : null,
+        }))
       : undefined,
     token: typeof item.token === "string" ? item.token : undefined,
     tokenSymbol: typeof item.tokenSymbol === "string" ? item.tokenSymbol : undefined,
@@ -78,6 +121,9 @@ function normalizeJob(item: unknown): Job | null {
       typeof item.tokenDecimals === "number" && Number.isFinite(item.tokenDecimals)
         ? item.tokenDecimals
         : undefined,
+    owedBaseUnits:
+      typeof item.owedBaseUnits === "string" ? item.owedBaseUnits : null,
+    cancelPending: Boolean(item.cancelPending),
   };
 }
 
@@ -155,6 +201,28 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
   const [disputeMilestoneIndex, setDisputeMilestoneIndex] = useState<number | null>(null);
+  /** #596: cancel / revoke cancel approval modal. */
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelRole, setCancelRole] = useState<"client" | "freelancer">("client");
+  /** #596: extend deadline modal. */
+  const [extendModalOpen, setExtendModalOpen] = useState(false);
+  const [extendMilestoneIndex, setExtendMilestoneIndex] = useState<number | null>(null);
+  const [extendCurrentSeconds, setExtendCurrentSeconds] = useState<number | null>(null);
+  /** #596: split resolution modal (arbiter). */
+  const [splitModalOpen, setSplitModalOpen] = useState(false);
+  const [splitMilestoneIndex, setSplitMilestoneIndex] = useState<number | null>(null);
+  /** #596: admin override modal. */
+  const [adminOverrideModalOpen, setAdminOverrideModalOpen] = useState(false);
+  const [adminOverrideKind, setAdminOverrideKind] = useState<"release" | "refund">("release");
+  const [adminOverrideMilestoneIndex, setAdminOverrideMilestoneIndex] = useState<number | null>(null);
+  /** #817: withdraw owed modal. */
+  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
+  /** #818: escalate dispute modal. */
+  const [escalateModalOpen, setEscalateModalOpen] = useState(false);
+  const [escalateMilestoneIndex, setEscalateMilestoneIndex] = useState<number | null>(null);
+  /** #819: request revision modal. */
+  const [revisionModalOpen, setRevisionModalOpen] = useState(false);
+  const [revisionMilestoneIndex, setRevisionMilestoneIndex] = useState<number | null>(null);
 
   const { getState, isPending, setPhase, setError: setActionError, setTxHash } =
     useActionStates();
@@ -300,9 +368,20 @@ export default function Dashboard() {
     ? expandedJob.milestones
     : [];
 
+  /** #817: whether the connected wallet has an owed balance on this job. */
+  const hasOwed = (() => {
+    if (!expandedJob?.owedBaseUnits) return false;
+    try {
+      return BigInt(expandedJob.owedBaseUnits) > BigInt(0);
+    } catch {
+      return false;
+    }
+  })();
+
   const isClient = !!(expandedJob && address === expandedJob.client);
   const isFreelancer = !!(expandedJob && address === expandedJob.freelancer);
   const isArbiter = !!(expandedJob && address === expandedJob.arbiter);
+  const isAdmin = !!(expandedJob && expandedJob.admin && address === expandedJob.admin);
   // A job with no milestones already shows MilestoneCard's own empty state,
   // so the arbiter placeholder only covers "milestones, but none disputed".
   const showArbiterNoDisputes =
@@ -437,6 +516,132 @@ export default function Dashboard() {
       { type: "u32", value: index.toString() },
       { type: "bool", value: releaseToFreelancer },
     ]);
+  };
+
+  /** #596: cancel escrow or revoke cancel approval (client / freelancer). */
+  const handleCancel = async (kind: "cancel" | "revoke") => {
+    if (!address) return;
+
+    const { method, args } =
+      kind === "cancel"
+        ? buildCancelEscrow({ caller: address })
+        : buildRevokeCancelApproval({ caller: address });
+
+    await executeTx(`cancel-${kind}`, method, args);
+
+    setCancelModalOpen(false);
+  };
+
+  /** #596: extend milestone deadline (client, Delivered). */
+  const handleExtend = async (index: number) => {
+    if (!address) return;
+
+    const { method, args } = buildExtendMilestoneDeadline({
+      caller: address,
+      index,
+      extensionSeconds: extendCurrentSeconds ?? 7 * 24 * 60 * 60,
+    });
+
+    await executeTx(`extend-${index}`, method, args);
+
+    setExtendModalOpen(false);
+    setExtendMilestoneIndex(null);
+    setExtendCurrentSeconds(null);
+  };
+
+  /** #596: apply dispute arbitration split (arbiter, Disputed). */
+  const handleApplySplit = async (index: number) => {
+    if (!address) return;
+
+    // Even 50/50 split by default; the modal lets the arbiter adjust.
+    const { method, args } = buildApplyDisputeArbitrationSplit({
+      caller: address,
+      index,
+      clientBps: 5000,
+      freelancerBps: 5000,
+    });
+
+    await executeTx(`split-${index}`, method, args);
+
+    setSplitModalOpen(false);
+    setSplitMilestoneIndex(null);
+  };
+
+  /** #596: admin override release / refund. */
+  const handleAdminOverride = async (kind: "release" | "refund", index: number) => {
+    if (!address) return;
+
+    const { method, args } =
+      kind === "release"
+        ? buildAdminOverrideRelease({ caller: address, index })
+        : buildAdminOverrideRefund({ caller: address, index });
+
+    await executeTx(`admin-override-${kind}-${index}`, method, args);
+
+    setAdminOverrideModalOpen(false);
+    setAdminOverrideMilestoneIndex(null);
+  };
+
+  /** #596: emergency unpause / pause / resume (admin). */
+  const handleAdminPause = async (pause: boolean) => {
+    if (!address) return;
+
+    const { method, args } = pause
+      ? buildAdminPauseEscrow({ caller: address })
+      : buildAdminResumeEscrow({ caller: address });
+
+    await executeTx(`admin-pause-${pause}`, method, args);
+  };
+
+  /** #596: emergency unpause (admin). Alias of resume for clarity. */
+  const handleEmergencyUnpause = async () => {
+    if (!address) return;
+
+    const { method, args } = buildEmergencyUnpause({ caller: address });
+
+    await executeTx("admin-emergency-unpause", method, args);
+  };
+
+  /** #817: withdraw owed credits. */
+  const handleWithdraw = async () => {
+    if (!address) return;
+
+    const { method, args } = buildWithdraw({ caller: address });
+
+    await executeTx("withdraw", method, args);
+
+    setWithdrawModalOpen(false);
+  };
+
+  /** #818: escalate dispute (client / freelancer, Disputed). */
+  const handleEscalate = async (index: number) => {
+    if (!address) return;
+
+    const { method, args } = buildEscalateDispute({ caller: address, index });
+
+    await executeTx(`escalate-${index}`, method, args);
+
+    setEscalateModalOpen(false);
+    setEscalateMilestoneIndex(null);
+  };
+
+  /** #819: request revision (client, Delivered). */
+  const handleRequestRevision = async (index: number) => {
+    if (!address) return;
+
+    // note_hash is computed off-chain from the note; the contract only stores
+    // the hash. The modal captures the note text; the hash is derived by the
+    // backend at build-tx time from the stored off-chain content.
+    const { method, args } = buildRequestRevision({
+      caller: address,
+      index,
+      noteHash: "",
+    });
+
+    await executeTx(`revision-${index}`, method, args);
+
+    setRevisionModalOpen(false);
+    setRevisionMilestoneIndex(null);
   };
 
   const paginationButtons = useMemo(() => {
@@ -619,7 +824,140 @@ export default function Dashboard() {
                                     <p className="text-gray-400 text-xs mb-1 font-semibold">Arbiter</p>
                                     <p className="font-mono text-xs break-all" aria-label={`Arbiter address: ${expandedJob.arbiter}`}>{expandedJob.arbiter}</p>
                                   </div>
-                                </div>
+                                  </div>
+
+                                {/* #596: job-level cancel / revoke (client, freelancer). */}
+                                {(isClient || isFreelancer) && (
+                                  <div
+                                    className="mt-3 sm:mt-4 rounded-lg border border-gray-700 bg-gray-800 p-3 sm:p-4"
+                                    data-testid="job-cancel-actions"
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setCancelRole(
+                                          address === expandedJob.client
+                                            ? "client"
+                                            : "freelancer",
+                                        );
+                                        setCancelModalOpen(true);
+                                      }}
+                                      disabled={
+                                        isPending("cancel-cancel") ||
+                                        !address
+                                      }
+                                      aria-disabled={
+                                        isPending("cancel-cancel") || !address
+                                      }
+                                      data-testid="job-cancel-button"
+                                      className="w-full text-xs sm:text-sm px-3 py-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                      {expandedJob.cancelPending
+                                        ? "Revoke Cancel Approval"
+                                        : "Cancel Escrow"}
+                                    </button>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                      {expandedJob.cancelPending
+                                        ? "A cancel is pending. Revoking your approval keeps the escrow active."
+                                        : "Canceling returns escrowed funds and ends the job. Cannot be undone."}
+                                    </p>
+                                  </div>
+                                )}
+
+                                {/* #817: owed withdraw banner (any wallet with an owed balance). */}
+                                {hasOwed && (
+                                    <div
+                                      className="mt-3 sm:mt-4 rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 sm:p-4"
+                                      data-testid="job-owed-banner"
+                                    >
+                                      <p className="text-xs sm:text-sm text-amber-200 font-semibold mb-1">
+                                        You have credits waiting to withdraw
+                                      </p>
+                                      <p className="text-xs sm:text-sm text-amber-200 mb-3">
+                                        {formatBaseUnits(
+                                          expandedJob.owedBaseUnits,
+                                          {
+                                            decimals: expandedJob.tokenDecimals ?? 7,
+                                          },
+                                        )}{" "}
+                                        {expandedJob.tokenSymbol ?? "XLM"}
+                                      </p>
+                                      <button
+                                        type="button"
+                                        onClick={() => setWithdrawModalOpen(true)}
+                                        disabled={isPending("withdraw") || !address}
+                                        aria-disabled={isPending("withdraw") || !address}
+                                        data-testid="job-withdraw-button"
+                                        className="w-full sm:w-auto text-xs sm:text-sm px-3 py-2 rounded-lg bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                                      >
+                                        {isPending("withdraw")
+                                          ? "Withdrawing…"
+                                          : "Withdraw"}
+                                      </button>
+                                    </div>
+                                  )}
+
+                                {/* #596: admin overrides + pause/resume (admin job view). */}
+                                {isAdmin && (
+                                  <div
+                                    className="mt-3 sm:mt-4 rounded-lg border border-gray-700 bg-gray-800 p-3 sm:p-4"
+                                    data-testid="job-admin-actions"
+                                  >
+                                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setAdminOverrideKind("release");
+                                          setAdminOverrideMilestoneIndex(null);
+                                          setAdminOverrideModalOpen(true);
+                                        }}
+                                        disabled={isPending("admin-override-release-null")}
+                                        data-testid="job-admin-override-release"
+                                        className="flex-1 text-xs sm:text-sm px-3 py-2 rounded-lg bg-green-600 text-white hover:bg-green-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                                      >
+                                        Override: Release
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setAdminOverrideKind("refund");
+                                          setAdminOverrideMilestoneIndex(null);
+                                          setAdminOverrideModalOpen(true);
+                                        }}
+                                        disabled={isPending("admin-override-refund-null")}
+                                        data-testid="job-admin-override-refund"
+                                        className="flex-1 text-xs sm:text-sm px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                                      >
+                                        Override: Refund
+                                      </button>
+                                    </div>
+                                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAdminPause(false)}
+                                        disabled={isPending("admin-pause-false") || !address}
+                                        data-testid="job-admin-resume"
+                                        className="flex-1 text-xs sm:text-sm px-3 py-2 rounded-lg bg-green-600 text-white hover:bg-green-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                                      >
+                                        Resume Escrow
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAdminPause(true)}
+                                        disabled={isPending("admin-pause-true") || !address}
+                                        data-testid="job-admin-pause"
+                                        className="flex-1 text-xs sm:text-sm px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                                      >
+                                        Pause Escrow
+                                      </button>
+                                    </div>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                      Admin override applies to the selected milestone
+                                      (choose from a milestone card). Pause/resume
+                                      affects the whole contract.
+                                    </p>
+                                  </div>
+                                )}
 
                                 <div className="space-y-3 sm:space-y-4" role="region" aria-label="Milestones">
                                   {showArbiterNoDisputes && (
@@ -648,6 +986,13 @@ export default function Dashboard() {
                                         onMarkDelivered={handleMarkDelivered}
                                         onApprove={handleApprove}
                                         onDispute={handleDispute}
+                                        onExtend={handleExtend}
+                                        onSplit={handleApplySplit}
+                                        onEscalate={handleEscalate}
+                                        disputedAtMs={m.disputedAtMs ?? null}
+                                        disputeTimeoutMs={m.disputeTimeoutMs ?? null}
+                                        onRequestRevision={handleRequestRevision}
+                                        revisionCount={m.revisionCount ?? null}
                                       />
                                     ))
                                   ) : (
@@ -732,6 +1077,114 @@ export default function Dashboard() {
           milestoneIndex={disputeMilestoneIndex}
           isLoading={isPending(`dispute-${disputeMilestoneIndex}`)}
           submissionError={getState(`dispute-${disputeMilestoneIndex}`)?.error}
+        />
+      )}
+
+      {/* #596: Cancel / revoke cancel approval modal (job header). */}
+      {cancelModalOpen && (
+        <CancelRevokeModal
+          isOpen={cancelModalOpen}
+          onClose={() => setCancelModalOpen(false)}
+          role={cancelRole}
+          cancelPending={expandedJob?.cancelPending ?? false}
+          state={getState("cancel-cancel")}
+        />
+      )}
+
+      {/* #596: Extend deadline modal. */}
+      {extendMilestoneIndex !== null && (
+        <ExtendDeadlineModal
+          isOpen={extendModalOpen}
+          onClose={() => {
+            setExtendModalOpen(false);
+            setExtendMilestoneIndex(null);
+            setExtendCurrentSeconds(null);
+          }}
+          milestoneIndex={extendMilestoneIndex}
+          currentExtensionSeconds={extendCurrentSeconds}
+          state={getState(`extend-${extendMilestoneIndex}`)}
+        />
+      )}
+
+      {/* #596: Split resolution modal (arbiter). */}
+      {splitMilestoneIndex !== null && (
+        <SplitResolutionModal
+          isOpen={splitModalOpen}
+          onClose={() => {
+            setSplitModalOpen(false);
+            setSplitMilestoneIndex(null);
+          }}
+          milestoneIndex={splitMilestoneIndex}
+          amount={
+            expandedJob?.milestones?.[splitMilestoneIndex]?.amount ?? null
+          }
+          state={getState(`split-${splitMilestoneIndex}`)}
+        />
+      )}
+
+      {/* #596: Admin override modal. */}
+      {adminOverrideModalOpen && adminOverrideMilestoneIndex !== null && (
+        <AdminOverrideModal
+          isOpen={adminOverrideModalOpen}
+          onClose={() => {
+            setAdminOverrideModalOpen(false);
+            setAdminOverrideMilestoneIndex(null);
+          }}
+          milestoneIndex={adminOverrideMilestoneIndex}
+          kind={adminOverrideKind}
+          state={getState(
+            `admin-override-${adminOverrideKind}-${adminOverrideMilestoneIndex}`
+          )}
+        />
+      )}
+
+      {/* #817: Withdraw owed modal. */}
+      {withdrawModalOpen && expandedJob && (
+        <WithdrawOwedModal
+          isOpen={withdrawModalOpen}
+          onClose={() => setWithdrawModalOpen(false)}
+          owedBaseUnits={expandedJob.owedBaseUnits ?? "0"}
+          decimals={expandedJob.tokenDecimals ?? 7}
+          symbol={expandedJob.tokenSymbol ?? "XLM"}
+          withdrawState={getState("withdraw")}
+        />
+      )}
+
+      {/* #818: Escalate dispute modal. */}
+      {escalateMilestoneIndex !== null && (
+        <EscalateDisputeModal
+          isOpen={escalateModalOpen}
+          onClose={() => {
+            setEscalateModalOpen(false);
+            setEscalateMilestoneIndex(null);
+          }}
+          milestoneIndex={escalateMilestoneIndex}
+          disputedAtMs={
+            expandedJob?.milestones?.[escalateMilestoneIndex]?.disputedAtMs ??
+            null
+          }
+          disputeTimeoutMs={
+            expandedJob?.milestones?.[escalateMilestoneIndex]?.disputeTimeoutMs ??
+            null
+          }
+          state={getState(`escalate-${escalateMilestoneIndex}`)}
+        />
+      )}
+
+      {/* #819: Request revision modal. */}
+      {revisionMilestoneIndex !== null && (
+        <RequestRevisionModal
+          isOpen={revisionModalOpen}
+          onClose={() => {
+            setRevisionModalOpen(false);
+            setRevisionMilestoneIndex(null);
+          }}
+          milestoneIndex={revisionMilestoneIndex}
+          revisionCount={
+            expandedJob?.milestones?.[revisionMilestoneIndex]?.revisionCount ??
+            null
+          }
+          state={getState(`revision-${revisionMilestoneIndex}`)}
         />
       )}
     </div>
