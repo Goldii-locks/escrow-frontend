@@ -114,6 +114,15 @@ describe("hasTokenIssue", () => {
   it("is clear for a validated, confirmed non-whitelisted token", () => {
     expect(hasTokenIssue(base)).toBe(false);
   });
+
+  it("blocks any unlisted well-formed token when factory is configured (#833)", () => {
+    // Even a validated, confirmed token is blocked when the factory is configured.
+    expect(hasTokenIssue(base, true)).toBe(true);
+  });
+
+  it("is clear for a whitelisted token even when factory is configured", () => {
+    expect(hasTokenIssue({ ...base, whitelisted: true }, true)).toBe(false);
+  });
 });
 
 describe("checkSubmission", () => {
@@ -123,6 +132,7 @@ describe("checkSubmission", () => {
     autoReleaseDays: "7",
     milestones: summarizeMilestones([{ amount: "100" }]),
     token: { token: TOKEN, listed: true, validating: false, validation: null, confirmed: false },
+    factoryConfigured: false,
   };
 
   it("passes a complete form", () => {
@@ -182,6 +192,26 @@ describe("checkSubmission", () => {
       confirmed: true,
     };
     expect(checkSubmission({ ...valid, token })).toEqual({ ok: true });
+  });
+
+  it("blocks an unlisted token immediately when factory is configured (#833)", () => {
+    const token = { ...valid.token, listed: false };
+    expect(
+      checkSubmission({ ...valid, token, factoryConfigured: true })
+    ).toMatchObject({ ok: false, message: "This token isn't accepted for new escrows." });
+  });
+
+  it("does not reach the SEP-41/confirm checks when factory is configured", () => {
+    // Even a 'validated and confirmed' unlisted token is blocked with the factory.
+    const token = {
+      ...valid.token,
+      listed: false,
+      validation: { valid: true, symbol: "T", decimals: 7 },
+      confirmed: true,
+    };
+    expect(
+      checkSubmission({ ...valid, token, factoryConfigured: true })
+    ).toMatchObject({ ok: false, message: "This token isn't accepted for new escrows." });
   });
 
   it("marks missing and malformed addresses on their fields", () => {

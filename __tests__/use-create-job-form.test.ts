@@ -49,6 +49,7 @@ const mockTokenCheckReturn = {
   whitelistLoading: false,
   whitelistError: null,
   listed: false,
+  factoryConfigured: false,
   status: {
     token: "",
     whitelisted: false,
