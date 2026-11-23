@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MOCK_ARBITRATION_ESCROW_DETAILS } from "@/__tests__/fixtures/arbitration_escrow_details";
 import {
+  ESCROW_ROLE_LABELS,
   type ArbitrationEscrowDetailsRecord,
   getArbitrationEscrowReadouts,
   getEscrowAccessDenialReason,

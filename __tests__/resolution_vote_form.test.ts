@@ -16,7 +16,6 @@ import {
 // ── fixtures ────────────────────────────────────────────────────────────────
 
 const NOW = Date.parse("2026-09-01T00:00:00Z");
-const HOUR = 60 * 60 * 1000;
 
 function makeDispute(overrides: Partial<ResolutionDisputeData> = {}): ResolutionDisputeData {
   return {
