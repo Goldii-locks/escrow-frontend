@@ -99,23 +99,18 @@ describe("Create page", () => {
     expect(screen.getByLabelText("Milestone 1 amount")).toBeInTheDocument();
   });
 
-  it("renders asset and requirement placeholders for empty list data and recovers from them", () => {
+  it("does not render asset or requirement input fields (removed from create flow)", () => {
     render(<CreateJob />);
 
-    expect(screen.getByTestId("asset-empty-state")).toBeInTheDocument();
-    expect(screen.getByText("No accepted assets selected")).toBeInTheDocument();
-    expect(screen.getByTestId("requirement-empty-state")).toBeInTheDocument();
-    expect(screen.getByText("No delivery requirements added")).toBeInTheDocument();
-
-    fireEvent.click(
-      within(screen.getByTestId("asset-empty-state")).getByRole("button", {
-        name: "Add accepted asset",
-      })
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Add first requirement" }));
-
-    expect(screen.getByLabelText("Accepted asset 1")).toBeInTheDocument();
-    expect(screen.getByLabelText("Requirement 1")).toBeInTheDocument();
+    // Accepted assets and requirements were removed because the form
+    // collected them but never persisted or sent them. The UI must not
+    // expose them so users don't enter data that gets silently dropped.
+    expect(screen.queryByTestId("asset-empty-state")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("requirement-empty-state")).not.toBeInTheDocument();
+    expect(screen.queryByText("No accepted assets selected")).not.toBeInTheDocument();
+    expect(screen.queryByText("No delivery requirements added")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add accepted asset" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add first requirement" })).not.toBeInTheDocument();
   });
 
   it("enables submit when required datasets are complete", async () => {

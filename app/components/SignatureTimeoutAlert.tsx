@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useWallet } from "@/app/context/WalletContext";
 import { NETWORK_PASSPHRASE } from "@/app/lib/config";
+import { logWalletWarning } from "@/app/lib/wallet_log";
 import {
   createStellarEnvelopeParser,
-  logWalletWarning,
   parseMultiSigEnvelope,
 } from "@/app/lib/wallet_state_context";
-import { withWalletLoader } from "@/app/lib/wallet_state_context";
+import { withWalletLoader } from "@/app/lib/wallet_loader";
 import {
   inspectSignatureFee,
   DEFAULT_SIGNATURE_FEE_LIMIT_STROOPS,

@@ -137,3 +137,38 @@ test("/nonsense shows the branded 404 page", async ({ page }) => {
   );
   await expect(page.getByRole("link", { name: "Go to home" })).toHaveAttribute("href", "/");
 });
+
+// ---------------------------------------------------------------------------
+// OpenGraph / Twitter metadata checks (#Task4)
+// ---------------------------------------------------------------------------
+
+test("og:image is an absolute https:// PNG URL (not localhost or .svg)", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  const ogImage = await page.$eval(
+    'meta[property="og:image"]',
+    (el) => el.getAttribute("content") ?? ""
+  );
+
+  // Must be absolute https://, not localhost.
+  expect(ogImage).toMatch(/^https:\/\//);
+  // Must end in .png, never .svg.
+  expect(ogImage).toMatch(/\.png$/);
+  expect(ogImage).not.toMatch(/\.svg/);
+  // Must not resolve against localhost.
+  expect(ogImage).not.toContain("localhost");
+});
+
+test("og:url meta tag is present and is an absolute https:// URL", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  const ogUrl = await page.$eval(
+    'meta[property="og:url"]',
+    (el) => el.getAttribute("content") ?? ""
+  );
+
+  expect(ogUrl).toMatch(/^https:\/\//);
+  expect(ogUrl).not.toContain("localhost");
+});

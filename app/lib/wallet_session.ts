@@ -10,7 +10,7 @@ import {
   getAddress as getFreighterAddress,
   isConnected as isFreighterConnected,
 } from "@stellar/freighter-api";
-import { withWalletLoader } from "@/app/lib/wallet_state_context";
+import { withWalletLoader } from "@/app/lib/wallet_loader";
 
 const LOG_PREFIX = "[wallet_session]";
 
