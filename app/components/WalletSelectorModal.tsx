@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useModalFocus } from "@/app/hooks/useModalFocus";
 import {
   checkFreighterAvailability,
   FREIGHTER_INSTALL_URL,
@@ -188,6 +189,12 @@ export default function WalletSelectorModal({
     ? checkSimulationFeeWarning(simulationResult)
     : null;
 
+  const dialogRef = useModalFocus<HTMLDivElement>({
+    isOpen,
+    onClose,
+    isPending: effectiveLoading,
+  });
+
   // Persistent caching: persist the cached key when the wallet connects
   useEffect(() => {
     if (activeAddress) {
@@ -239,8 +246,11 @@ export default function WalletSelectorModal({
 
   return (
     <div
+      ref={dialogRef}
       data-testid="wallet-selector-modal"
       role="dialog"
+      aria-modal="true"
+      aria-labelledby="wallet-selector-modal-title"
       aria-label="Select Wallet"
       className={`fixed inset-0 z-50 flex items-center justify-center bg-surface-page/80 ${className}`}
     >
@@ -249,7 +259,10 @@ export default function WalletSelectorModal({
         className="bg-surface-card border border-border-subtle text-text-primary rounded-xl shadow-xl max-w-md w-full mx-4 p-6"
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-text-primary">
+          <h2
+            id="wallet-selector-modal-title"
+            className="text-lg font-semibold text-text-primary"
+          >
             Select Wallet
           </h2>
           <button

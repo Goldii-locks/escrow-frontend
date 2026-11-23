@@ -541,13 +541,31 @@ describe("MilestoneCard — button click handler invocation", () => {
     expect(handler).toHaveBeenCalledWith(3);
   });
 
-  it("calls onApprove with the milestone index when 'Approve' is clicked", () => {
+  it("opens the confirmation modal instead of approving straight from the button", () => {
+    const handler = vi.fn();
+    renderCard(
+      { isClient: true, onApprove: handler },
+      { index: 1, amount: "100", status: "Delivered" }
+    );
+
+    expect(screen.queryByTestId("release-confirm-modal")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Approve Milestone 2" }));
+
+    // Releasing funds is irreversible, so the click must confirm first.
+    expect(screen.getByTestId("release-confirm-modal")).toBeInTheDocument();
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("calls onApprove with the milestone index once the modal is confirmed", () => {
     const handler = vi.fn();
     renderCard(
       { isClient: true, onApprove: handler },
       { index: 1, amount: "100", status: "Delivered" }
     );
     fireEvent.click(screen.getByRole("button", { name: "Approve Milestone 2" }));
+
+    fireEvent.click(screen.getByTestId("release-confirm-modal-confirm"));
+    expect(handler).toHaveBeenCalledOnce();
     expect(handler).toHaveBeenCalledWith(1);
   });
 

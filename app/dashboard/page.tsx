@@ -640,6 +640,7 @@ export default function Dashboard() {
                                         isArbiter={isArbiter}
                                         amountDecimals={expandedJob.tokenDecimals ?? 7}
                                         amountSymbol={expandedJob.tokenSymbol ?? "XLM"}
+                                        freelancerAddress={expandedJob.freelancer || null}
                                         resolveDisputeState={getState(`resolve-${m.index}`)}
                                         isResolveDisputePending={isPending(`resolve-${m.index}`)}
                                         onResolveDispute={handleResolveDispute}

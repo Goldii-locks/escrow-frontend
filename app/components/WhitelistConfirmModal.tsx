@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useModalFocus } from "@/app/hooks/useModalFocus";
 import {
   getConfirmCopy,
   type WhitelistAction,
@@ -42,9 +43,14 @@ function ConfirmBody({
 }: Required<WhitelistConfirmModalProps> & { action: WhitelistAction }) {
   const [acknowledged, setAcknowledged] = useState(false);
   const copy = getConfirmCopy(action);
+  const dialogRef = useModalFocus<HTMLDivElement>({
+    isOpen: true,
+    onClose: onCancel,
+  });
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="whitelist-confirm-title"

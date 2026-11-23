@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useDisputeViewport } from "@/app/hooks/useDisputeViewport";
+import { useModalFocus } from "@/app/hooks/useModalFocus";
 import {
   DISPUTE_MODAL_CLASSES,
   DISPUTE_REASON_MAX_LENGTH,
@@ -99,6 +100,12 @@ export default function DisputeRaiseModal({
       ? "Raise a dispute"
       : `Raise dispute for Milestone ${milestoneNumber}`;
 
+  const dialogRef = useModalFocus<HTMLDivElement>({
+    isOpen,
+    onClose,
+    isPending: busy,
+  });
+
   const handleReasonChange = useCallback((value: string) => {
     setReason(value);
     // Clear the field error as soon as the user starts correcting it.
@@ -150,6 +157,7 @@ export default function DisputeRaiseModal({
 
   return (
     <div
+      ref={dialogRef}
       data-testid="dispute-raise-modal"
       data-viewport={layout.viewport}
       role="dialog"
