@@ -26,20 +26,11 @@ const defaultState: ActionState = {
 export function useActionStates() {
   const [states, setStates] = useState<Record<string, ActionState>>({});
 
-  const getState = useCallback(
-    (key: string): ActionState => states[key] ?? defaultState,
-    [states]
-  );
+  const getState = useCallback((key: string): ActionState => states[key] ?? defaultState, [states]);
 
-  const isPending = useCallback(
-    (key: string) => isTxPending(getState(key).phase),
-    [getState]
-  );
+  const isPending = useCallback((key: string) => isTxPending(getState(key).phase), [getState]);
 
-  const isLoading = useCallback(
-    (key: string) => getState(key).isLoading ?? false,
-    [getState]
-  );
+  const isLoading = useCallback((key: string) => getState(key).isLoading ?? false, [getState]);
 
   const setPhase = useCallback((key: string, phase: TxPhase) => {
     setStates((prev) => ({

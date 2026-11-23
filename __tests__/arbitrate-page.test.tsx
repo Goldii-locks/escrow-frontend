@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import ArbitratePage from "@/app/arbitrate/page";
+import ArbitratePage from "@/app/(app)/arbitrate/page";
 
 const mockUseWallet = vi.hoisted(() => vi.fn());
 

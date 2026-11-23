@@ -29,6 +29,7 @@
  */
 
 import type { ToastType } from "@/app/context/ToastContext";
+import { getSafeStorage } from "@/app/lib/safe_storage";
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -43,9 +44,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function formatStack(err?: unknown): string {
   if (err instanceof Error && err.stack) return err.stack;
   if (typeof err === "string" && err.includes("\n")) return err;
-  const synthetic = new Error(
-    typeof err === "string" ? err : "signature_timeout_alert trace"
-  );
+  const synthetic = new Error(typeof err === "string" ? err : "signature_timeout_alert trace");
   return synthetic.stack ?? "Error: signature_timeout_alert trace";
 }
 
@@ -180,10 +179,7 @@ export function isSignatureRejectedByUser(err: unknown): boolean {
   );
 }
 
-export type SignatureAlertToastHandler = (
-  message: string,
-  type: ToastType
-) => void;
+export type SignatureAlertToastHandler = (message: string, type: ToastType) => void;
 
 /**
  * Executes `signFn`.  If the wallet returns a user-rejection error the
@@ -202,15 +198,8 @@ export async function runSignatureWithRejectionHandling<T>(
     return await signFn();
   } catch (err) {
     if (isSignatureRejectedByUser(err)) {
-      emitWarning(
-        "SIGNATURE REJECTED",
-        "signature rejected by user",
-        err
-      );
-      showToast(
-        "Signature cancelled — you rejected the request in your wallet.",
-        "warning"
-      );
+      emitWarning("SIGNATURE REJECTED", "signature rejected by user", err);
+      showToast("Signature cancelled — you rejected the request in your wallet.", "warning");
       return null;
     }
     throw err;
@@ -229,10 +218,7 @@ export const SIGNATURE_ALERT_SETUP_INSTRUCTION =
   "No supported wallet extension detected. " +
   "Install Freighter (freighter.app) and refresh this page to continue.";
 
-export type SignatureAlertAvailabilityStatus =
-  | "available"
-  | "unavailable"
-  | "error";
+export type SignatureAlertAvailabilityStatus = "available" | "unavailable" | "error";
 
 export interface SignatureAlertAvailabilityState {
   available: boolean;
@@ -251,9 +237,7 @@ export interface SignatureAlertAvailabilityState {
  * Accepts an optional `detector` override so tests and non-browser runtimes
  * can inject their own check without touching `window`.
  */
-export function detectSignatureAlertWallet(
-  detector?: () => boolean
-): boolean {
+export function detectSignatureAlertWallet(detector?: () => boolean): boolean {
   if (detector) return detector();
   if (typeof window === "undefined") return false;
   const w = window as unknown as Record<string, unknown>;
@@ -291,11 +275,7 @@ export function checkSignatureAlertAvailability(
       warningMessage: SIGNATURE_ALERT_SETUP_INSTRUCTION,
     };
   } catch (err) {
-    emitWarning(
-      "WALLET UNAVAILABLE",
-      "wallet availability check failed",
-      err
-    );
+    emitWarning("WALLET UNAVAILABLE", "wallet availability check failed", err);
     return {
       available: false,
       status: "error",
@@ -325,8 +305,7 @@ export function warnOnMissingSignatureAlertWallet(
 // #247 — Secure persistent caching for active keys
 // ---------------------------------------------------------------------------
 
-export const SIGNATURE_ALERT_STORAGE_KEY =
-  "signature_timeout_alert_active_address";
+export const SIGNATURE_ALERT_STORAGE_KEY = "signature_timeout_alert_active_address";
 export const SIGNATURE_ALERT_SCHEMA_VERSION = 1 as const;
 
 export interface SignatureAlertActiveAddress {
@@ -342,24 +321,15 @@ interface SignatureAlertSerializedV1 {
   connectedAt: number;
 }
 
-function isValidActiveAddress(
-  value: unknown
-): value is SignatureAlertActiveAddress {
+function isValidActiveAddress(value: unknown): value is SignatureAlertActiveAddress {
   if (!isRecord(value)) return false;
-  if (typeof value.address !== "string" || value.address.length === 0)
-    return false;
+  if (typeof value.address !== "string" || value.address.length === 0) return false;
   if (typeof value.network !== "string") return false;
-  if (
-    typeof value.connectedAt !== "number" ||
-    !Number.isFinite(value.connectedAt)
-  )
-    return false;
+  if (typeof value.connectedAt !== "number" || !Number.isFinite(value.connectedAt)) return false;
   return true;
 }
 
-function sanitizeActiveAddress(
-  value: unknown
-): SignatureAlertActiveAddress | null {
+function sanitizeActiveAddress(value: unknown): SignatureAlertActiveAddress | null {
   if (!isValidActiveAddress(value)) return null;
   return {
     address: value.address,
@@ -368,32 +338,17 @@ function sanitizeActiveAddress(
   };
 }
 
-function isValidSerializedPayload(
-  value: unknown
-): value is SignatureAlertSerializedV1 {
+function isValidSerializedPayload(value: unknown): value is SignatureAlertSerializedV1 {
   if (!isRecord(value)) return false;
   if (value.version !== SIGNATURE_ALERT_SCHEMA_VERSION) return false;
-  if (typeof value.address !== "string" || value.address.length === 0)
-    return false;
+  if (typeof value.address !== "string" || value.address.length === 0) return false;
   if (typeof value.network !== "string") return false;
-  if (
-    typeof value.connectedAt !== "number" ||
-    !Number.isFinite(value.connectedAt)
-  )
-    return false;
+  if (typeof value.connectedAt !== "number" || !Number.isFinite(value.connectedAt)) return false;
   return true;
 }
 
 function getStorageAdapter(): Storage | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const testKey = "__signature_timeout_alert_storage_test__";
-    window.localStorage.setItem(testKey, "1");
-    window.localStorage.removeItem(testKey);
-    return window.localStorage;
-  } catch {
-    return null;
-  }
+  return getSafeStorage();
 }
 
 /**
@@ -410,8 +365,7 @@ export class SignatureAlertActiveAddressStore {
   private storage: Storage | null;
 
   constructor(storageOverride?: Storage | null) {
-    this.storage =
-      storageOverride !== undefined ? storageOverride : getStorageAdapter();
+    this.storage = storageOverride !== undefined ? storageOverride : getStorageAdapter();
     this.rehydrate();
   }
 
@@ -425,10 +379,7 @@ export class SignatureAlertActiveAddressStore {
           network: this.activeAddress.network,
           connectedAt: this.activeAddress.connectedAt,
         };
-        this.storage.setItem(
-          SIGNATURE_ALERT_STORAGE_KEY,
-          JSON.stringify(payload)
-        );
+        this.storage.setItem(SIGNATURE_ALERT_STORAGE_KEY, JSON.stringify(payload));
       } else {
         this.storage.removeItem(SIGNATURE_ALERT_STORAGE_KEY);
       }
@@ -514,8 +465,7 @@ export class SignatureAlertActiveAddressStore {
 }
 
 /** Singleton store used by the signing flow. */
-export const signatureAlertActiveAddress =
-  new SignatureAlertActiveAddressStore();
+export const signatureAlertActiveAddress = new SignatureAlertActiveAddressStore();
 
 // ---------------------------------------------------------------------------
 // Simulation fee inspection — fee warning banners
@@ -726,14 +676,8 @@ export function warnOnSignatureFeeExceeded(
     const err =
       state.severity === "error"
         ? new SignatureSimulationError(state.simulationError ?? "unknown")
-        : new SignatureFeeExceededError(
-            state.estimatedFeeStroops,
-            state.feeLimitStroops
-          );
-    console.warn(
-      `${LOG_PREFIX} ${state.severity.toUpperCase()} — ${state.warningMessage}`,
-      err
-    );
+        : new SignatureFeeExceededError(state.estimatedFeeStroops, state.feeLimitStroops);
+    console.warn(`${LOG_PREFIX} ${state.severity.toUpperCase()} — ${state.warningMessage}`, err);
   }
 
   return state;
@@ -753,10 +697,7 @@ export function assertSignatureFeeWithinBounds(
     throw new SignatureSimulationError(state.simulationError ?? "unknown");
   }
   if (state.exceeded) {
-    throw new SignatureFeeExceededError(
-      state.estimatedFeeStroops,
-      state.feeLimitStroops
-    );
+    throw new SignatureFeeExceededError(state.estimatedFeeStroops, state.feeLimitStroops);
   }
 
   return state;

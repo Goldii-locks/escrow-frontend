@@ -4,21 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import { useModalFocus } from "@/app/hooks/useModalFocus";
 import {
   checkFreighterAvailability,
+  checkSimulationFeeWarning,
   FREIGHTER_INSTALL_URL,
   isFreighterUserRejected,
-} from "@/app/lib/freighter_connector";
-import {
-  isWalletRejectedError,
-} from "@/app/lib/errors";
+  type WalletSimulationResult,
+} from "@/app/lib/wallet_session";
+import { isWalletRejectedError } from "@/app/lib/errors";
 import { useToast } from "@/app/context/ToastContext";
-import {
-  checkSimulationFeeWarning,
-  type LedgerSimulationResult,
-} from "@/app/lib/ledger_usb_bridge";
-import {
-  SUPPORTED_WALLETS,
-  type SupportedWalletId,
-} from "@/app/context/WalletContext";
+import { SUPPORTED_WALLETS, type SupportedWalletId } from "@/app/context/WalletContext";
 import {
   checkNetworkMismatch,
   buildWalletSelectorMismatchMessage,
@@ -28,17 +21,20 @@ import {
   type WalletCachedKey,
 } from "@/app/lib/wallet_selector_modal";
 
+/**
+ * WalletConnect can only connect when a project ID was set at build time
+ * (#672), so it is left out of the list otherwise.
+ */
+export function isWalletSelectable(wallet: { id: string }): boolean {
+  return wallet.id !== "wallet_connect" || !!process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 export type WalletSelectorModalStatus =
-  | "idle"
-  | "connecting"
-  | "signing"
-  | "rejected"
-  | "error"
-  | "unavailable";
+  "idle" | "connecting" | "signing" | "rejected" | "error" | "unavailable";
 
 export type WalletSelectorWalletId = SupportedWalletId;
 
@@ -72,7 +68,7 @@ export interface WalletSelectorModalProps {
    * failure or an unusually high fee, the modal surfaces a warning banner so
    * the cost is visible before the wallet prompt opens.
    */
-  simulationResult?: LedgerSimulationResult | null;
+  simulationResult?: WalletSimulationResult | null;
   className?: string;
 }
 
@@ -84,9 +80,7 @@ export interface WalletSelectorModalProps {
  * Detects if any supported browser wallet extension is installed.
  * Accepts optional detector overrides for test environments.
  */
-export function detectAnyWalletExtension(
-  detector?: () => boolean
-): boolean {
+export function detectAnyWalletExtension(detector?: () => boolean): boolean {
   if (detector) {
     return detector();
   }
@@ -107,22 +101,16 @@ export function handleWalletError(err: unknown): {
   error: unknown;
 } {
   if (isFreighterUserRejected(err) || isWalletRejectedError(err)) {
-    const originalMessage =
-      err instanceof Error ? err.message : "user rejected transaction";
-    console.warn(
-      "[wallet_selector_modal] signature rejected by user:",
-      originalMessage
-    );
+    const originalMessage = err instanceof Error ? err.message : "user rejected transaction";
+    console.warn("[wallet_selector_modal] signature rejected by user:", originalMessage);
     return {
       isRejection: true,
-      message:
-        "Signature cancelled — you rejected the request in your wallet.",
+      message: "Signature cancelled — you rejected the request in your wallet.",
       error: err,
     };
   }
 
-  const message =
-    err instanceof Error ? err.message : "An unexpected error occurred.";
+  const message = err instanceof Error ? err.message : "An unexpected error occurred.";
   return {
     isRejection: false,
     message,
@@ -160,40 +148,34 @@ export default function WalletSelectorModal({
     });
   }, []);
 
-  const effectiveLoading = isLoading || modalLoading || status === "connecting" || status === "signing";
-
-  // Network mismatch detection
-  const networkMismatch = checkNetworkMismatch(
-    walletNetwork ?? "",
-    appNetwork,
-  );
-
-  const mismatchMessage = buildWalletSelectorMismatchMessage(
-    selectedWalletId,
-    walletNetwork ?? "",
-    appNetwork,
-  );
-
-  // Wallet availability — computed synchronously during render when the
-  // modal opens.  `checkFreighterAvailability` is a pure sync call, so
-  // there is no need for an effect (and it avoids the
-  // react-hooks/set-state-in-effect lint rule).
-  const availability = isOpen
-    ? checkFreighterAvailability(freighterDetector)
-    : null;
-
-  // Gas estimation warning — derived from the simulation the caller passes in.
-  // checkSimulationFeeWarning is a pure sync call, like the availability check
-  // above, so it needs no effect.
-  const gasWarning = simulationResult
-    ? checkSimulationFeeWarning(simulationResult)
-    : null;
+  const effectiveLoading =
+    isLoading || modalLoading || status === "connecting" || status === "signing";
 
   const dialogRef = useModalFocus<HTMLDivElement>({
     isOpen,
     onClose,
     isPending: effectiveLoading,
   });
+
+  // Network mismatch detection
+  const networkMismatch = checkNetworkMismatch(walletNetwork ?? "", appNetwork);
+
+  const mismatchMessage = buildWalletSelectorMismatchMessage(
+    selectedWalletId,
+    walletNetwork ?? "",
+    appNetwork
+  );
+
+  // Wallet availability — computed synchronously during render when the
+  // modal opens.  `checkFreighterAvailability` is a pure sync call, so
+  // there is no need for an effect (and it avoids the
+  // react-hooks/set-state-in-effect lint rule).
+  const availability = isOpen ? checkFreighterAvailability(freighterDetector) : null;
+
+  // Gas estimation warning — derived from the simulation the caller passes in.
+  // checkSimulationFeeWarning is a pure sync call, like the availability check
+  // above, so it needs no effect.
+  const gasWarning = simulationResult ? checkSimulationFeeWarning(simulationResult) : null;
 
   // Persistent caching: persist the cached key when the wallet connects
   useEffect(() => {
@@ -224,10 +206,7 @@ export default function WalletSelectorModal({
             showToast(result.message, "warning");
           } else {
             setStatus("error");
-            showToast(
-              "Failed to connect wallet. Please try again.",
-              "error"
-            );
+            showToast("Failed to connect wallet. Please try again.", "error");
           }
         }
       });
@@ -305,9 +284,7 @@ export default function WalletSelectorModal({
             role="alert"
             className="bg-warning-soft/10 border border-warning-soft/40 rounded-lg px-4 py-3 mb-4 text-warning-soft text-sm"
           >
-            <p data-testid="wallet-selector-setup-instruction">
-              {availability.setupInstruction}
-            </p>
+            <p data-testid="wallet-selector-setup-instruction">{availability.setupInstruction}</p>
             <a
               href={FREIGHTER_INSTALL_URL}
               target="_blank"
@@ -381,9 +358,7 @@ export default function WalletSelectorModal({
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                 />
               </svg>
-              <span className="text-sm text-text-secondary">
-                Wallet operation in progress…
-              </span>
+              <span className="text-sm text-text-secondary">Wallet operation in progress…</span>
             </div>
           </div>
         )}
@@ -415,10 +390,9 @@ export default function WalletSelectorModal({
 
         {/* Wallet list */}
         <div className="space-y-2" data-testid="wallet-selector-list">
-          {SUPPORTED_WALLETS.map((wallet) => {
+          {SUPPORTED_WALLETS.filter(isWalletSelectable).map((wallet) => {
             const isSelected = wallet.id === selectedWalletId;
-            const isConnected =
-              activeAddress !== null && wallet.id === selectedWalletId;
+            const isConnected = activeAddress !== null && wallet.id === selectedWalletId;
 
             return (
               <button
@@ -436,9 +410,7 @@ export default function WalletSelectorModal({
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-medium">
-                    {wallet.label}
-                  </span>
+                  <span className="font-medium">{wallet.label}</span>
                   {isConnected && (
                     <span
                       data-testid="wallet-selector-connected-badge"

@@ -4,7 +4,7 @@
  * Landing page navigation.
  *
  * Marketing chrome only: logo, network badge, the four reference links and the
- * Launch App pill, exactly as design/landing-reference.html shows it.
+ * Launch App pill.
  *
  * The notification bell, wallet selector and Connect Wallet button deliberately
  * do NOT live here. They belong to the signed-in app experience and are mounted
@@ -17,7 +17,7 @@ import { useState } from "react";
 import Link from "next/link";
 import LandingLogo from "./LandingLogo";
 import LandingArrow from "./LandingArrow";
-import { NETWORK_PASSPHRASE } from "@/app/lib/contract";
+import { NETWORK_PASSPHRASE } from "@/app/lib/network_config";
 import { networkLabel } from "@/app/lib/network";
 
 const MARKETING_LINKS = [
@@ -72,7 +72,7 @@ export default function LandingNav() {
             >
               {link.label}
             </a>
-          ),
+          )
         )}
       </div>
 

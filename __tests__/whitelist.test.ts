@@ -1,30 +1,32 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchWhitelistedTokens, tokenLabel } from "@/app/lib/whitelist";
+import { ApiShapeError, fetchWhitelistedTokens, tokenLabel } from "@/app/lib/whitelist";
 
 function stubFetch(body: unknown, ok = true, status = 200) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({ ok, status, json: async () => body }),
-  );
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok, status, json: async () => body }));
 }
 
 describe("fetchWhitelistedTokens", () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  it("reads tokens from the backend's { success, data: { tokens } } body", async () => {
+    stubFetch({ success: true, data: { tokens: ["CAAA"] } });
+    expect(await fetchWhitelistedTokens("CID")).toEqual([{ address: "CAAA" }]);
+  });
+
   it("normalizes string addresses and drops blanks", async () => {
-    stubFetch({ success: true, data: ["CAAA", "  CBBB  ", ""] });
-    expect(await fetchWhitelistedTokens("CID")).toEqual([
-      { address: "CAAA" },
-      { address: "CBBB" },
-    ]);
+    stubFetch({ success: true, data: { tokens: ["CAAA", "  CBBB  ", ""] } });
+    expect(await fetchWhitelistedTokens("CID")).toEqual([{ address: "CAAA" }, { address: "CBBB" }]);
   });
 
   it("normalizes object items with symbol/name and address aliases", async () => {
     stubFetch({
-      data: [
-        { address: "CAAA", symbol: "USDC" },
-        { token: "CBBB", name: "Bee" },
-      ],
+      success: true,
+      data: {
+        tokens: [
+          { address: "CAAA", symbol: "USDC" },
+          { token: "CBBB", name: "Bee" },
+        ],
+      },
     });
     expect(await fetchWhitelistedTokens("CID")).toEqual([
       { address: "CAAA", symbol: "USDC" },
@@ -32,11 +34,12 @@ describe("fetchWhitelistedTokens", () => {
     ]);
   });
 
-  it("accepts a bare array and a { tokens } envelope", async () => {
+  // An unexpected body is an error, not an empty whitelist (#678).
+  it("throws ApiShapeError for unexpected shapes instead of returning []", async () => {
     stubFetch(["CAAA"]);
-    expect(await fetchWhitelistedTokens("CID")).toEqual([{ address: "CAAA" }]);
-    stubFetch({ tokens: ["CBBB"] });
-    expect(await fetchWhitelistedTokens("CID")).toEqual([{ address: "CBBB" }]);
+    await expect(fetchWhitelistedTokens("CID")).rejects.toBeInstanceOf(ApiShapeError);
+    stubFetch({ success: true, data: ["CAAA"] });
+    await expect(fetchWhitelistedTokens("CID")).rejects.toBeInstanceOf(ApiShapeError);
   });
 
   it("throws on a non-ok response", async () => {

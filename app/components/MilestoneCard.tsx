@@ -6,15 +6,24 @@ import CountdownTimer from "@/app/components/CountdownTimer";
 import TxStatusBanner from "@/app/components/TxStatusBanner";
 import ButtonSpinner from "@/app/components/ButtonSpinner";
 import DisputeRaiseModal from "@/app/components/DisputeRaiseModal";
-import ReleaseConfirmModal from "@/app/components/ReleaseConfirmModal";
 import ArbiterActionPanel from "@/app/components/ArbiterActionPanel";
 import { formatBaseUnits } from "@/app/lib/amounts";
+import { getClaimEligibility, CLAIM_UNKNOWN_DEADLINE_NOTE } from "@/app/lib/claimEligibility";
+import { canApprove, canMarkDelivered, canResolveDispute } from "@/app/lib/milestone_actions";
+import ReleaseConfirmModal from "@/app/components/ReleaseConfirmModal";
+import { formatFeeBps, getArbiterResolutionBreakdown } from "@/app/lib/arbiter_fee";
 
 interface Milestone {
   index: number;
   amount: string;
   status: string;
   releasedAmount?: string;
+  /** On-chain `delivered_at` (epoch seconds or ms). */
+  deliveredAt?: number | null;
+  /** On-chain `auto_release_seconds`. */
+  autoReleaseSeconds?: number | null;
+  /** Total deadline extension in seconds. */
+  extensionSeconds?: number | null;
 }
 
 /**
@@ -49,6 +58,13 @@ interface Props {
   /** Optional field-level / general error messages to render inside the card. */
   errors?: MilestoneCardErrors;
   /**
+   * When true the escrow is paused or cancel-locked (#896); all action
+   * buttons are disabled. `lockTooltip` is shown as the button title.
+   */
+  escrowLocked?: boolean;
+  /** Tooltip text shown on disabled buttons when escrowLocked is true. */
+  lockTooltip?: string;
+  /**
    * Absolute auto-release deadline (epoch ms) for a Delivered milestone. When
    * provided, a CountdownTimer is shown next to the status badge.
    */
@@ -69,8 +85,25 @@ interface Props {
   onMarkDelivered?: (i: number) => void;
   onApprove?: (i: number) => void;
   onDispute?: (i: number) => void;
-  /** Freelancer address shown in the release confirmation summary. */
+  /** Full address of the freelancer (recipient of approve/partial releases), shown shortened in the confirmation modal. */
   freelancerAddress?: string | null;
+  /**
+   * Escrow's arbiter fee in basis points (`get_arbiter_fee_bps`, #900). Used
+   * to show the remaining amount, fee and payout on a disputed milestone.
+   * `null` means unknown; `undefined` hides the breakdown.
+   */
+  arbiterFeeBps?: number | null;
+  /** Whether the arbiter fee rate is still being read. */
+  isArbiterFeeLoading?: boolean;
+  /**
+   * Batch approval (#899): when true, a Delivered milestone shows a checkbox
+   * so the client can approve several in one transaction.
+   */
+  selectable?: boolean;
+  /** Whether this milestone is selected for batch approval. */
+  selected?: boolean;
+  /** Called when the batch-approval checkbox changes. */
+  onSelectChange?: (index: number, selected: boolean) => void;
 }
 
 const statusColor: Record<string, string> = {
@@ -103,10 +136,7 @@ export function resolveDeadlineWarningThresholdMs(
     return overrideMs;
   }
   if (typeof windowMs === "number" && windowMs > 0) {
-    return Math.max(
-      DEADLINE_WARNING_FLOOR_MS,
-      Math.floor(windowMs * DEADLINE_WARNING_RATIO)
-    );
+    return Math.max(DEADLINE_WARNING_FLOOR_MS, Math.floor(windowMs * DEADLINE_WARNING_RATIO));
   }
   return DEADLINE_WARNING_FLOOR_MS;
 }
@@ -115,10 +145,7 @@ export function resolveDeadlineWarningThresholdMs(
  * Compute the release percentage (0–100) for PartiallyReleased milestones.
  * Returns null if either value is missing, zero, or non-numeric.
  */
-function getReleasePercent(
-  releasedAmount: string | undefined,
-  totalAmount: string
-): number | null {
+function getReleasePercent(releasedAmount: string | undefined, totalAmount: string): number | null {
   const released = Number(releasedAmount);
   const total = Number(totalAmount);
   if (!releasedAmount || isNaN(released) || isNaN(total) || total <= 0) {
@@ -164,6 +191,13 @@ export default function MilestoneCard({
   isPartialReleasePending,
   onPartialRelease,
   freelancerAddress,
+  escrowLocked = false,
+  lockTooltip = "",
+  arbiterFeeBps,
+  isArbiterFeeLoading = false,
+  selectable = false,
+  selected = false,
+  onSelectChange,
   ...unusedProps
 }: Props) {
   void unusedProps;
@@ -195,8 +229,17 @@ export default function MilestoneCard({
   const [mountedAt] = useState<number>(() => Date.now());
   const [liveElapsed, setLiveElapsed] = useState(false);
   const isDeadlineElapsed =
-    liveElapsed ||
-    (typeof autoReleaseDeadline === "number" && autoReleaseDeadline <= mountedAt);
+    liveElapsed || (typeof autoReleaseDeadline === "number" && autoReleaseDeadline <= mountedAt);
+
+  // Claim eligibility comes from on-chain job data; the backend deadline only
+  // refines it, and an unknown deadline still shows the button.
+  const claimEligibility = getClaimEligibility({
+    deliveredAt: milestone?.deliveredAt,
+    autoReleaseSeconds: milestone?.autoReleaseSeconds,
+    extensionSeconds: milestone?.extensionSeconds,
+    backendDeadlineMs: autoReleaseDeadline,
+    now: mountedAt,
+  });
 
   const warningThresholdMs = resolveDeadlineWarningThresholdMs(
     autoReleaseWindowMs,
@@ -264,14 +307,14 @@ export default function MilestoneCard({
   }
 
   if (
-  !milestone ||
-  milestone.index === undefined ||
-  milestone.amount === undefined ||
-  milestone.status === undefined ||
-  typeof milestone.index !== "number" ||
-  typeof milestone.amount !== "string" ||
-  typeof milestone.status !== "string"
-) {
+    !milestone ||
+    milestone.index === undefined ||
+    milestone.amount === undefined ||
+    milestone.status === undefined ||
+    typeof milestone.index !== "number" ||
+    typeof milestone.amount !== "string" ||
+    typeof milestone.status !== "string"
+  ) {
     return (
       <div
         data-testid="milestone-empty-state"
@@ -282,8 +325,8 @@ export default function MilestoneCard({
         <div className="min-w-0 space-y-1">
           <p className="text-sm font-semibold text-text-secondary">No milestones available</p>
           <p className="text-xs text-text-muted">
-            This job has no milestone data yet. Add milestones in the create job form to
-            track delivery and releases.
+            This job has no milestone data yet. Add milestones in the create job form to track
+            delivery and releases.
           </p>
         </div>
         <span
@@ -308,6 +351,16 @@ export default function MilestoneCard({
   const releasePercent = isPartiallyReleased
     ? getReleasePercent(milestone.releasedAmount, milestone.amount)
     : null;
+  const isDisputed = milestone.status === "Disputed";
+  const feeBreakdown =
+    isDisputed && arbiterFeeBps !== undefined
+      ? getArbiterResolutionBreakdown({
+          amount: milestone.amount,
+          releasedAmount: milestone.releasedAmount,
+          feeBps: arbiterFeeBps,
+        })
+      : null;
+  const showBatchCheckbox = selectable && isClient && milestone.status === "Delivered";
 
   return (
     <div
@@ -341,9 +394,24 @@ export default function MilestoneCard({
 
       {/* Milestone info */}
       <div className="min-w-0 flex-1">
-        <p className="text-sm text-text-muted" aria-hidden="true">
-          {milestoneLabel}
-        </p>
+        {showBatchCheckbox ? (
+          <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer">
+            <input
+              type="checkbox"
+              data-testid="milestone-batch-select"
+              checked={selected}
+              onChange={(e) => onSelectChange?.(milestone.index, e.target.checked)}
+              disabled={!onSelectChange}
+              aria-label={`Select ${milestoneLabel} for batch approval`}
+              className="h-4 w-4 cursor-pointer rounded accent-accent-soft disabled:cursor-not-allowed"
+            />
+            <span aria-hidden="true">{milestoneLabel}</span>
+          </label>
+        ) : (
+          <p className="text-sm text-text-muted" aria-hidden="true">
+            {milestoneLabel}
+          </p>
+        )}
         <p
           className="font-mono text-text-primary text-sm mt-1 truncate"
           aria-label={`${milestoneLabel} amount: ${displayAmount} ${amountSymbol}`}
@@ -410,34 +478,34 @@ export default function MilestoneCard({
               aria-label={`${milestoneLabel} status: ${milestone.status}`}
               data-testid="milestone-status-badge"
               className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap transition-colors ${
-                statusColor[milestone.status] ?? "bg-surface-field text-text-muted border-border-subtle"
+                statusColor[milestone.status] ??
+                "bg-surface-field text-text-muted border-border-subtle"
               }`}
             >
               {isPartiallyReleased ? "Partially Released" : milestone.status}
             </span>
             {/* Auto-release countdown for delivered milestones */}
-            {milestone.status === "Delivered" &&
-              typeof autoReleaseDeadline === "number" && (
-                <>
-                  <CountdownTimer
-                    deadline={autoReleaseDeadline}
-                    onElapsed={() => setLiveElapsed(true)}
-                    warningThresholdMs={warningThresholdMs}
-                    onWarningThreshold={() => setLiveWarning(true)}
-                  />
-                  {isWithinDeadlineWarning && (
-                    <span
-                      role="status"
-                      aria-live="polite"
-                      data-testid="milestone-deadline-warning"
-                      aria-label={`${milestoneLabel} auto-release deadline approaching`}
-                      className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-warning-soft/10 text-warning-soft border-warning-soft/30"
-                    >
-                      <span aria-hidden="true">!</span> Deadline approaching
-                    </span>
-                  )}
-                </>
-              )}
+            {milestone.status === "Delivered" && typeof autoReleaseDeadline === "number" && (
+              <>
+                <CountdownTimer
+                  deadline={autoReleaseDeadline}
+                  onElapsed={() => setLiveElapsed(true)}
+                  warningThresholdMs={warningThresholdMs}
+                  onWarningThreshold={() => setLiveWarning(true)}
+                />
+                {isWithinDeadlineWarning && (
+                  <span
+                    role="status"
+                    aria-live="polite"
+                    data-testid="milestone-deadline-warning"
+                    aria-label={`${milestoneLabel} auto-release deadline approaching`}
+                    className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-warning-soft/10 text-warning-soft border-warning-soft/30"
+                  >
+                    <span aria-hidden="true">!</span> Deadline approaching
+                  </span>
+                )}
+              </>
+            )}
             {/* Status field error */}
             {errors?.status && (
               <p
@@ -451,11 +519,12 @@ export default function MilestoneCard({
             )}
           </div>
 
-          {isFreelancer && milestone.status === "Pending" && (
+          {canMarkDelivered(milestone, isFreelancer) && (
             <button
               onClick={() => onMarkDelivered?.(milestone.index)}
-              disabled={!onMarkDelivered}
-              aria-disabled={!onMarkDelivered}
+              disabled={!onMarkDelivered || escrowLocked}
+              aria-disabled={!onMarkDelivered || escrowLocked}
+              title={escrowLocked ? lockTooltip : undefined}
               aria-label={`Mark ${milestoneLabel} as delivered`}
               className={`${baseBtn} bg-info-soft text-surface-page font-medium hover:bg-info-soft/80 active:scale-[0.97] focus-visible:ring-info-soft disabled:hover:bg-info-soft disabled:active:scale-100`}
             >
@@ -463,14 +532,15 @@ export default function MilestoneCard({
             </button>
           )}
 
-          {isClient && milestone.status === "Delivered" && (
+          {canApprove(milestone, isClient) && (
             <button
               onClick={() => {
                 setPendingRelease({ kind: "approve", index: milestone.index });
                 setIsReleaseConfirmOpen(true);
               }}
-              disabled={!onApprove}
-              aria-disabled={!onApprove}
+              disabled={!onApprove || escrowLocked}
+              aria-disabled={!onApprove || escrowLocked}
+              title={escrowLocked ? lockTooltip : undefined}
               aria-label={`Approve ${milestoneLabel}`}
               className={`${baseBtn} bg-success text-surface-page font-medium hover:bg-success/80 active:scale-[0.97] focus-visible:ring-success-soft disabled:hover:bg-success disabled:active:scale-100`}
             >
@@ -478,24 +548,35 @@ export default function MilestoneCard({
             </button>
           )}
 
-          {isFreelancer && milestone.status === "Delivered" && isDeadlineElapsed && (
-            <button
-              onClick={() => onClaimAutoRelease?.(milestone.index)}
-              disabled={!onClaimAutoRelease || isClaimAutoReleasePending}
-              aria-disabled={!onClaimAutoRelease || isClaimAutoReleasePending}
-              aria-label={`Claim auto-release for ${milestoneLabel}`}
-              className={`${baseBtn} bg-success-soft text-surface-page font-medium hover:bg-success-soft/80 active:scale-[0.97] focus-visible:ring-success-soft disabled:hover:bg-success-soft disabled:active:scale-100`}
-            >
-              {isClaimAutoReleasePending ? "Claiming..." : "Claim Auto-Release"}
-            </button>
-          )}
+          {isFreelancer &&
+            milestone.status === "Delivered" &&
+            (isDeadlineElapsed || claimEligibility.show) && (
+              <button
+                onClick={() => onClaimAutoRelease?.(milestone.index)}
+                disabled={!onClaimAutoRelease || isClaimAutoReleasePending || escrowLocked}
+                aria-disabled={!onClaimAutoRelease || isClaimAutoReleasePending || escrowLocked}
+                title={escrowLocked ? lockTooltip : undefined}
+                aria-label={`Claim auto-release for ${milestoneLabel}`}
+                className={`${baseBtn} bg-success-soft text-surface-page font-medium hover:bg-success-soft/80 active:scale-[0.97] focus-visible:ring-success-soft disabled:hover:bg-success-soft disabled:active:scale-100`}
+              >
+                {isClaimAutoReleasePending ? "Claiming..." : "Claim Auto-Release"}
+              </button>
+            )}
+          {isFreelancer &&
+            milestone.status === "Delivered" &&
+            !isDeadlineElapsed &&
+            claimEligibility.show &&
+            claimEligibility.deadlineUnknown && (
+              <span className="text-xs text-text-muted">{CLAIM_UNKNOWN_DEADLINE_NOTE}</span>
+            )}
 
           {(isClient || isFreelancer) &&
-            ["Pending", "Delivered"].includes(milestone.status) && (
+            ["Pending", "Delivered", "PartiallyReleased"].includes(milestone.status) && (
               <button
                 onClick={() => setIsDisputeModalOpen(true)}
-                disabled={!onDispute}
-                aria-disabled={!onDispute}
+                disabled={!onDispute || escrowLocked}
+                aria-disabled={!onDispute || escrowLocked}
+                title={escrowLocked ? lockTooltip : undefined}
                 aria-label={`Dispute ${milestoneLabel}`}
                 className={`${baseBtn} bg-danger text-text-primary hover:bg-danger/80 active:scale-[0.97] focus-visible:ring-danger-soft disabled:hover:bg-danger disabled:active:scale-100`}
               >
@@ -506,7 +587,7 @@ export default function MilestoneCard({
       </div>
 
       {/* Arbiter resolution panel — full-width row beneath the card summary */}
-      {isArbiter && milestone.status === "Disputed" && (
+      {canResolveDispute(milestone, !!isArbiter) && (
         <ArbiterActionPanel
           milestoneIndex={milestone.index}
           displayAmount={`${displayAmount} ${amountSymbol}`}
@@ -514,7 +595,44 @@ export default function MilestoneCard({
           onResolve={onResolveDispute}
           isPending={isResolveDisputePending}
           resolveState={resolveDisputeState}
+          feeBreakdown={feeBreakdown}
+          feeLoading={isArbiterFeeLoading}
+          amountDecimals={amountDecimals}
+          amountSymbol={amountSymbol}
         />
+      )}
+
+      {/* The parties see the same split the arbiter sees (#900). */}
+      {!isArbiter && (isClient || isFreelancer) && feeBreakdown && (
+        <p
+          data-testid="milestone-dispute-payout"
+          className="w-full mt-1 pt-3 border-t border-border-subtle text-xs text-text-muted"
+        >
+          On resolution:{" "}
+          <span className="font-mono">
+            {formatBaseUnits(feeBreakdown.remaining.toString(), { decimals: amountDecimals })}{" "}
+            {amountSymbol}
+          </span>{" "}
+          remaining · arbiter fee{" "}
+          {feeBreakdown.fee !== null && feeBreakdown.feeBps !== null ? (
+            <span className="font-mono">
+              {formatBaseUnits(feeBreakdown.fee.toString(), { decimals: amountDecimals })}{" "}
+              {amountSymbol} ({formatFeeBps(feeBreakdown.feeBps)})
+            </span>
+          ) : (
+            <span>{isArbiterFeeLoading ? "loading…" : "unknown"}</span>
+          )}{" "}
+          · the side the arbiter rules for receives{" "}
+          {feeBreakdown.payout !== null ? (
+            <span className="font-mono">
+              {formatBaseUnits(feeBreakdown.payout.toString(), { decimals: amountDecimals })}{" "}
+              {amountSymbol}
+            </span>
+          ) : (
+            <span>the remainder</span>
+          )}
+          .
+        </p>
       )}
 
       {/* Partial release form — visible to client when milestone is Delivered or PartiallyReleased */}
@@ -526,8 +644,7 @@ export default function MilestoneCard({
           {/* Remaining balance hint */}
           {milestone.releasedAmount && (
             <p className="text-xs text-text-muted">
-              Released so far:{" "}
-              <span className="font-mono">{milestone.releasedAmount} stroops</span>
+              Released so far: <span className="font-mono">{milestone.releasedAmount} stroops</span>
               {unreleasedBalance(milestone) !== null && (
                 <>
                   {" · "}Remaining:{" "}
@@ -586,8 +703,9 @@ export default function MilestoneCard({
 
             <button
               onClick={handlePartialReleaseSubmit}
-              disabled={isPartialReleasePending || !onPartialRelease}
-              aria-disabled={isPartialReleasePending || !onPartialRelease}
+              disabled={isPartialReleasePending || !onPartialRelease || escrowLocked}
+              aria-disabled={isPartialReleasePending || !onPartialRelease || escrowLocked}
+              title={escrowLocked ? lockTooltip : undefined}
               aria-label={`Release partial amount for ${milestoneLabel}`}
               className={`${baseBtn} flex items-center gap-1.5 bg-accent-soft text-text-primary hover:bg-accent-soft/80 active:scale-[0.97] focus-visible:ring-accent-soft disabled:hover:bg-accent-soft disabled:active:scale-100`}
               data-testid="partial-release-btn"

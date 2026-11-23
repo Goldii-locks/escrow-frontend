@@ -34,9 +34,7 @@ export const ARBITRATION_EXPORT_HEADERS = [
 ] as const;
 
 /** Escape one CSV cell (RFC 4180) and neutralise spreadsheet formula injection. */
-export function escapeArbitrationCsvCell(
-  value: string | number | null | undefined,
-): string {
+export function escapeArbitrationCsvCell(value: string | number | null | undefined): string {
   let s = value === undefined || value === null ? "" : String(value);
   if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -44,7 +42,7 @@ export function escapeArbitrationCsvCell(
 
 /** Convert a record into an export row. */
 export function toArbitrationExportRow(
-  record: ArbitrationEscrowDetailsRecord,
+  record: ArbitrationEscrowDetailsRecord
 ): ArbitrationExportRow {
   return {
     escrowId: record.escrowId,
@@ -62,17 +60,15 @@ export function toArbitrationExportRow(
 
 /** Format export rows as CSV text (CRLF rows, header included). */
 export function buildArbitrationCsv(
-  rows: (ArbitrationExportRow | ArbitrationEscrowDetailsRecord)[],
+  rows: (ArbitrationExportRow | ArbitrationEscrowDetailsRecord)[]
 ): string {
   const exportRows = rows.map((r) =>
     "disputeId" in r && "token" in r
       ? toArbitrationExportRow(r as ArbitrationEscrowDetailsRecord)
-      : (r as ArbitrationExportRow),
+      : (r as ArbitrationExportRow)
   );
 
-  const lines = [
-    ARBITRATION_EXPORT_HEADERS.map(escapeArbitrationCsvCell).join(","),
-  ];
+  const lines = [ARBITRATION_EXPORT_HEADERS.map(escapeArbitrationCsvCell).join(",")];
   for (const r of exportRows) {
     lines.push(
       [
@@ -88,17 +84,14 @@ export function buildArbitrationCsv(
         r.reason,
       ]
         .map(escapeArbitrationCsvCell)
-        .join(","),
+        .join(",")
     );
   }
   return lines.join("\r\n");
 }
 
 /** Timestamped filename for dispute escrow export. */
-export function arbitrationExportFilename(
-  disputeId?: string,
-  now: Date = new Date(),
-): string {
+export function arbitrationExportFilename(disputeId?: string, now: Date = new Date()): string {
   const dateStr = now.toISOString().slice(0, 10);
   const idPrefix = disputeId ? `${disputeId}-` : "";
   return `arbitration-escrow-${idPrefix}${dateStr}.csv`;
@@ -107,7 +100,7 @@ export function arbitrationExportFilename(
 /** Click handler helper: triggers a browser download of the rows as CSV. Returns false if empty. */
 export function handleArbitrationExport(
   records: (ArbitrationExportRow | ArbitrationEscrowDetailsRecord)[],
-  filename?: string,
+  filename?: string
 ): boolean {
   if (!records || records.length === 0) return false;
   const targetFilename = filename ?? arbitrationExportFilename();

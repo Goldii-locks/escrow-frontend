@@ -47,9 +47,7 @@ describe("wallet_state_context signature timeout bounds (#114)", () => {
     );
 
     const promise = signWalletWithTimeout(request, signFn, 1_000);
-    const assertion = expect(promise).rejects.toBeInstanceOf(
-      WalletSignatureTimeoutError
-    );
+    const assertion = expect(promise).rejects.toBeInstanceOf(WalletSignatureTimeoutError);
 
     await vi.advanceTimersByTimeAsync(1_000);
     await assertion;
@@ -65,9 +63,9 @@ describe("wallet_state_context signature timeout bounds (#114)", () => {
       throw new Error("horizon unreachable");
     });
 
-    await expect(
-      signWalletWithTimeout(request, signFn, 5_000)
-    ).rejects.toThrow("horizon unreachable");
+    await expect(signWalletWithTimeout(request, signFn, 5_000)).rejects.toThrow(
+      "horizon unreachable"
+    );
   });
 
   it("uses the default signature timeout bound", () => {

@@ -1,10 +1,4 @@
-import {
-  Account,
-  Keypair,
-  Networks,
-  Operation,
-  TransactionBuilder,
-} from "@stellar/stellar-sdk";
+import { Account, Keypair, Networks, Operation, TransactionBuilder } from "@stellar/stellar-sdk";
 import { describe, expect, it } from "vitest";
 import {
   applyMultiSigSignature,
@@ -48,9 +42,7 @@ describe("network_sync_checker multi-sig assembly (#159)", () => {
     });
 
     it("rejects an empty XDR with code empty_xdr", () => {
-      expect(() => parseMultiSigEnvelope("")).toThrowError(
-        NetworkSyncMultiSigStructureError
-      );
+      expect(() => parseMultiSigEnvelope("")).toThrowError(NetworkSyncMultiSigStructureError);
       try {
         parseMultiSigEnvelope("");
       } catch (err) {
@@ -62,9 +54,7 @@ describe("network_sync_checker multi-sig assembly (#159)", () => {
     });
 
     it("rejects whitespace-only XDR", () => {
-      expect(() => parseMultiSigEnvelope("   \n\t  ")).toThrowError(
-        /empty/i
-      );
+      expect(() => parseMultiSigEnvelope("   \n\t  ")).toThrowError(/empty/i);
     });
 
     it("rejects non-string XDR inputs", () => {
@@ -80,18 +70,12 @@ describe("network_sync_checker multi-sig assembly (#159)", () => {
     });
 
     it("rejects XDR that cannot round-trip through base64", () => {
-      expect(() => parseMultiSigEnvelope("AAA@")).toThrowError(
-        NetworkSyncMultiSigStructureError
-      );
+      expect(() => parseMultiSigEnvelope("AAA@")).toThrowError(NetworkSyncMultiSigStructureError);
       try {
         parseMultiSigEnvelope("AAA@");
       } catch (err) {
-        expect((err as NetworkSyncMultiSigStructureError).code).toBe(
-          "invalid_base64"
-        );
-        expect((err as NetworkSyncMultiSigStructureError).message).toMatch(
-          /base64/i
-        );
+        expect((err as NetworkSyncMultiSigStructureError).code).toBe("invalid_base64");
+        expect((err as NetworkSyncMultiSigStructureError).message).toMatch(/base64/i);
       }
     });
 
@@ -227,9 +211,7 @@ describe("network_sync_checker multi-sig assembly (#159)", () => {
           parseEnvelopeXdr: (() => ({ signatures: NaN })) as any,
         });
       } catch (err) {
-        expect((err as NetworkSyncMultiSigStructureError).code).toBe(
-          "envelope_parse_failure"
-        );
+        expect((err as NetworkSyncMultiSigStructureError).code).toBe("envelope_parse_failure");
       }
     });
 
@@ -240,9 +222,7 @@ describe("network_sync_checker multi-sig assembly (#159)", () => {
           countSignatures: () => 0,
         });
       } catch (err) {
-        expect((err as NetworkSyncMultiSigStructureError).code).toBe(
-          "missing_signatures"
-        );
+        expect((err as NetworkSyncMultiSigStructureError).code).toBe("missing_signatures");
       }
     });
 
@@ -289,15 +269,13 @@ describe("network_sync_checker multi-sig assembly (#159)", () => {
       // Random bytes that aren't a real envelope — the SDK will throw on parse.
       const bytes = validBase64(80);
       const parser = createStellarEnvelopeParser(Networks.TESTNET);
-      expect(() =>
-        parseMultiSigEnvelope(bytes, { parseEnvelopeXdr: parser })
-      ).toThrowError(NetworkSyncMultiSigStructureError);
+      expect(() => parseMultiSigEnvelope(bytes, { parseEnvelopeXdr: parser })).toThrowError(
+        NetworkSyncMultiSigStructureError
+      );
       try {
         parseMultiSigEnvelope(bytes, { parseEnvelopeXdr: parser });
       } catch (err) {
-        expect((err as NetworkSyncMultiSigStructureError).code).toBe(
-          "envelope_parse_failure"
-        );
+        expect((err as NetworkSyncMultiSigStructureError).code).toBe("envelope_parse_failure");
       }
     });
   });
@@ -319,9 +297,7 @@ describe("network_sync_checker multi-sig assembly (#159)", () => {
       try {
         createMultiSigSplit("", { publicKey: "GABC", hint: "x" });
       } catch (err) {
-        expect((err as NetworkSyncMultiSigStructureError).code).toBe(
-          "empty_xdr"
-        );
+        expect((err as NetworkSyncMultiSigStructureError).code).toBe("empty_xdr");
       }
     });
 
@@ -333,9 +309,7 @@ describe("network_sync_checker multi-sig assembly (#159)", () => {
           hint: "h",
         });
       } catch (err) {
-        expect((err as NetworkSyncMultiSigStructureError).code).toBe(
-          "malformed_envelope"
-        );
+        expect((err as NetworkSyncMultiSigStructureError).code).toBe("malformed_envelope");
       }
     });
 
@@ -346,9 +320,7 @@ describe("network_sync_checker multi-sig assembly (#159)", () => {
           hint: "",
         });
       } catch (err) {
-        expect((err as NetworkSyncMultiSigStructureError).code).toBe(
-          "malformed_envelope"
-        );
+        expect((err as NetworkSyncMultiSigStructureError).code).toBe("malformed_envelope");
       }
     });
 
@@ -357,9 +329,7 @@ describe("network_sync_checker multi-sig assembly (#159)", () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         createMultiSigSplit(validBase64(80), undefined as any);
       } catch (err) {
-        expect((err as NetworkSyncMultiSigStructureError).code).toBe(
-          "malformed_envelope"
-        );
+        expect((err as NetworkSyncMultiSigStructureError).code).toBe("malformed_envelope");
       }
     });
   });
@@ -398,9 +368,7 @@ describe("network_sync_checker multi-sig assembly (#159)", () => {
       try {
         applyMultiSigSignature(split, "   ");
       } catch (err) {
-        expect((err as NetworkSyncMultiSigStructureError).code).toBe(
-          "empty_xdr"
-        );
+        expect((err as NetworkSyncMultiSigStructureError).code).toBe("empty_xdr");
       }
     });
   });
@@ -425,14 +393,14 @@ describe("network_sync_checker multi-sig assembly (#159)", () => {
     });
 
     it("counts unique signers and reports no duplicates", () => {
-      const splitA: NetworkSyncMultiSigSplit = createMultiSigSplit(
-        validBase64(80),
-        { publicKey: "GABC", hint: "h1" }
-      );
-      const splitB: NetworkSyncMultiSigSplit = createMultiSigSplit(
-        validBase64(80),
-        { publicKey: "GDEF", hint: "h2" }
-      );
+      const splitA: NetworkSyncMultiSigSplit = createMultiSigSplit(validBase64(80), {
+        publicKey: "GABC",
+        hint: "h1",
+      });
+      const splitB: NetworkSyncMultiSigSplit = createMultiSigSplit(validBase64(80), {
+        publicKey: "GDEF",
+        hint: "h2",
+      });
       const sim = simulateMultiSigAssembly([splitA, splitB]);
       expect(sim.uniqueSigners).toBe(2);
       expect(sim.duplicates).toEqual([]);
@@ -508,9 +476,7 @@ describe("network_sync_checker multi-sig assembly (#159)", () => {
       try {
         validateMultiSigAssembly(splits);
       } catch (err) {
-        expect((err as NetworkSyncMultiSigStructureError).code).toBe(
-          "duplicate_signer"
-        );
+        expect((err as NetworkSyncMultiSigStructureError).code).toBe("duplicate_signer");
       }
     });
 
@@ -539,9 +505,7 @@ describe("network_sync_checker multi-sig assembly (#159)", () => {
       try {
         validateMultiSigAssembly([splitOk, splitBad]);
       } catch (err) {
-        expect((err as NetworkSyncMultiSigStructureError).code).toBe(
-          "invalid_base64"
-        );
+        expect((err as NetworkSyncMultiSigStructureError).code).toBe("invalid_base64");
       }
     });
 

@@ -25,9 +25,7 @@ export function getArbitrationViewport(width: number): ArbitrationViewport {
 }
 
 /** Number of grid columns for viewport. */
-export function getArbitrationColumns(
-  viewport: ArbitrationViewport,
-): 1 | 2 | 3 {
+export function getArbitrationColumns(viewport: ArbitrationViewport): 1 | 2 | 3 {
   switch (viewport) {
     case "desktop":
       return 3;
@@ -46,21 +44,13 @@ export const ARBITRATION_GRID_CLASS =
 export const ARBITRATION_GRID_ITEM_CLASS = "min-w-0 break-words";
 
 /** Column span class helper. */
-export function getArbitrationSpanClass(
-  span: number,
-  columns: 1 | 2 | 3,
-): string {
-  const safe = Number.isFinite(span)
-    ? Math.min(Math.max(Math.floor(span), 1), columns)
-    : 1;
+export function getArbitrationSpanClass(span: number, columns: 1 | 2 | 3): string {
+  const safe = Number.isFinite(span) ? Math.min(Math.max(Math.floor(span), 1), columns) : 1;
   return `col-span-${safe}`;
 }
 
 /** Compute column width (px) based on container width and gap. */
-export function getArbitrationColumnWidth(
-  containerWidth: number,
-  gap = 16,
-): number {
+export function getArbitrationColumnWidth(containerWidth: number, gap = 16): number {
   const viewport = getArbitrationViewport(containerWidth);
   const cols = getArbitrationColumns(viewport);
   const usable = Math.min(Math.max(containerWidth, 0), ARBITRATION_MAX_WIDTH);

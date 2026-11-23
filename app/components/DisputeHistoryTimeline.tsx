@@ -42,10 +42,7 @@ export interface DisputeHistoryTimelineProps {
    * after the user has completed the confirmation dialog. Reject to surface
    * an error toast. Actions are only offered when this is provided.
    */
-  onAction?: (
-    action: DisputeTimelineAction,
-    event: DisputeHistoryEvent,
-  ) => Promise<void> | void;
+  onAction?: (action: DisputeTimelineAction, event: DisputeHistoryEvent) => Promise<void> | void;
   className?: string;
 }
 
@@ -77,14 +74,9 @@ export default function DisputeHistoryTimeline({
   const [loading, setLoading] = useState<boolean>(!initialEvents);
   const [note, setNote] = useState("");
   const [pending, setPending] = useState<PendingAction | null>(null);
-  const [confirmation, setConfirmation] = useState<ConfirmationState>(
-    INITIAL_CONFIRMATION_STATE,
-  );
+  const [confirmation, setConfirmation] = useState<ConfirmationState>(INITIAL_CONFIRMATION_STATE);
 
-  const isAuthorized = isTimelineViewerAuthorized(
-    currentWalletAddress,
-    authorizedWallets,
-  );
+  const isAuthorized = isTimelineViewerAuthorized(currentWalletAddress, authorizedWallets);
 
   useEffect(() => {
     if (!isAuthorized || initialEvents) return;
@@ -210,9 +202,7 @@ export default function DisputeHistoryTimeline({
 
   const actionConfig = pending ? DISPUTE_ACTIONS[pending.action] : null;
   const latestTimestamp =
-    events.length > 0
-      ? Math.max(...events.map((e) => new Date(e.timestamp).getTime()))
-      : null;
+    events.length > 0 ? Math.max(...events.map((e) => new Date(e.timestamp).getTime())) : null;
 
   return (
     <section
@@ -236,10 +226,7 @@ export default function DisputeHistoryTimeline({
       </header>
 
       {events.length === 0 ? (
-        <p
-          className="py-8 text-center text-sm text-gray-500"
-          data-testid="dispute-timeline-empty"
-        >
+        <p className="py-8 text-center text-sm text-gray-500" data-testid="dispute-timeline-empty">
           No history recorded for this dispute.
         </p>
       ) : (
@@ -250,8 +237,7 @@ export default function DisputeHistoryTimeline({
           >
             {events.map((event) => {
               const badge = event.status ? getStatusBadge(event.status) : null;
-              const actions =
-                onAction && event.status ? getAvailableActions(event.status) : [];
+              const actions = onAction && event.status ? getAvailableActions(event.status) : [];
               return (
                 <li
                   key={event.id}
@@ -270,23 +256,15 @@ export default function DisputeHistoryTimeline({
                           {badge.label}
                         </span>
                       )}
-                      <h4 className="truncate text-sm font-semibold text-white">
-                        {event.title}
-                      </h4>
+                      <h4 className="truncate text-sm font-semibold text-white">{event.title}</h4>
                     </div>
-                    <time
-                      dateTime={event.timestamp}
-                      className="font-mono text-xs text-gray-500"
-                    >
+                    <time dateTime={event.timestamp} className="font-mono text-xs text-gray-500">
                       {new Date(event.timestamp).toLocaleDateString()}
                     </time>
                   </div>
-                  <p className="mt-1 break-words text-xs text-gray-300">
-                    {event.description}
-                  </p>
+                  <p className="mt-1 break-words text-xs text-gray-300">{event.description}</p>
                   <p className="mt-1 text-[11px] uppercase tracking-wider text-gray-500">
-                    {event.actorRole} ·{" "}
-                    <span className="font-mono normal-case">{event.actor}</span>
+                    {event.actorRole} · <span className="font-mono normal-case">{event.actor}</span>
                   </p>
                   {actions.length > 0 && (
                     <div className="mt-3 flex gap-2">
@@ -307,10 +285,7 @@ export default function DisputeHistoryTimeline({
               );
             })}
           </ol>
-          <p
-            className="mt-4 text-xs text-gray-500"
-            data-testid="dispute-timeline-summary"
-          >
+          <p className="mt-4 text-xs text-gray-500" data-testid="dispute-timeline-summary">
             Showing {events.length} event{events.length !== 1 ? "s" : ""}
             {latestTimestamp !== null &&
               ` • latest ${new Date(latestTimestamp).toLocaleDateString()}`}
@@ -350,10 +325,7 @@ export default function DisputeHistoryTimeline({
           className="fixed inset-0 z-40 flex items-end justify-center bg-black/60 p-4 sm:items-center"
         >
           <div className="w-full max-w-md rounded-xl border border-gray-700 bg-gray-900 p-6">
-            <h3
-              id="dispute-timeline-confirm-title"
-              className="text-lg font-semibold text-white"
-            >
+            <h3 id="dispute-timeline-confirm-title" className="text-lg font-semibold text-white">
               {actionConfig.confirmTitle}
             </h3>
             <p className="mt-2 text-sm text-gray-300">{actionConfig.warning}</p>

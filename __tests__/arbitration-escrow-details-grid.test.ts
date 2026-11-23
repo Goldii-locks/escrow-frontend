@@ -14,9 +14,7 @@ describe("arbitration_escrow_details grid sizing constraints (#488)", () => {
     expect(getArbitrationViewport(320)).toBe("mobile");
     expect(getArbitrationViewport(ARBITRATION_TABLET_MIN_WIDTH)).toBe("tablet");
     expect(getArbitrationViewport(800)).toBe("tablet");
-    expect(getArbitrationViewport(ARBITRATION_DESKTOP_MIN_WIDTH)).toBe(
-      "desktop",
-    );
+    expect(getArbitrationViewport(ARBITRATION_DESKTOP_MIN_WIDTH)).toBe("desktop");
     expect(getArbitrationViewport(1440)).toBe("desktop");
     expect(getArbitrationViewport(NaN)).toBe("mobile");
   });

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Issue #45 – CSS micro-animations on create_job_form elements
  *
@@ -6,7 +7,7 @@
  */
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import CreateJob from "@/app/create/page";
+import CreateJob from "@/app/(app)/create/page";
 
 const mockPush = vi.fn();
 const mockUseWallet = vi.fn();

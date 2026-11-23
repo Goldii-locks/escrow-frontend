@@ -1,0 +1,19 @@
+{
+  "success": false,
+  "error": "ValidationError",
+  "message": "Invalid request parameters",
+  "details": [
+    {
+      "field": "contractId",
+      "message": "contractId must be a valid Stellar contract address (C...)"
+    },
+    {
+      "field": "signedXdr",
+      "message": "signedXdr must be a string"
+    }
+  ],
+  "fields": {
+    "contractId": "contractId must be a valid Stellar contract address (C...)",
+    "signedXdr": "signedXdr must be a string"
+  }
+}

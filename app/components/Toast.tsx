@@ -31,7 +31,8 @@ export default function Toast() {
         <div
           key={toast.id}
           className={`px-4 py-3 rounded-lg border shadow-lg animate-slide-in ${getToastStyles(toast.type)}`}
-          role="alert"
+          role={toast.type === "error" || toast.type === "warning" ? "alert" : "status"}
+          aria-live={toast.type === "error" || toast.type === "warning" ? "assertive" : "polite"}
           data-testid="toast-item"
           onMouseEnter={() => pauseToast(toast.id)}
           onMouseLeave={() => resumeToast(toast.id)}

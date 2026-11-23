@@ -58,7 +58,7 @@ describe("ToastContext identity and stack (#869)", () => {
     expect(first).toBeDefined();
     expect(second).toBeDefined();
     expect(first).not.toBe(second);
-    expect(screen.getAllByRole("alert")).toHaveLength(2);
+    expect(screen.getAllByTestId("toast-item")).toHaveLength(2);
 
     // Dismissing the first must leave the second untouched.
     const closeButtons = screen.getAllByRole("button", {
@@ -96,7 +96,7 @@ describe("ToastContext identity and stack (#869)", () => {
       }
     });
 
-    expect(screen.getAllByRole("alert")).toHaveLength(MAX_VISIBLE_TOASTS);
+    expect(screen.getAllByTestId("toast-item")).toHaveLength(MAX_VISIBLE_TOASTS);
     expect(ids()).toHaveLength(MAX_VISIBLE_TOASTS);
   });
 

@@ -42,9 +42,7 @@ export const CONTRACT_PAUSE_DESKTOP_MIN_WIDTH = 1024;
  * Non-finite or negative widths fall back to `"mobile"`: the narrowest layout
  * is the safe default, since it never overflows a wider screen.
  */
-export function classifyContractPauseViewport(
-  width: number,
-): ContractPauseViewport {
+export function classifyContractPauseViewport(width: number): ContractPauseViewport {
   if (typeof width !== "number" || !Number.isFinite(width) || width < 0) {
     return "mobile";
   }
@@ -82,7 +80,7 @@ export interface ContractPauseGridLayout {
  * control wrapping out of bounds on wide screens.
  */
 export function getContractPauseGridLayout(
-  viewport: ContractPauseViewport,
+  viewport: ContractPauseViewport
 ): ContractPauseGridLayout {
   switch (viewport) {
     case "desktop":
@@ -122,9 +120,7 @@ export function getContractPauseGridLayout(
  * Convenience wrapper so callers that already track a viewport width do not
  * have to classify it first.
  */
-export function getContractPauseGridLayoutForWidth(
-  width: number,
-): ContractPauseGridLayout {
+export function getContractPauseGridLayoutForWidth(width: number): ContractPauseGridLayout {
   return getContractPauseGridLayout(classifyContractPauseViewport(width));
 }
 
@@ -148,8 +144,7 @@ export const CONTRACT_PAUSE_GRID_CLASSES = {
     "sm:p-5 lg:p-6",
 
   /** Panel header row — title and description stack on narrow screens. */
-  header:
-    "mb-4 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4",
+  header: "mb-4 flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4",
 
   /** Panel title. */
   title: "text-sm font-semibold text-text-primary sm:text-base",
@@ -174,8 +169,7 @@ export const CONTRACT_PAUSE_GRID_CLASSES = {
   statusCell: "min-w-0 rounded-lg bg-surface-field px-3 py-2.5",
 
   /** Readout label. */
-  statusLabel:
-    "block text-[11px] font-medium uppercase tracking-wide text-text-secondary",
+  statusLabel: "block text-[11px] font-medium uppercase tracking-wide text-text-secondary",
 
   /** Readout value — wraps instead of overflowing the cell. */
   statusValue: "mt-1 block min-w-0 break-words text-sm text-text-primary",
@@ -199,8 +193,7 @@ export const CONTRACT_PAUSE_GRID_CLASSES = {
    * target; `sm:w-auto` hands it back to the content so it cannot be stretched
    * past the capped panel on wider screens.
    */
-  toggle:
-    "w-full min-h-[44px] sm:w-auto sm:min-w-[180px] sm:px-5",
+  toggle: "w-full min-h-[44px] sm:w-auto sm:min-w-[180px] sm:px-5",
 
   /** Loading placeholder block shown while the freeze state resolves. */
   loadingCell: "h-14 animate-pulse rounded-lg bg-surface-field",
@@ -267,10 +260,7 @@ export const CONTRACT_PAUSE_BADGES: Record<ContractPauseStatus, ContractPauseBad
 };
 
 /** Returns the badge that matches the current freeze state. */
-export function getContractPauseBadge(
-  paused: boolean,
-  isPending: boolean,
-): ContractPauseBadge {
+export function getContractPauseBadge(paused: boolean, isPending: boolean): ContractPauseBadge {
   if (isPending) return CONTRACT_PAUSE_BADGES.pending;
   return paused ? CONTRACT_PAUSE_BADGES.frozen : CONTRACT_PAUSE_BADGES.active;
 }
@@ -294,21 +284,6 @@ export interface ContractPauseState {
   reason: string;
 }
 
-/**
- * Mock freeze state used as the fallback for backend queries.
- *
- * Frozen rather than active: it is the state an operator needs to be able to
- * read at a glance, and it is the one worth asserting in tests, since a
- * mislabelled toggle is the failure this panel exists to prevent.
- */
-export const MOCK_CONTRACT_PAUSE_STATE: ContractPauseState = {
-  contractId: "CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH",
-  paused: true,
-  updatedAt: "2026-09-24T18:42:00Z",
-  updatedBy: "GADMIN3XQ7LKZP4V2M6YB9WDHRTC5FJN8AUE2HSVG6KCDY",
-  reason: "Payout indexer reports duplicate release events for milestone 3.",
-};
-
 /** One entry in the freeze transition log. */
 export interface ContractPauseTransition {
   id: string;
@@ -318,38 +293,8 @@ export interface ContractPauseTransition {
   reason: string;
 }
 
-/**
- * Mock transition log backing the freeze history readout, so the panel renders
- * a real history instead of an empty shell when the backend is unreachable.
- */
-export const MOCK_CONTRACT_PAUSE_TRANSITIONS: ContractPauseTransition[] = [
-  {
-    id: "pause-002",
-    at: "2026-09-24T18:42:00Z",
-    by: "GADMIN3XQ7LKZP4V2M6YB9WDHRTC5FJN8AUE2HSVG6KCDY",
-    to: "frozen",
-    reason: "Payout indexer reports duplicate release events for milestone 3.",
-  },
-  {
-    id: "pause-001",
-    at: "2026-09-21T07:15:00Z",
-    by: "GADMIN3XQ7LKZP4V2M6YB9WDHRTC5FJN8AUE2HSVG6KCDY",
-    to: "frozen",
-    reason: "Scheduled upgrade of the dispute escrow entrypoint.",
-  },
-  {
-    id: "pause-000",
-    at: "2026-09-18T11:03:00Z",
-    by: "GADMIN3XQ7LKZP4V2M6YB9WDHRTC5FJN8AUE2HSVG6KCDY",
-    to: "active",
-    reason: "Freeze lifted after the entrypoint upgrade completed.",
-  },
-];
-
 /** Narrows an unknown value to a `ContractPauseState`. */
-export function isContractPauseState(
-  value: unknown,
-): value is ContractPauseState {
+export function isContractPauseState(value: unknown): value is ContractPauseState {
   if (typeof value !== "object" || value === null) return false;
   const candidate = value as Record<string, unknown>;
   return (
@@ -398,9 +343,15 @@ export function getContractPauseReadouts(state: ContractPauseState): {
  * Queries the emergency freeze state for a contract.
  *
  * Pulls from the backend when an endpoint is reachable and the payload carries
- * every field the panel reads; otherwise falls back to
- * `MOCK_CONTRACT_PAUSE_STATE` so the toggle still renders in a test
- * environment with no network.
+ * every field the panel reads; otherwise returns `null` so the caller can
+ * render an explicit error state.
+ *
+ * #629: the previous implementation fell back to `MOCK_CONTRACT_PAUSE_STATE`
+ * on any failure, which meant an admin in production would see a fabricated
+ * "live" or "frozen" status, a fabricated transition log, and a fabricated
+ * contract ID whenever the backend was unreachable. That is removed: the
+ * mock is now a test fixture only, and the component renders an error state
+ * and disables the toggle when the read fails.
  *
  * Defaults to `BACKEND_URL` + the configured `CONTRACT_ID` so the panel in
  * production hits the same backend all other queries use.
@@ -408,8 +359,8 @@ export function getContractPauseReadouts(state: ContractPauseState): {
 export async function fetchContractPauseState(options?: {
   apiUrl?: string;
   signal?: AbortSignal;
-}): Promise<ContractPauseState> {
-  const contractId = CONTRACT_ID || MOCK_CONTRACT_PAUSE_STATE.contractId;
+}): Promise<ContractPauseState | null> {
+  const contractId = CONTRACT_ID || "";
   const url =
     options?.apiUrl ??
     `${BACKEND_URL}/api/jobs/query?contractId=${encodeURIComponent(contractId)}&method=is_paused`;
@@ -421,25 +372,24 @@ export async function fetchContractPauseState(options?: {
       // The backend may return the snapshot bare or wrapped in a success
       // envelope; accept either, but only when the payload is complete.
       const payload =
-        typeof data === "object" &&
-        data !== null &&
-        "success" in data &&
-        "data" in data
+        typeof data === "object" && data !== null && "success" in data && "data" in data
           ? (data as { data: unknown }).data
           : data;
 
       if (isContractPauseState(payload)) {
         return payload;
       }
+      console.warn(`${LOG_PREFIX} pause state response missing fields, returning null`);
+    } else {
       console.warn(
-        `${LOG_PREFIX} pause state response missing fields, using mock state`,
+        `${LOG_PREFIX} pause state request failed with status ${res.status}, returning null`
       );
     }
-  } catch {
-    // Network or server error - fall through to the mock state.
+  } catch (err) {
+    console.warn(`${LOG_PREFIX} pause state request threw, returning null`, err);
   }
 
-  return { ...MOCK_CONTRACT_PAUSE_STATE };
+  return null;
 }
 
 // =============================================================

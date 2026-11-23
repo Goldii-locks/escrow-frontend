@@ -14,7 +14,8 @@ export interface ContractPauseSkeletonBlock {
 
 export const CONTRACT_PAUSE_SKELETON_LABEL = "Loading contract pause status";
 
-export const CONTRACT_PAUSE_SKELETON_BASE_CLASS = "animate-pulse rounded bg-gray-200 dark:bg-gray-700";
+export const CONTRACT_PAUSE_SKELETON_BASE_CLASS =
+  "animate-pulse rounded bg-gray-200 dark:bg-gray-700";
 
 /** Placeholder frames mirroring the real layout: title, status, toggle, meta rows. */
 export const CONTRACT_PAUSE_SKELETON_BLOCKS: readonly ContractPauseSkeletonBlock[] = [

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { useState } from "react";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -32,19 +33,14 @@ vi.mock("@creit.tech/stellar-wallets-kit/modules/utils", () => ({
   defaultModules: vi.fn(() => []),
 }));
 
-vi.mock("@/app/lib/freighter_connector", () => ({
+vi.mock("@/app/lib/wallet_session", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/app/lib/wallet_session")>()),
   freighterActiveAddress: {
     getActiveAddress: vi.fn(() => null),
     setActiveAddress: vi.fn(),
     clear: vi.fn(),
   },
   verifyAndRehydrateFreighterAddress: vi.fn(async () => null),
-}));
-
-vi.mock("@/app/lib/ledger_usb_bridge", () => ({
-  ledgerActiveAddresses: {
-    clear: vi.fn(),
-  },
 }));
 
 function toBase64(text: string): string {

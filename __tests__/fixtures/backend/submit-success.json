@@ -1,0 +1,11 @@
+{
+  "success": true,
+  "data": {
+    "status": "SUCCESS",
+    "hash": "5f6d3b2c1a0e9d8c7b6a5948372615049382716f5e4d3c2b1a09f8e7d6c5b4a3",
+    "latestLedger": 2215483,
+    "oldestLedger": 2215483,
+    "applicationOrder": 3,
+    "feeBump": false
+  }
+}

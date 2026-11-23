@@ -5,7 +5,7 @@
  * network badge and the explorer link self-correct when NEXT_PUBLIC_SOROBAN_
  * NETWORK_PASSPHRASE and NEXT_PUBLIC_CONTRACT_ID are rebuilt against mainnet.
  */
-import { Networks } from "@stellar/stellar-sdk";
+import { NETWORK_PASSPHRASES as Networks, NETWORK_PASSPHRASE } from "./network_config";
 
 export type NetworkKind = "testnet" | "public" | "futurenet" | "unknown";
 
@@ -50,16 +50,70 @@ export function networkProseName(passphrase: string): string {
   }
 }
 
+/** Network name for messages, as in "Mainnet" or "a custom network". */
+function networkDisplayName(passphrase: string): string {
+  const name = networkProseName(passphrase);
+  return name.startsWith("a ") ? name : name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+/** The single user-facing wallet network mismatch message. */
+export function buildNetworkMismatchMessage(
+  walletPassphrase: string,
+  walletName = "wallet",
+  appPassphrase: string = NETWORK_PASSPHRASE
+): string {
+  return `Network mismatch: your ${walletName} is on ${networkDisplayName(walletPassphrase)} but this app expects Stellar ${networkDisplayName(appPassphrase)}. Please switch networks.`;
+}
+
+/**
+ * Checks the wallet's passphrase against the app's NETWORK_PASSPHRASE.
+ * Returns null when they match, otherwise the mismatch message.
+ */
+export function assertWalletNetwork(
+  walletPassphrase: string,
+  walletName?: string,
+  appPassphrase: string = NETWORK_PASSPHRASE
+): string | null {
+  return walletPassphrase === appPassphrase
+    ? null
+    : buildNetworkMismatchMessage(walletPassphrase, walletName, appPassphrase);
+}
+
+/**
+ * Stellar Expert transaction URL, or null when there is nothing honest to link to.
+ *
+ * Mainnet's path segment is "public", not "mainnet". Stellar Expert has no
+ * futurenet explorer, so that case returns null rather than a link that 404s.
+ */
+export function explorerTxUrl(txHash: string, passphrase: string): string | null {
+  if (!txHash) return null;
+  const kind = networkKind(passphrase);
+  if (kind === "public") {
+    return `https://stellar.expert/explorer/public/tx/${txHash}`;
+  }
+  if (kind === "testnet") {
+    return `https://stellar.expert/explorer/testnet/tx/${txHash}`;
+  }
+  return null;
+}
+
 /**
  * Stellar Expert contract URL, or null when there is nothing honest to link to.
  *
  * Mainnet's path segment is "public", not "mainnet". Stellar Expert has no
  * futurenet explorer, so that case returns null rather than a link that 404s.
  */
-export function stellarExpertContractUrl(
-  contractId: string,
-  passphrase: string,
-): string | null {
+export function explorerContractUrl(contractId: string, passphrase: string): string | null {
+  return stellarExpertContractUrl(contractId, passphrase);
+}
+
+/**
+ * Stellar Expert contract URL, or null when there is nothing honest to link to.
+ *
+ * Mainnet's path segment is "public", not "mainnet". Stellar Expert has no
+ * futurenet explorer, so that case returns null rather than a link that 404s.
+ */
+export function stellarExpertContractUrl(contractId: string, passphrase: string): string | null {
   if (!contractId) return null;
   const kind = networkKind(passphrase);
   if (kind === "public") {

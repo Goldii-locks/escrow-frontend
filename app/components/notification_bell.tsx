@@ -70,7 +70,8 @@ export default function NotificationBell({
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const badgeCount = computeBadgeCount(notifications, fields);
-  const errorCount = notifications.filter((n) => n.type === "error").length + fields.filter((f) => f.error).length;
+  const errorCount =
+    notifications.filter((n) => n.type === "error").length + fields.filter((f) => f.error).length;
 
   const triggerStates =
     "bg-gray-800 text-gray-200 text-base w-8 h-8 sm:text-lg sm:w-10 sm:h-10 rounded-lg" +
@@ -137,9 +138,7 @@ export default function NotificationBell({
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-text-secondary">
-                        {field.label}
-                      </span>
+                      <span className="text-xs font-medium text-text-secondary">{field.label}</span>
                       <span
                         role="status"
                         className={`text-xs font-semibold ${
@@ -179,12 +178,9 @@ export default function NotificationBell({
               >
                 🛎️
               </span>
-              <p className="text-sm font-medium text-text-primary">
-                You&apos;re all caught up.
-              </p>
+              <p className="text-sm font-medium text-text-primary">You&apos;re all caught up.</p>
               <p className="max-w-[16rem] text-xs text-text-muted">
-                No alerts right now. We&apos;ll surface anything that needs
-                your attention here.
+                No alerts right now. We&apos;ll surface anything that needs your attention here.
               </p>
             </div>
           )}
@@ -208,9 +204,7 @@ export default function NotificationBell({
                 <span aria-hidden="true">{TYPE_ICON[notice.type]}</span>
                 <div>
                   <p className="text-sm font-medium">{notice.title}</p>
-                  {notice.message && (
-                    <p className="text-xs mt-0.5">{notice.message}</p>
-                  )}
+                  {notice.message && <p className="text-xs mt-0.5">{notice.message}</p>}
                 </div>
               </div>
             </div>

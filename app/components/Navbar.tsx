@@ -5,19 +5,14 @@ import { useArbiterDisputes } from "@/app/hooks/useArbiterDisputes";
 import { SUPPORTED_WALLETS } from "@/app/context/WalletContext";
 import Link from "next/link";
 import NotificationBell from "./NotificationBell";
+import WalletConnectButton from "./WalletConnectButton";
+import LandingLogo from "./LandingLogo";
 
 import WalletBadge, { formatAddress } from "@/app/components/WalletBadge";
 
 export default function Navbar() {
-  const {
-    address,
-    connect,
-    disconnect,
-    isConnecting,
-    networkMismatchMessage,
-    selectedWalletId,
-    setSelectedWalletId,
-  } = useWallet();
+  const { address, disconnect, isConnecting, networkMismatchMessage, selectedWalletId } =
+    useWallet();
   const { isAdminUser } = useIsAdmin(address);
   // Disputes awaiting this wallet as arbiter, for the Arbitration badge (#881).
   const { entries: arbiterDisputes } = useArbiterDisputes(address);
@@ -40,8 +35,8 @@ export default function Navbar() {
       )}
       {/*
        * `relative z-10` establishes a stacking context so the nav sits above
-       * non-overlay page content on mobile. Full-screen overlays (LedgerLoaderOverlay,
-       * WalletLoaderOverlay) intentionally use z-50 and will still cover the nav
+       * non-overlay page content on mobile. The full-screen WalletLoaderOverlay
+       * intentionally uses z-50 and will still cover the nav
        * correctly during wallet operations.
        */}
       <nav
@@ -50,10 +45,11 @@ export default function Navbar() {
       >
         <Link
           href="/"
-          aria-label="Escrow home"
-          className={`text-xl font-bold text-text-primary tracking-tight shrink-0 ${focusRing}`}
+          aria-label="Milestone home"
+          className={`text-xl font-bold text-text-primary tracking-tight shrink-0 inline-flex items-center gap-2 ${focusRing}`}
         >
-          <span aria-hidden="true">🔐</span> Escrow
+          <LandingLogo size={24} />
+          <span>Milestone</span>
         </Link>
         {/*
          * `flex-wrap` allows nav items to wrap to a second line on narrow
@@ -128,32 +124,7 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <label htmlFor="wallet-provider" className="sr-only">
-                Wallet provider
-              </label>
-              <select
-                id="wallet-provider"
-                value={selectedWalletId}
-                onChange={(event) =>
-                  setSelectedWalletId(event.target.value as (typeof SUPPORTED_WALLETS)[number]["id"])
-                }
-                aria-label="Wallet provider"
-                disabled={isConnecting}
-                className="bg-surface-field border border-border-subtle text-sm text-text-secondary rounded-lg px-3 py-2"
-              >
-                {SUPPORTED_WALLETS.map((wallet) => (
-                  <option key={wallet.id} value={wallet.id}>
-                    {wallet.label}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={connect}
-                disabled={isConnecting}
-                className={`bg-accent hover:bg-accent-hover disabled:opacity-50 text-text-primary text-sm font-medium px-4 py-2 rounded-lg transition ${focusRing}`}
-              >
-                {isConnecting ? "Connecting..." : "Connect Wallet"}
-              </button>
+              <WalletConnectButton />
             </>
           )}
         </div>

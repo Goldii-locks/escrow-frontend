@@ -6,9 +6,7 @@
 const CODE_TAG_PATTERN = /<[^>]*>?|[<>]|javascript:|data:\s*text\/html/i;
 
 /** Returns true if string contains HTML/code tags or script injection patterns. */
-export function arbitrationContainsCodeTags(
-  value: string | null | undefined,
-): boolean {
+export function arbitrationContainsCodeTags(value: string | null | undefined): boolean {
   if (typeof value !== "string") return false;
   return CODE_TAG_PATTERN.test(value);
 }
@@ -18,9 +16,7 @@ export function arbitrationContainsCodeTags(
  * If input contains code tags, ignores/rejects the dangerous input and returns "".
  * Otherwise strips control characters and trims.
  */
-export function sanitizeArbitrationReason(
-  raw: string | null | undefined,
-): string {
+export function sanitizeArbitrationReason(raw: string | null | undefined): string {
   if (!raw || typeof raw !== "string") return "";
   if (arbitrationContainsCodeTags(raw)) {
     // Assert form ignores input containing code tags (#482)
@@ -33,9 +29,7 @@ export function sanitizeArbitrationReason(
  * Sanitize arbitration notes/evidence comments.
  * If input contains code tags, ignores/rejects it and returns "".
  */
-export function sanitizeArbitrationComment(
-  raw: string | null | undefined,
-): string {
+export function sanitizeArbitrationComment(raw: string | null | undefined): string {
   if (!raw || typeof raw !== "string") return "";
   if (arbitrationContainsCodeTags(raw)) {
     return "";
@@ -47,9 +41,7 @@ export function sanitizeArbitrationComment(
  * Sanitize arbitration monetary amount input.
  * If input contains code tags, ignores/rejects it and returns "".
  */
-export function sanitizeArbitrationAmount(
-  raw: string | null | undefined,
-): string {
+export function sanitizeArbitrationAmount(raw: string | null | undefined): string {
   if (!raw || typeof raw !== "string") return "";
   if (arbitrationContainsCodeTags(raw)) {
     return "";

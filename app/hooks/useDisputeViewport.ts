@@ -37,11 +37,7 @@ function getServerViewportSnapshot(): DisputeViewport {
  * loop.
  */
 export function useDisputeViewport(): DisputeViewport {
-  return useSyncExternalStore(
-    subscribeToViewport,
-    getViewportSnapshot,
-    getServerViewportSnapshot,
-  );
+  return useSyncExternalStore(subscribeToViewport, getViewportSnapshot, getServerViewportSnapshot);
 }
 
 export default useDisputeViewport;

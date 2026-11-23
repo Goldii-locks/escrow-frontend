@@ -6,13 +6,7 @@ import {
 
 describe("arbitration_escrow_details state badges (#484)", () => {
   it("returns distinct badges for each active state", () => {
-    const states = [
-      "locked",
-      "under_review",
-      "resolved",
-      "pending",
-      "appealed",
-    ] as const;
+    const states = ["locked", "under_review", "resolved", "pending", "appealed"] as const;
     const badges = states.map((s) => getArbitrationBadge(s));
 
     expect(new Set(badges.map((b) => b.className)).size).toBe(5);
@@ -35,9 +29,9 @@ describe("arbitration_escrow_details state badges (#484)", () => {
 
   it("derives badge state under varying conditions", () => {
     expect(deriveArbitrationBadgeState({ isLocked: true })).toBe("locked");
-    expect(
-      deriveArbitrationBadgeState({ isLocked: true, isUnderReview: true }),
-    ).toBe("under_review");
+    expect(deriveArbitrationBadgeState({ isLocked: true, isUnderReview: true })).toBe(
+      "under_review"
+    );
     expect(deriveArbitrationBadgeState({ isResolved: true })).toBe("resolved");
     expect(deriveArbitrationBadgeState({ isAppealed: true })).toBe("appealed");
     expect(deriveArbitrationBadgeState({})).toBe("pending");

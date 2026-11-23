@@ -1,0 +1,14 @@
+{
+  "success": false,
+  "error": "ValidationError",
+  "message": "Invalid request parameters",
+  "details": [
+    {
+      "field": "signedXdr",
+      "message": "signedXdr must be a string"
+    }
+  ],
+  "fields": {
+    "signedXdr": "signedXdr must be a string"
+  }
+}

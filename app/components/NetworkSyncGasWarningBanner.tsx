@@ -16,10 +16,7 @@ interface Props {
  *
  * Renders nothing when `simulation` is null or when no warning applies.
  */
-export default function NetworkSyncGasWarningBanner({
-  simulation,
-  className = "",
-}: Props) {
+export default function NetworkSyncGasWarningBanner({ simulation, className = "" }: Props) {
   if (!simulation) return null;
 
   const state = checkSimulationFeeWarning(simulation);

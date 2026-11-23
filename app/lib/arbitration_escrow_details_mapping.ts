@@ -23,8 +23,7 @@ export const MOCK_ARBITRATION_DATASET: unknown[] = [
     client_address: "GCLIENT7HQ2WKM4XPL6TFV3ZB9DCNR8YASEK5",
     freelancer_address: "GFREELANCER3NZ8WQ6LK2VH5CJB0DTXR4MASEK9",
     arbiter_address: "GARBITER5PD3XCW8QL0NR6ZTKM2VBHJF4SASEK2",
-    reason:
-      "Freelancer marked the milestone delivered; client disputes acceptance.",
+    reason: "Freelancer marked the milestone delivered; client disputes acceptance.",
   },
   {
     escrow_id: "ESC-000000000000000000000000000000000000000000000088",
@@ -41,17 +40,11 @@ export const MOCK_ARBITRATION_DATASET: unknown[] = [
 ];
 
 function str(v: unknown): string {
-  return typeof v === "string"
-    ? v.trim()
-    : typeof v === "number"
-      ? String(v)
-      : "";
+  return typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "";
 }
 
 /** Map a raw backend response record (snake_case or camelCase) to ArbitrationEscrowDetailsRecord */
-export function mapArbitrationRecord(
-  raw: unknown,
-): ArbitrationEscrowDetailsRecord | null {
+export function mapArbitrationRecord(raw: unknown): ArbitrationEscrowDetailsRecord | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
 
@@ -59,24 +52,13 @@ export function mapArbitrationRecord(
   const disputeId = str(r.dispute_id ?? r.disputeId);
   if (!escrowId || !disputeId) return null;
 
-  const validStatuses: ArbitrationEscrowStatus[] = [
-    "locked",
-    "under_review",
-    "resolved",
-  ];
-  const rawStatus = str(r.status)
-    .toLowerCase()
-    .replace(/[\s-]/g, "_") as ArbitrationEscrowStatus;
-  const status: ArbitrationEscrowStatus = validStatuses.includes(rawStatus)
-    ? rawStatus
-    : "locked";
+  const validStatuses: ArbitrationEscrowStatus[] = ["locked", "under_review", "resolved"];
+  const rawStatus = str(r.status).toLowerCase().replace(/[\s-]/g, "_") as ArbitrationEscrowStatus;
+  const status: ArbitrationEscrowStatus = validStatuses.includes(rawStatus) ? rawStatus : "locked";
 
-  const rawArbiter =
-    r.arbiter_address !== undefined ? r.arbiter_address : r.arbiterAddress;
+  const rawArbiter = r.arbiter_address !== undefined ? r.arbiter_address : r.arbiterAddress;
   const arbiterAddress =
-    typeof rawArbiter === "string" && rawArbiter.trim()
-      ? rawArbiter.trim()
-      : null;
+    typeof rawArbiter === "string" && rawArbiter.trim() ? rawArbiter.trim() : null;
 
   return {
     escrowId,
@@ -93,14 +75,10 @@ export function mapArbitrationRecord(
 }
 
 /** Map a backend payload (array or wrapped object) to an array of valid records. */
-export function mapArbitrationPayload(
-  payload: unknown,
-): ArbitrationEscrowDetailsRecord[] {
+export function mapArbitrationPayload(payload: unknown): ArbitrationEscrowDetailsRecord[] {
   const list = Array.isArray(payload)
     ? payload
-    : payload &&
-        typeof payload === "object" &&
-        Array.isArray((payload as { data?: unknown }).data)
+    : payload && typeof payload === "object" && Array.isArray((payload as { data?: unknown }).data)
       ? (payload as { data: unknown[] }).data
       : payload &&
           typeof payload === "object" &&
@@ -115,10 +93,9 @@ export function mapArbitrationPayload(
 
 /** Fetch arbitration records from backend API. Throws on HTTP error. */
 export async function fetchArbitrationDataset(
-  url = ARBITRATION_ESCROW_ENDPOINT,
+  url = ARBITRATION_ESCROW_ENDPOINT
 ): Promise<ArbitrationEscrowDetailsRecord[]> {
   const res = await fetch(url);
-  if (!res.ok)
-    throw new Error(`Failed to load arbitration details (${res.status})`);
+  if (!res.ok) throw new Error(`Failed to load arbitration details (${res.status})`);
   return mapArbitrationPayload(await res.json());
 }

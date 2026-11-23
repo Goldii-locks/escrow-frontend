@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Issue #276 – Design empty list display views for loading_spinner_skeleton
  *
@@ -11,9 +12,7 @@ describe("EmptyState", () => {
   it("renders the provided title and description", () => {
     render(<EmptyState title="Nothing here" description="Try again later." />);
     expect(screen.getByTestId("empty-state-title")).toHaveTextContent("Nothing here");
-    expect(screen.getByTestId("empty-state-description")).toHaveTextContent(
-      "Try again later."
-    );
+    expect(screen.getByTestId("empty-state-description")).toHaveTextContent("Try again later.");
   });
 
   it("falls back to a default icon when none is supplied", () => {

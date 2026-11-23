@@ -92,13 +92,9 @@ export default function DisputeRaiseModal({
   const milestoneNumber = milestoneIndex == null ? null : milestoneIndex + 1;
 
   const heading =
-    milestoneNumber == null
-      ? "Raise a Dispute"
-      : `Raise Dispute - Milestone ${milestoneNumber}`;
+    milestoneNumber == null ? "Raise a Dispute" : `Raise Dispute - Milestone ${milestoneNumber}`;
   const dialogLabel =
-    milestoneNumber == null
-      ? "Raise a dispute"
-      : `Raise dispute for Milestone ${milestoneNumber}`;
+    milestoneNumber == null ? "Raise a dispute" : `Raise dispute for Milestone ${milestoneNumber}`;
 
   const dialogRef = useModalFocus<HTMLDivElement>({
     isOpen,
@@ -120,15 +116,11 @@ export default function DisputeRaiseModal({
       return;
     }
     if (trimmed.length < DISPUTE_REASON_MIN_LENGTH) {
-      setFieldError(
-        `Reason must be at least ${DISPUTE_REASON_MIN_LENGTH} characters.`,
-      );
+      setFieldError(`Reason must be at least ${DISPUTE_REASON_MIN_LENGTH} characters.`);
       return;
     }
     if (trimmed.length > DISPUTE_REASON_MAX_LENGTH) {
-      setFieldError(
-        `Reason must not exceed ${DISPUTE_REASON_MAX_LENGTH} characters.`,
-      );
+      setFieldError(`Reason must not exceed ${DISPUTE_REASON_MAX_LENGTH} characters.`);
       return;
     }
 
@@ -139,15 +131,11 @@ export default function DisputeRaiseModal({
       const pending = onSubmit?.(trimmed);
       if (pending && typeof (pending as Promise<void>).catch === "function") {
         (pending as Promise<void>).catch((err: unknown) => {
-          setSubmitError(
-            err instanceof Error ? err.message : "Failed to submit dispute.",
-          );
+          setSubmitError(err instanceof Error ? err.message : "Failed to submit dispute.");
         });
       }
     } catch (err) {
-      setSubmitError(
-        err instanceof Error ? err.message : "Failed to submit dispute.",
-      );
+      setSubmitError(err instanceof Error ? err.message : "Failed to submit dispute.");
     }
 
     onConfirm?.(trimmed);
@@ -173,10 +161,7 @@ export default function DisputeRaiseModal({
       >
         <div className={DISPUTE_MODAL_CLASSES.overlayWrapper}>
           <div className={DISPUTE_MODAL_CLASSES.header}>
-            <h2
-              data-testid="dispute-raise-modal-title"
-              className={DISPUTE_MODAL_CLASSES.title}
-            >
+            <h2 data-testid="dispute-raise-modal-title" className={DISPUTE_MODAL_CLASSES.title}>
               {heading}
             </h2>
             <button
@@ -192,12 +177,9 @@ export default function DisputeRaiseModal({
           </div>
 
           <div className={DISPUTE_MODAL_CLASSES.scrollableContent}>
-            <p
-              data-testid="dispute-raise-modal-warning"
-              className="mb-4 text-sm text-secondary"
-            >
-              Raising a dispute pauses the escrow and hands the decision to the
-              arbiter. This cannot be undone from here.
+            <p data-testid="dispute-raise-modal-warning" className="mb-4 text-sm text-secondary">
+              Raising a dispute pauses the escrow and hands the decision to the arbiter. This cannot
+              be undone from here.
             </p>
 
             <dl
@@ -215,32 +197,22 @@ export default function DisputeRaiseModal({
               <div className={DISPUTE_MODAL_CLASSES.summaryCell}>
                 <dt className="text-muted">Milestone</dt>
                 <dd data-testid="dispute-raise-modal-milestone">
-                  {milestoneNumber == null
-                    ? "Whole job"
-                    : `#${milestoneNumber}`}
+                  {milestoneNumber == null ? "Whole job" : `#${milestoneNumber}`}
                 </dd>
               </div>
               <div className={DISPUTE_MODAL_CLASSES.summaryCell}>
                 <dt className="text-muted">Amount</dt>
-                <dd data-testid="dispute-raise-modal-amount">
-                  {amount ?? "—"}
-                </dd>
+                <dd data-testid="dispute-raise-modal-amount">{amount ?? "—"}</dd>
               </div>
               <div className={DISPUTE_MODAL_CLASSES.summaryCell}>
                 <dt className="text-muted">Counterparty</dt>
-                <dd
-                  data-testid="dispute-raise-modal-counterparty"
-                  className="break-all"
-                >
+                <dd data-testid="dispute-raise-modal-counterparty" className="break-all">
                   {counterparty ?? "—"}
                 </dd>
               </div>
             </dl>
 
-            <label
-              htmlFor={REASON_FIELD_ID}
-              className="mb-1 block text-sm text-secondary"
-            >
+            <label htmlFor={REASON_FIELD_ID} className="mb-1 block text-sm text-secondary">
               Dispute reason
             </label>
             <textarea
@@ -286,10 +258,7 @@ export default function DisputeRaiseModal({
             )}
 
             {disputeState && disputeState.phase !== "idle" && (
-              <div
-                className="mt-4"
-                data-testid="dispute-raise-modal-status-banner"
-              >
+              <div className="mt-4" data-testid="dispute-raise-modal-status-banner">
                 <TxStatusBanner
                   state={disputeState}
                   successMessage="Dispute raised successfully. The arbiter has been notified."
