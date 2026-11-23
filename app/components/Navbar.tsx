@@ -1,6 +1,7 @@
 "use client";
 import { useWallet } from "@/app/context/WalletContext";
 import { useIsAdmin } from "@/app/hooks/useIsAdmin";
+import { useArbiterDisputes } from "@/app/hooks/useArbiterDisputes";
 import { SUPPORTED_WALLETS } from "@/app/context/WalletContext";
 import Link from "next/link";
 import NotificationBell from "./NotificationBell";
@@ -18,6 +19,9 @@ export default function Navbar() {
     setSelectedWalletId,
   } = useWallet();
   const { isAdminUser } = useIsAdmin(address);
+  // Disputes awaiting this wallet as arbiter, for the Arbitration badge (#881).
+  const { entries: arbiterDisputes } = useArbiterDisputes(address);
+  const disputeCount = arbiterDisputes.length;
 
   const focusRing =
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 rounded";
@@ -66,6 +70,26 @@ export default function Navbar() {
                 className={`text-sm text-text-secondary hover:text-text-primary transition ${focusRing}`}
               >
                 Dashboard
+              </Link>
+              <Link
+                href="/arbitrate"
+                className={`relative text-sm text-text-secondary hover:text-text-primary transition ${focusRing}`}
+                aria-label={
+                  disputeCount > 0
+                    ? `Arbitration (${disputeCount} dispute${disputeCount === 1 ? "" : "s"} awaiting decision)`
+                    : "Arbitration"
+                }
+              >
+                Arbitration
+                {disputeCount > 0 && (
+                  <span
+                    data-testid="arbitration-nav-badge"
+                    aria-hidden="true"
+                    className="absolute -top-2 -right-3 flex items-center justify-center min-w-[1.1rem] h-4 px-1 rounded-full bg-danger text-white text-[10px] font-bold font-mono"
+                  >
+                    {disputeCount > 99 ? "99+" : disputeCount}
+                  </span>
+                )}
               </Link>
               <Link
                 href="/create"

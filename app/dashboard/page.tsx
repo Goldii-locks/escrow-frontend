@@ -159,6 +159,27 @@ export default function Dashboard() {
   const { getState, isPending, setPhase, setError: setActionError, setTxHash } =
     useActionStates();
 
+  // Deep link from the arbitration queue (#881): ?contractId=<job id>
+  // pre-fills the search so the disputed job is listed and expanded.
+  // Read from window.location instead of useSearchParams so the page
+  // stays compatible with `output: "export"`.
+  useEffect(() => {
+    let active = true;
+
+    Promise.resolve().then(() => {
+      if (!active) return;
+      const param = new URLSearchParams(window.location.search).get("contractId");
+      if (param) {
+        setSearchInput(param);
+        setSearchQuery(param);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const totalPages = Math.max(1, Math.ceil((total || jobs.length || 1) / limit));
 
   const fetchJobs = useCallback(async () => {
