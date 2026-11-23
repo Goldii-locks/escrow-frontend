@@ -5,7 +5,6 @@
  */
 
 import type { ToastType } from "@/app/context/ToastContext";
-import { getAddress as getFreighterAddress, isConnected as isFreighterConnected } from "@stellar/freighter-api";
 import {
   applyMultiSigSignature,
   createMultiSigSplit,
@@ -404,17 +403,23 @@ export const freighterActiveAddress = new FreighterActiveAddressStore();
  * visible for the full duration of the live API round-trip.
  */
 export async function verifyAndRehydrateFreighterAddress(
-  getAddressFn: () => Promise<unknown> = getFreighterAddress,
-  isConnectedFn: () => Promise<unknown> = isFreighterConnected
+  getAddressFn?: () => Promise<unknown>,
+  isConnectedFn?: () => Promise<unknown>
 ): Promise<string | null> {
   const persisted = freighterActiveAddress.getActiveAddress();
   if (!persisted) {
     return null;
   }
 
+  // The Freighter bridge speaks postMessage and is only needed when a saved
+  // session is actually rehydrated. Keep it out of the provider's first load.
+  const freighterApi = await import("@stellar/freighter-api");
+  const addressFn = getAddressFn ?? freighterApi.getAddress;
+  const connectedFn = isConnectedFn ?? freighterApi.isConnected;
+
   return withWalletLoader(async () => {
     try {
-      const conn = await isConnectedFn();
+      const conn = await connectedFn();
       const isConnected =
         typeof conn === "boolean"
           ? conn
@@ -427,7 +432,7 @@ export async function verifyAndRehydrateFreighterAddress(
         return null;
       }
 
-      const liveResult = await getAddressFn();
+      const liveResult = await addressFn();
       const liveAddress =
         typeof liveResult === "string"
           ? liveResult

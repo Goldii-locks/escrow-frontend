@@ -5,17 +5,17 @@
  * network badge and the explorer link self-correct when NEXT_PUBLIC_SOROBAN_
  * NETWORK_PASSPHRASE and NEXT_PUBLIC_CONTRACT_ID are rebuilt against mainnet.
  */
-import { Networks } from "@stellar/stellar-sdk";
+import { STELLAR_NETWORK_PASSPHRASES } from "@/app/lib/network_config";
 
 export type NetworkKind = "testnet" | "public" | "futurenet" | "unknown";
 
 export function networkKind(passphrase: string): NetworkKind {
   switch (passphrase) {
-    case Networks.TESTNET:
+    case STELLAR_NETWORK_PASSPHRASES.TESTNET:
       return "testnet";
-    case Networks.PUBLIC:
+    case STELLAR_NETWORK_PASSPHRASES.PUBLIC:
       return "public";
-    case Networks.FUTURENET:
+    case STELLAR_NETWORK_PASSPHRASES.FUTURENET:
       return "futurenet";
     default:
       return "unknown";

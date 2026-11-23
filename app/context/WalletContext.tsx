@@ -9,16 +9,14 @@ import {
   useEffect,
   useRef,
 } from "react";
-import { Networks, StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
-import { defaultModules } from "@creit.tech/stellar-wallets-kit/modules/utils";
-import { NETWORK_PASSPHRASE } from "@/app/lib/contract";
+import { NETWORK_PASSPHRASE } from "@/app/lib/network_config";
 import { useToast } from "./ToastContext";
+import { ledgerActiveAddresses } from "@/app/lib/ledger_active_addresses";
 import {
-  ledgerActiveAddresses,
   checkSimulationFeeWarning,
   type LedgerSimulationResult,
   type LedgerGasWarningState,
-} from "@/app/lib/ledger_usb_bridge";
+} from "@/app/lib/simulation_fee_warning";
 import { freighterActiveAddress, verifyAndRehydrateFreighterAddress } from "@/app/lib/freighter_connector";
 import {
   logWalletWarning,
@@ -60,6 +58,29 @@ export type SupportedWalletId = (typeof SUPPORTED_WALLETS)[number]["id"];
 
 interface KitSignResult {
   signedTxXdr?: string;
+}
+
+type WalletKitBundle = {
+  StellarWalletsKit: typeof import("@creit.tech/stellar-wallets-kit")["StellarWalletsKit"];
+  defaultModules: typeof import("@creit.tech/stellar-wallets-kit/modules/utils")["defaultModules"];
+};
+
+let walletKitPromise: Promise<WalletKitBundle> | null = null;
+
+/**
+ * Loads the wallet kit only when a wallet operation actually needs it. The kit
+ * pulls in every wallet module and the Stellar SDK, so keeping it out of the
+ * provider's module scope is the main first-load win for #850.
+ */
+function loadWalletKit(): Promise<WalletKitBundle> {
+  walletKitPromise ??= Promise.all([
+    import("@creit.tech/stellar-wallets-kit"),
+    import("@creit.tech/stellar-wallets-kit/modules/utils"),
+  ]).then(([kit, modules]) => ({
+    StellarWalletsKit: kit.StellarWalletsKit,
+    defaultModules: modules.defaultModules,
+  }));
+  return walletKitPromise;
 }
 
 interface WalletContextType {
@@ -131,9 +152,34 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     ? checkSimulationFeeWarning(simulationResult)
     : null;
 
+  const ensureKitInitialized = useCallback(async (): Promise<WalletKitBundle> => {
+    const kit = await loadWalletKit();
+    if (!initializedRef.current) {
+      const allowedIds = new Set<string>(
+        SUPPORTED_WALLETS.map((wallet) => wallet.id)
+      );
+
+      kit.StellarWalletsKit.init({
+        modules: kit.defaultModules({
+          filterBy: (module: { productId: string }) =>
+            allowedIds.has(module.productId),
+        }),
+        network: NETWORK_PASSPHRASE,
+        authModal: {
+          showInstallLabel: true,
+          hideUnsupportedWallets: false,
+        },
+      });
+
+      initializedRef.current = true;
+    }
+    return kit;
+  }, []);
+
   const checkNetwork = useCallback(async () => {
     try {
       let walletPassphrase: string;
+      const { StellarWalletsKit } = await ensureKitInitialized();
 
       if (selectedWalletId === "freighter") {
         const activeAddr = freighterActiveAddress.getActiveAddress();
@@ -159,26 +205,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       });
       setNetworkMismatchMessage(null);
     }
-  }, [selectedWalletId]);
-
-  const ensureKitInitialized = useCallback(() => {
-    if (initializedRef.current) return;
-
-    const allowedIds = new Set<string>(SUPPORTED_WALLETS.map((wallet) => wallet.id));
-
-    StellarWalletsKit.init({
-      modules: defaultModules({
-        filterBy: (module: { productId: string }) => allowedIds.has(module.productId),
-      }),
-      network: Networks.TESTNET,
-      authModal: {
-        showInstallLabel: true,
-        hideUnsupportedWallets: false,
-      },
-    });
-
-    initializedRef.current = true;
-  }, []);
+  }, [ensureKitInitialized, selectedWalletId]);
 
   const initialRehydrationDone = useRef(false);
 
@@ -189,15 +216,27 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const persisted = walletStateStore.getActiveState();
     const hadLegacyFlag = localStorage.getItem(LEGACY_STORAGE_KEY) === "true";
 
+    // No saved session means the SDK-backed kit is never loaded on first load.
     if (!persisted && !hadLegacyFlag) return;
 
     const walletId = persisted?.selectedWalletId ?? selectedWalletId;
-
-    ensureKitInitialized();
-
     let active = true;
 
     const rehydrate = async () => {
+      let StellarWalletsKit: WalletKitBundle["StellarWalletsKit"];
+      try {
+        ({ StellarWalletsKit } = await ensureKitInitialized());
+      } catch (e) {
+        logWalletWarning("REHYDRATE FAILED", "Failed to load wallet kit", {
+          err: e,
+          phase: "error",
+        });
+        if (active) setAddress(null);
+        return;
+      }
+
+      if (!active) return;
+
       if (walletId === "freighter") {
         try {
           const verifiedAddress = await verifyAndRehydrateFreighterAddress();
@@ -233,38 +272,39 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      StellarWalletsKit.getAddress()
-        .then(async (result: { address?: string }) => {
-          if (!active) return;
-          if (result.address) {
-            setAddress(result.address);
-            await checkNetwork();
+      try {
+        const result = (await StellarWalletsKit.getAddress()) as {
+          address?: string;
+        };
+        if (!active) return;
+        if (result.address) {
+          setAddress(result.address);
+          await checkNetwork();
 
-            if (!persisted) {
-              walletStateStore.setActiveState({
-                address: result.address,
-                selectedWalletId: walletId,
-                networkPassphrase: NETWORK_PASSPHRASE,
-                connectedAt: Date.now(),
-              });
-            }
-
-            localStorage.removeItem(LEGACY_STORAGE_KEY);
-          } else {
-            walletStateStore.clear();
-            localStorage.removeItem(LEGACY_STORAGE_KEY);
-            setAddress(null);
+          if (!persisted) {
+            walletStateStore.setActiveState({
+              address: result.address,
+              selectedWalletId: walletId,
+              networkPassphrase: NETWORK_PASSPHRASE,
+              connectedAt: Date.now(),
+            });
           }
-        })
-        .catch(() => {
-          if (!active) return;
+
+          localStorage.removeItem(LEGACY_STORAGE_KEY);
+        } else {
           walletStateStore.clear();
           localStorage.removeItem(LEGACY_STORAGE_KEY);
           setAddress(null);
-        });
+        }
+      } catch {
+        if (!active) return;
+        walletStateStore.clear();
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+        setAddress(null);
+      }
     };
 
-    rehydrate();
+    void rehydrate();
 
     return () => {
       active = false;
@@ -276,7 +316,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     walletTracker.track("connect", "connecting", "Opening wallet selector");
     try {
       await withWalletLoader(async () => {
-        ensureKitInitialized();
+        const { StellarWalletsKit } = await ensureKitInitialized();
         StellarWalletsKit.setWallet(selectedWalletId);
 
         const result = (await StellarWalletsKit.authModal()) as { address?: string };
@@ -305,7 +345,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const disconnect = useCallback(() => {
     void withWalletLoader(async () => {
       try {
-        await StellarWalletsKit.disconnect();
+        // Do not load the kit just to disconnect a session that never used it.
+        if (walletKitPromise) {
+          const { StellarWalletsKit } = await ensureKitInitialized();
+          await StellarWalletsKit.disconnect();
+        }
       } catch (e) {
         walletTracker.track("disconnect", "error", "Wallet disconnect failed", e);
       }
@@ -317,7 +361,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     clearAllWalletSessionStorage();
     setNetworkMismatchMessage(null);
     setAddress(null);
-  }, []);
+  }, [ensureKitInitialized]);
 
   const signTransaction = useCallback(async (xdr: string): Promise<string> => {
     if (!address) throw new Error("Wallet not connected");
@@ -326,7 +370,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     return withWalletLoader(async () => {
       try {
-        ensureKitInitialized();
+        const { StellarWalletsKit } = await ensureKitInitialized();
         StellarWalletsKit.setWallet(selectedWalletId);
 
         const result = await signWalletWithTimeout(

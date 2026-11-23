@@ -25,7 +25,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "analyze": "next experimental-analyze",
+    "bundle-size": "node scripts/bundle-size.mjs"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.3.0",

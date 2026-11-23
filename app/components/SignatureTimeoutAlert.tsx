@@ -4,11 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useWallet } from "@/app/context/WalletContext";
 import { NETWORK_PASSPHRASE } from "@/app/lib/contract";
 import {
-  createStellarEnvelopeParser,
   logWalletWarning,
   parseMultiSigEnvelope,
   type WalletMultiSigSigner,
 } from "@/app/lib/wallet_state_context";
+import { createStellarEnvelopeParser } from "@/app/lib/stellar_envelope_parser";
 import { useAlbedoMultiSigAssembly } from "@/app/hooks/useAlbedoMultiSigAssembly";
 import { useLedgerMultiSigAssembly } from "@/app/hooks/useLedgerMultiSigAssembly";
 import { withWalletLoader } from "@/app/lib/wallet_state_context";

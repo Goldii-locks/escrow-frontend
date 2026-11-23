@@ -12,12 +12,12 @@ import {
 } from "@/app/lib/freighter_connector";
 import {
   WalletMultiSigStructureError,
-  createStellarEnvelopeParser,
   type WalletMultiSigAssemblyOptions,
   type WalletMultiSigAssemblyResult,
   type WalletMultiSigEnvelopeShape,
   type WalletMultiSigSigner,
 } from "@/app/lib/wallet_state_context";
+import { createStellarEnvelopeParser } from "@/app/lib/stellar_envelope_parser";
 
 /**
  * React hook helpers for assembling multi-signature Freighter transactions.

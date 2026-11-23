@@ -32,3 +32,6 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Check first-load JS budgets
+        run: npm run bundle-size

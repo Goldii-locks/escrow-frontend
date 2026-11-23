@@ -137,6 +137,23 @@ describe("wallet_state_context / WalletContext (#122)", () => {
     });
   });
 
+  it("loads the wallet kit only when a wallet action needs it (#850)", async () => {
+    kitState.authModal.mockResolvedValue({ address: "GCONNECTED" });
+    renderWallet();
+
+    // No persisted session: mounting the provider must not touch the SDK-backed kit.
+    await waitFor(() => {
+      expect(screen.getByTestId("address")).toHaveTextContent("none");
+    });
+    expect(kitState.init).not.toHaveBeenCalled();
+
+    screen.getByText("connect").click();
+
+    await waitFor(() => {
+      expect(kitState.init).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("connect() leaves the address unset and logs a warning block on failure", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const error = new Error("user rejected");
