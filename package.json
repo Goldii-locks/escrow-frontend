@@ -28,6 +28,7 @@
     "type-check": "tsc --noEmit",
     "analyze": "next experimental-analyze",
     "bundle-size": "node scripts/bundle-size.mjs",
+    "check:font-preloads": "node scripts/check-font-preloads.mjs",
     "test:e2e:install": "npm ci --prefix e2e && ./e2e/node_modules/.bin/playwright install --with-deps chromium",
     "test:e2e": "./e2e/node_modules/.bin/playwright test --config e2e/playwright.config.ts"
   },

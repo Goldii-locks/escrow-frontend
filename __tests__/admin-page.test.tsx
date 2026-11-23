@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import AdminPage from "@/app/admin/page";
+import AdminPage from "@/app/(app)/admin/page";
 
 const mockUseWallet = vi.fn();
 const mockIsAdmin = vi.fn();

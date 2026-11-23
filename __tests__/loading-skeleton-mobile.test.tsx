@@ -9,7 +9,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import LoadingSkeleton from "@/app/components/LoadingSkeleton";
-import Dashboard from "@/app/dashboard/page";
+import Dashboard from "@/app/(app)/dashboard/page";
 
 const mockUseWallet = vi.fn();
 

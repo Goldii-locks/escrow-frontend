@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ArbiterActionPanel, {
   ArbiterPanelPlaceholder,
 } from "@/app/components/ArbiterActionPanel";
-import Dashboard from "@/app/dashboard/page";
+import Dashboard from "@/app/(app)/dashboard/page";
 import {
   ARBITER_EMPTY_COPY,
   getArbiterJobEmptyState,

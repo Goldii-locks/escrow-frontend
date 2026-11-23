@@ -1,6 +1,6 @@
 "use client";
-import { isMilestoneCapReached, milestoneLimitHint } from "../lib/milestone_limits";
-import { validateMilestoneAmount } from "../lib/milestone_amount_validation";
+import { isMilestoneCapReached, milestoneLimitHint } from "@/app/lib/milestone_limits";
+import { validateMilestoneAmount } from "@/app/lib/milestone_amount_validation";
 import { useEffect, useRef, useState } from "react";
 import { useWallet } from "@/app/context/WalletContext";
 import Navbar from "@/app/components/Navbar";

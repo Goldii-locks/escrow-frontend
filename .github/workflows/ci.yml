@@ -36,6 +36,9 @@ jobs:
       - name: Check first-load JS budgets
         run: npm run bundle-size
 
+      - name: Check route-group font preloads
+        run: npm run check:font-preloads
+
       - name: Install E2E dependencies
         run: npm run test:e2e:install
 
