@@ -79,8 +79,8 @@ bundle.
 | `NEXT_PUBLIC_CONTRACT_ID`                | _(required)_                                        | Soroban contract ID the frontend talks to. In CI this comes from the `CONTRACT_ID` repo variable; the deploy workflow allows a manual override via the `contract_id` input.                                                                  |
 | `NEXT_PUBLIC_FACTORY_CONTRACT_ID`        | _(empty)_                                           | escrow-factory contract the create page calls (`create_escrow`); each escrow it creates is its own contract. In CI this comes from the `FACTORY_CONTRACT_ID` repo variable. Empty: the create page says escrow creation isn't available yet. |
 | `NEXT_PUBLIC_BACKEND_URL`                | `http://localhost:3001`                             | Base URL of the escrow backend API (used by `app/lib/transactions.ts`).                                                                                                                                                                      |
-| `NEXT_PUBLIC_SOROBAN_RPC_URL`            | `https://soroban-testnet.stellar.org`               | Soroban RPC endpoint used by `app/lib/contract.ts`.                                                                                                                                                                                          |
-| `NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE` | `Networks.TESTNET` (`Test SDF Future Network 2025`) | Network passphrase used by `app/lib/contract.ts`; set to `Networks.MAINNET` (`Public Global Stellar Network 2022`) for mainnet.                                                                                                              |
+| `NEXT_PUBLIC_SOROBAN_RPC_URL`            | `https://soroban-testnet.stellar.org`               | Soroban RPC endpoint used by `app/lib/config.ts`.                                                                                                                                                                                            |
+| `NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE` | `Test SDF Network ; September 2015`                 | Network passphrase used by `app/lib/config.ts`; set to `Public Global Stellar Network ; September 2015` for mainnet.                                                                                                                         |
 
 ## Backend URL (NEXT_PUBLIC_BACKEND_URL)
 
@@ -97,25 +97,34 @@ Accepted values:
 ```bash
 # Production (recommended): empty - same-origin /api
 docker build -t escrow-frontend \
-  --build-arg NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH \
+  --build-arg NEXT_PUBLIC_CONTRACT_ID=<your-contract-id> \
+  --build-arg NEXT_PUBLIC_FACTORY_CONTRACT_ID=<your-factory-id> \
+  --build-arg NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org \
+  --build-arg "NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=Test SDF Network ; September 2015" \
   .
 
 # HTTPS backend
 docker build -t escrow-frontend \
   --build-arg NEXT_PUBLIC_BACKEND_URL=https://api.example.com \
-  --build-arg NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH \
+  --build-arg NEXT_PUBLIC_CONTRACT_ID=<your-contract-id> \
+  --build-arg NEXT_PUBLIC_FACTORY_CONTRACT_ID=<your-factory-id> \
+  --build-arg NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org \
+  --build-arg "NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=Test SDF Network ; September 2015" \
   .
 
 # Local loopback
 docker build -t escrow-frontend \
   --build-arg NEXT_PUBLIC_BACKEND_URL=http://localhost:3001 \
-  --build-arg NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH \
+  --build-arg NEXT_PUBLIC_CONTRACT_ID=<your-contract-id> \
+  --build-arg NEXT_PUBLIC_FACTORY_CONTRACT_ID=<your-factory-id> \
+  --build-arg NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org \
+  --build-arg "NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=Test SDF Network ; September 2015" \
   .
 
 # Rejected: plain HTTP remote (fails the build)
 docker build -t escrow-frontend \
   --build-arg NEXT_PUBLIC_BACKEND_URL=http://example.com \
-  --build-arg NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH \
+  --build-arg NEXT_PUBLIC_CONTRACT_ID=<your-contract-id> \
   .
 ```
 
