@@ -5,7 +5,7 @@
  * at most one deadline request (when the batch endpoint is available).
  */
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
+import { fetchAllAutoReleaseDeadlines } from "@/app/lib/batchAutoRelease";
 
 afterEach(() => {
   vi.restoreAllMocks();

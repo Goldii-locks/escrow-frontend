@@ -18,7 +18,7 @@
  * derive them from.
  */
 import { BACKEND_URL } from "@/app/lib/transactions";
-import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
+import { fetchAllAutoReleaseDeadlines } from "@/app/lib/batchAutoRelease";
 import {
   JobDetailResponseSchema,
   JobListResponseSchema,

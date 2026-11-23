@@ -18,7 +18,7 @@ import { getArbiterJobEmptyState } from "@/app/lib/arbiter_action_panel";
 import { useActionStates } from "@/app/hooks/useActionStates";
 import { BACKEND_URL, runContractAction, submitContractTransaction } from "@/app/lib/transactions";
 import { fetchJobStateFromContract, isIndexerStale } from "@/app/lib/contract_job_state";
-import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
+import { fetchAllAutoReleaseDeadlines } from "@/app/lib/batchAutoRelease";
 import EscrowLockBanner from "@/app/components/EscrowLockBanner";
 import { getEscrowLockState } from "@/app/lib/escrow_lock_state";
 import {
