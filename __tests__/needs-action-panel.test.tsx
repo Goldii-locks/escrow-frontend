@@ -23,8 +23,16 @@ vi.mock("@/app/lib/contract_read", () => ({
 
 vi.mock("@/app/components/Navbar", () => ({ default: () => <div data-testid="navbar" /> }));
 vi.mock("@/app/components/MilestoneCard", () => ({
-  default: ({ milestone }: { milestone: { index: number } | null }) => (
-    <div data-testid="milestone-card">{milestone ? `card-${milestone.index}` : "empty"}</div>
+  default: ({
+    milestone,
+    autoReleaseDeadline,
+  }: {
+    milestone: { index: number } | null;
+    autoReleaseDeadline?: number | null;
+  }) => (
+    <div data-testid="milestone-card" data-deadline={autoReleaseDeadline ?? undefined}>
+      {milestone ? `card-${milestone.index}` : "empty"}
+    </div>
   ),
 }));
 
@@ -161,8 +169,13 @@ describe("Dashboard 'Needs your action' rows (#888)", () => {
     const beforeExpansion = countDeadlineReads();
 
     fireEvent.click(screen.getByRole("button", { name: /Job #CBBBBBBB/ }));
-    await screen.findByText("card-2");
-    await waitFor(() => expect(countDeadlineReads() - beforeExpansion).toBe(1));
+    await waitFor(() => {
+      for (const card of screen.getAllByTestId("milestone-card")) {
+        expect(card).toHaveAttribute("data-deadline");
+      }
+      expect(screen.getByText("card-2")).toBeInTheDocument();
+    });
+    expect(countDeadlineReads() - beforeExpansion).toBe(1);
   });
 
   it("opens the right job and milestone when a row is clicked", async () => {

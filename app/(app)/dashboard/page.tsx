@@ -88,6 +88,7 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  const [needsActionVersion, setNeedsActionVersion] = useState(0);
   const [jobLabels, setJobLabels] = useState<Record<string, string>>({});
   const [jobDetails, setJobDetails] = useState<Record<string, Job>>({});
   const [detailsLoading, setDetailsLoading] = useState<Record<string, boolean>>({});
@@ -559,8 +560,7 @@ export default function Dashboard() {
   // Reload "Needs your action" when the poll or an action changes any job.
   const needsActionRefreshKey = [
     jobs.map((job) => `${job.id}:${job.latestLedger ?? ""}:${job.releasedCount ?? ""}`).join(","),
-    expandedJobId ?? "",
-    timelineRefreshKey,
+    needsActionVersion,
   ].join("|");
 
   /** Opens the job and milestone a "Needs your action" row points at (#888). */
@@ -573,9 +573,8 @@ export default function Dashboard() {
       setJobDetails((current) => (current[job.id] ? current : { ...current, [job.id]: job }));
       setExpandedJobId(job.id);
       setFocusTarget({ jobId: job.id, milestoneIndex, nonce: Date.now() });
-      void fetchJobDetails(job.id, true);
     },
-    [jobs, fetchJobDetails]
+    [jobs]
   );
 
   /** Expanding or collapsing a row by hand drops any panel pin and highlight. */
@@ -727,6 +726,7 @@ export default function Dashboard() {
         if (expandedJobId) {
           await fetchJobDetails(expandedJobId, true);
         }
+        setNeedsActionVersion((version) => version + 1);
       }
 
       return txHash;
