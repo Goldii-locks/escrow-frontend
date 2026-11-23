@@ -270,16 +270,10 @@ export type EscrowStateResponse = z.infer<typeof EscrowStateResponseSchema>;
 // ---------------------------------------------------------------------------
 
 export const AutoReleaseResponseSchema = z.object({
-  success: z.boolean().optional(),
-  data: z
-    .object({
-      deadline: z.union([z.number(), z.string()]).optional(),
-      autoReleaseAt: z.union([z.number(), z.string()]).optional(),
-      secondsRemaining: z.number().optional(),
-      eligible: z.boolean().optional(),
-    })
-    .optional(),
-  error: z.string().optional(),
+  success: z.literal(true),
+  data: z.object({
+    secondsRemaining: z.number().int().nonnegative(),
+  }),
 });
 
 export type AutoReleaseResponse = z.infer<typeof AutoReleaseResponseSchema>;

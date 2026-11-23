@@ -209,26 +209,12 @@ describe("WhitelistResponseSchema", () => {
 // ---------------------------------------------------------------------------
 
 describe("AutoReleaseResponseSchema", () => {
-  it("accepts a deadline number", () => {
+  it("accepts the backend's time remaining envelope", () => {
     const r = AutoReleaseResponseSchema.parse({
       success: true,
-      data: { deadline: 1_700_000_000, eligible: false },
-    });
-    expect(r.data?.deadline).toBe(1_700_000_000);
-  });
-
-  it("accepts a deadline ISO string", () => {
-    const r = AutoReleaseResponseSchema.parse({
-      data: { autoReleaseAt: "2026-01-01T00:00:00Z" },
-    });
-    expect(typeof r.data?.autoReleaseAt).toBe("string");
-  });
-
-  it("accepts secondsRemaining without a deadline", () => {
-    const r = AutoReleaseResponseSchema.parse({
       data: { secondsRemaining: 3600 },
     });
-    expect(r.data?.secondsRemaining).toBe(3600);
+    expect(r.data.secondsRemaining).toBe(3600);
   });
 
   it("rejects a completely wrong shape", () => {
