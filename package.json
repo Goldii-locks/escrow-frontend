@@ -27,7 +27,9 @@
     "test": "vitest run",
     "type-check": "tsc --noEmit",
     "analyze": "next experimental-analyze",
-    "bundle-size": "node scripts/bundle-size.mjs"
+    "bundle-size": "node scripts/bundle-size.mjs",
+    "test:e2e:install": "npm ci --prefix e2e && ./e2e/node_modules/.bin/playwright install --with-deps chromium",
+    "test:e2e": "./e2e/node_modules/.bin/playwright test --config e2e/playwright.config.ts"
   },
   "dependencies": {
     "@creit.tech/stellar-wallets-kit": "^2.3.0",

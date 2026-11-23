@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
 // Native Vite tsconfig-path resolution. The 40+ test files in __tests__/
@@ -14,6 +14,8 @@ export default defineConfig({
     tsconfigPaths: true,
   },
   test: {
+    // Playwright specs live in e2e/ and are run by `npm run test:e2e`.
+    exclude: [...configDefaults.exclude, "e2e/**"],
     environment: "jsdom",
     globals: true,
     setupFiles: ["./vitest.setup.ts"],

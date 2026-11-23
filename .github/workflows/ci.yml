@@ -35,3 +35,10 @@ jobs:
 
       - name: Check first-load JS budgets
         run: npm run bundle-size
+
+      - name: Install E2E dependencies
+        run: npm run test:e2e:install
+
+      - name: E2E flow (mocked wallet)
+        timeout-minutes: 2
+        run: npm run test:e2e

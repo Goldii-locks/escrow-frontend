@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/e2e/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -67,9 +68,10 @@ __snapshots__/
 # Coverage
 .nyc_output/
 
-# Vitest
+# Vitest / Playwright
 test-results/
 vitest-results/
+playwright-report/
 
 # Editor
 .idea/

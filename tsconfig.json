@@ -32,6 +32,7 @@
   ],
   "exclude": [
     "node_modules",
+    "e2e",
     "**/*.stories.tsx",
     "**/*.stories.ts"
   ]
