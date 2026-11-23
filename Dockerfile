@@ -28,12 +28,25 @@ ARG NEXT_PUBLIC_FACTORY_CONTRACT_ID
 # otherwise silently ship a testnet-wired bundle.
 ARG NEXT_PUBLIC_SOROBAN_RPC_URL
 ARG NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE
+# Optional: platform arbiter offered as the default on the create form.
+# Must be a valid Stellar G… or C… address when set.
+ARG NEXT_PUBLIC_DEFAULT_ARBITER
+# Optional: WalletConnect mobile-wallet support. Get a project ID at
+# https://cloud.reown.com/ and pass it here to enable the WalletConnect
+# option in the wallet list.
+ARG NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
+# Optional: set to "true" to enable client-side error reporting to the
+# backend's POST /api/client-errors endpoint.
+ARG NEXT_PUBLIC_CLIENT_ERROR_REPORTING
 
 ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL \
     NEXT_PUBLIC_CONTRACT_ID=$NEXT_PUBLIC_CONTRACT_ID \
     NEXT_PUBLIC_FACTORY_CONTRACT_ID=$NEXT_PUBLIC_FACTORY_CONTRACT_ID \
     NEXT_PUBLIC_SOROBAN_RPC_URL=$NEXT_PUBLIC_SOROBAN_RPC_URL \
-    NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=$NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE
+    NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=$NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE \
+    NEXT_PUBLIC_DEFAULT_ARBITER=$NEXT_PUBLIC_DEFAULT_ARBITER \
+    NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=$NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID \
+    NEXT_PUBLIC_CLIENT_ERROR_REPORTING=$NEXT_PUBLIC_CLIENT_ERROR_REPORTING
 
 # Reject a plain-HTTP remote backend (mixed content on the HTTPS site).
 # Empty is allowed: the app uses same-origin relative /api (nginx proxies it).
@@ -58,6 +71,11 @@ RUN case "$NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE" in \
           || (echo "ERROR: public passphrase but RPC URL is a testnet host" && exit 1) ;; \
       *) echo "ERROR: unknown NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE" && exit 1 ;; \
     esac
+# When set, DEFAULT_ARBITER must be a valid Stellar G… or C… address
+# (56 base-32 chars). Rejects typos before they silently disable the feature.
+RUN [ -z "$NEXT_PUBLIC_DEFAULT_ARBITER" ] \
+      || echo "$NEXT_PUBLIC_DEFAULT_ARBITER" | grep -qE '^[GC][A-Z2-7]{55}$' \
+      || (echo "ERROR: NEXT_PUBLIC_DEFAULT_ARBITER is not a valid Stellar G… or C… address (got \"$NEXT_PUBLIC_DEFAULT_ARBITER\")" && exit 1)
 
 RUN npm run build
 
