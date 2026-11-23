@@ -53,6 +53,19 @@ import {
 } from "@/app/lib/batch_approval";
 import { buildSweepExcessArgs } from "@/app/lib/sweep_excess";
 
+/** Parsed job-list page returned by fetchJobs / fetchJobsData. */
+type JobsPage = ReturnType<typeof parsePageResponse>;
+
+/**
+ * Snapshot of the list-summary fields that change once the indexer sees a
+ * transaction (latest ledger, released count, funded flag). Issue #826: the
+ * updating poll compares this before/after each refetch to decide whether
+ * the indexer has actually caught up.
+ */
+function jobUpdateFingerprint(job: Job): string {
+  return `${job.latestLedger ?? ""}:${job.releasedCount ?? ""}:${job.funded ? 1 : 0}`;
+}
+
 /** Action key for the batch `approve_milestones` transaction (#899). */
 const BATCH_APPROVE_KEY = "approve-batch";
 
@@ -177,13 +190,13 @@ export default function Dashboard() {
     return [pinnedJob, ...filteredJobs];
   }, [filteredJobs, pinnedJob]);
 
-  const fetchJobs = useCallback(async () => {
-    if (!address) {
-      setFetchLoading(false);
-      setJobs([]);
-      setExpandedJobId(null);
-      return;
-    }
+  /**
+   * Issue #826: core data-fetching function that returns the parsed page so
+   * callers (including startUpdatingPoll) can inspect the result without
+   * depending on React state settling.
+   */
+  const fetchJobsData = useCallback(async (): Promise<JobsPage | null> => {
+    if (!address) return null;
 
     // Abort any in-flight request and issue a fresh one.
     jobsAbortRef.current?.abort();
@@ -193,8 +206,6 @@ export default function Dashboard() {
     // Capture the sequence number for this request.
     jobsRequestIdRef.current += 1;
     const requestId = jobsRequestIdRef.current;
-
-    setFetchLoading(true);
 
     try {
       const params = new URLSearchParams({
@@ -216,18 +227,18 @@ export default function Dashboard() {
       );
 
       // Drop stale responses (a newer request already completed).
-      if (requestId !== jobsRequestIdRef.current) return;
+      if (requestId !== jobsRequestIdRef.current) return null;
 
       reportApiResponse(res, "/api/jobs/by-wallet/:address");
       if (res.status === 429) {
         setError("You're doing that too fast. Please wait a moment and try again.");
         setJobs([]);
-        return;
+        return null;
       }
       const rawData: unknown = await res.json();
 
       // Drop stale responses again after the body read.
-      if (requestId !== jobsRequestIdRef.current) return;
+      if (requestId !== jobsRequestIdRef.current) return null;
 
       const endpoint = `/api/jobs/by-wallet/${address}`;
       const data = validateResponse(JobListResponseSchema, rawData, endpoint);
@@ -237,7 +248,7 @@ export default function Dashboard() {
         setJobs([]);
         setTotal(0);
         setExpandedJobId(null);
-        return;
+        return null;
       }
 
       // Clear error only on a successful fetch so the Retry button stays
@@ -275,20 +286,40 @@ export default function Dashboard() {
         if (previous && previous === pinnedJobIdRef.current) return previous;
         return parsed.jobs[0].id;
       });
+
+      return parsed;
     } catch (err: unknown) {
       // Ignore aborted-request errors — they're intentional.
-      if (err instanceof Error && err.name === "AbortError") return;
+      if (err instanceof Error && err.name === "AbortError") return null;
       setError(err instanceof Error ? err.message : "Failed to connect to backend");
       setJobs([]);
       setTotal(0);
       setExpandedJobId(null);
+      return null;
+    }
+  }, [address, page, limit, roleFilter]);
+
+  /** fetchJobs wraps fetchJobsData (#826) and also returns the parsed page. */
+  const fetchJobs = useCallback(async (): Promise<JobsPage | null> => {
+    if (!address) {
+      setFetchLoading(false);
+      setJobs([]);
+      setExpandedJobId(null);
+      return null;
+    }
+
+    setFetchLoading(true);
+    // fetchJobsData assigns this request the next sequence number.
+    const expectedRequestId = jobsRequestIdRef.current + 1;
+    try {
+      return await fetchJobsData();
     } finally {
       // Only clear the loading flag if this response is still current.
-      if (requestId === jobsRequestIdRef.current) {
+      if (expectedRequestId === jobsRequestIdRef.current) {
         setFetchLoading(false);
       }
     }
-  }, [address, page, limit, roleFilter]);
+  }, [address, fetchJobsData]);
 
   const fetchJobDetails = useCallback(
     async (jobId: string, force = false) => {
@@ -394,14 +425,21 @@ export default function Dashboard() {
   );
 
   /**
-   * Issue #670: mark a job row as "Updating…" then re-poll the job list with
-   * exponential backoff until either the fetch succeeds (indexer caught up)
-   * or 2 minutes have elapsed.
+   * Issue #670/#826: mark a job row as "Updating…" then re-poll the job list
+   * with exponential backoff until either the job's update fingerprint
+   * (latestLedger / releasedCount / funded) has changed from the
+   * pre-action snapshot or 2 minutes have elapsed.
    *
    * Backoff sequence: 2 s → 4 s → 8 s → 15 s → 15 s → … (cap at 15 s).
+   *
+   * @param jobId - The job to watch.
+   * @param preActionFingerprint - Snapshot of the job state taken right
+   *   before (or immediately after) the successful transaction. The poll
+   *   continues until the refetched list shows a different fingerprint for
+   *   this job, meaning the indexer has caught up.
    */
   const startUpdatingPoll = useCallback(
-    (jobId: string) => {
+    (jobId: string, preActionFingerprint: string) => {
       // Cancel any in-flight poll for this job.
       updatingPollerRefs.current.get(jobId)?.();
 
@@ -440,8 +478,16 @@ export default function Dashboard() {
         timerId = setTimeout(async () => {
           if (cancelled) return;
           try {
-            await fetchJobs();
-            stop();
+            // Issue #826: compare the refetched job fingerprint to the
+            // pre-action snapshot; stop only when it changes (or deadline).
+            const result = await fetchJobsData();
+            const updatedJob = result?.jobs.find((j) => j.id === jobId);
+            const newFingerprint = updatedJob ? jobUpdateFingerprint(updatedJob) : null;
+            if (newFingerprint !== null && newFingerprint !== preActionFingerprint) {
+              stop();
+            } else {
+              scheduleNext();
+            }
           } catch {
             scheduleNext();
           }
@@ -451,7 +497,7 @@ export default function Dashboard() {
       scheduleNext();
       updatingPollerRefs.current.set(jobId, stop);
     },
-    [fetchJobs]
+    [fetchJobsData]
   );
 
   useEffect(() => {
@@ -691,6 +737,13 @@ export default function Dashboard() {
       // created through the factory is a separate contract.
       const contractId = expandedJobId;
 
+      // Issue #826: snapshot the job's list state before the action so the
+      // updating poll can tell when the indexer has caught up.
+      const preActionJob = jobs.find((j) => j.id === contractId);
+      const preActionFingerprint = preActionJob
+        ? jobUpdateFingerprint(preActionJob)
+        : "no-pre-action-snapshot";
+
       // Stage the action so the global signature-timeout alert can rebuild
       // and re-sign it with a fresh XDR (#676).
       registerPendingAction({ contractId, method, args, sourceAddress: address });
@@ -711,9 +764,11 @@ export default function Dashboard() {
 
       if (txHash !== null) {
         // Issue #670: immediately mark the row as "Updating…" so the user
-        // knows the action succeeded while the indexer catches up.
+        // knows the action succeeded while the indexer catches up. Issue
+        // #826: pass the pre-action fingerprint so the poll only clears the
+        // badge once the job state actually changed.
         if (expandedJobId) {
-          startUpdatingPoll(expandedJobId);
+          startUpdatingPoll(expandedJobId, preActionFingerprint);
         }
 
         // Issue #895: confirm the new state directly from the contract first,
@@ -748,6 +803,7 @@ export default function Dashboard() {
       setTxHash,
       fetchJobs,
       expandedJobId,
+      jobs,
       fetchJobDetails,
       startUpdatingPoll,
       setJobDetails,
@@ -821,6 +877,11 @@ export default function Dashboard() {
   };
 
   const handleDispute = (i: number) => {
+    // Issue #828: clear any error left by a previous failed attempt so a
+    // re-opened modal doesn't show a stale failure before submitting.
+    if (expandedJobId) {
+      setActionError(actionKey(expandedJobId, "dispute", i), null);
+    }
     setDisputeMilestoneIndex(i);
     setDisputeModalOpen(true);
   };
@@ -829,11 +890,21 @@ export default function Dashboard() {
     if (!address || disputeMilestoneIndex === null || !expandedJobId) return;
 
     // The contract takes a 32-byte hash of the reason, not the text (#590).
-    await executeTx(actionKey(expandedJobId, "dispute", disputeMilestoneIndex), "raise_dispute", [
-      { type: "address", value: address },
-      { type: "u32", value: disputeMilestoneIndex.toString() },
-      { type: "bytes", value: await hashDisputeReason(reason) },
-    ]);
+    const txHash = await executeTx(
+      actionKey(expandedJobId, "dispute", disputeMilestoneIndex),
+      "raise_dispute",
+      [
+        { type: "address", value: address },
+        { type: "u32", value: disputeMilestoneIndex.toString() },
+        { type: "bytes", value: await hashDisputeReason(reason) },
+      ]
+    );
+
+    // Issue #828: executeTx returns null on failure (wallet rejection,
+    // simulation error, backend error) and never rejects — the error lives
+    // in the action state. Keep the modal open so the typed reason survives
+    // and the submissionError prop stays visible; close only on success.
+    if (txHash === null) return;
 
     setDisputeModalOpen(false);
     setDisputeMilestoneIndex(null);

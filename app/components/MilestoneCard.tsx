@@ -7,7 +7,7 @@ import TxStatusBanner from "@/app/components/TxStatusBanner";
 import ButtonSpinner from "@/app/components/ButtonSpinner";
 import DisputeRaiseModal from "@/app/components/DisputeRaiseModal";
 import ArbiterActionPanel from "@/app/components/ArbiterActionPanel";
-import { formatBaseUnits } from "@/app/lib/amounts";
+import { formatBaseUnits, parseDecimalToBaseUnits } from "@/app/lib/amounts";
 import { getClaimEligibility, CLAIM_UNKNOWN_DEADLINE_NOTE } from "@/app/lib/claimEligibility";
 import { canApprove, canMarkDelivered, canResolveDispute } from "@/app/lib/milestone_actions";
 import ReleaseConfirmModal from "@/app/components/ReleaseConfirmModal";
@@ -155,7 +155,7 @@ function getReleasePercent(releasedAmount: string | undefined, totalAmount: stri
 }
 
 /**
- * Compute the unreleased balance (in stroops) for a milestone.
+ * Compute the unreleased balance (in base units) for a milestone.
  * Returns null if the total or released amount isn't a valid integer string.
  */
 function unreleasedBalance(milestone: Milestone): bigint | null {
@@ -256,6 +256,13 @@ export default function MilestoneCard({
         autoReleaseDeadline - mountedAt > 0 &&
         autoReleaseDeadline - mountedAt <= warningThresholdMs));
 
+  /**
+   * Smallest positive amount expressible for the token's decimals, used as
+   * the input's step (e.g. 0.0000001 for a 7-decimal token).
+   * Issue #824: the partial-release input accepts decimal token amounts.
+   */
+  const amountStep = amountDecimals > 0 ? `0.${"0".repeat(amountDecimals - 1)}1` : "1";
+
   /** Client-side validation + submission handler for partial release. */
   function handlePartialReleaseSubmit() {
     if (!milestone) return;
@@ -267,11 +274,15 @@ export default function MilestoneCard({
       return;
     }
 
+    // Issue #824: accept decimal token amounts and convert them to base
+    // units so onPartialRelease receives the i128 value the contract needs.
     let parsed: bigint;
     try {
-      parsed = BigInt(trimmed);
-    } catch {
-      setPartialAmtError("Amount must be a whole number of stroops.");
+      parsed = parseDecimalToBaseUnits(trimmed, amountDecimals);
+    } catch (err) {
+      setPartialAmtError(
+        err instanceof Error ? err.message : `Enter a valid amount in ${amountSymbol}.`
+      );
       return;
     }
 
@@ -282,15 +293,19 @@ export default function MilestoneCard({
 
     const remaining = unreleasedBalance(milestone);
     if (remaining !== null && parsed > remaining) {
+      // Issue #824: show the remaining balance in token units, not stroops.
       setPartialAmtError(
-        `Amount exceeds the unreleased balance of ${remaining.toString()} stroops.`
+        `Amount exceeds the remaining balance of ${formatBaseUnits(remaining.toString(), {
+          decimals: amountDecimals,
+        })} ${amountSymbol}.`
       );
       return;
     }
 
     // Stage the partial release for confirmation instead of submitting
-    // straight to the contract.
-    setPendingRelease({ kind: "partial", index: milestone.index, amount: trimmed });
+    // straight to the contract. The staged amount is the base-unit integer
+    // string; the confirmation modal formats it in token units.
+    setPendingRelease({ kind: "partial", index: milestone.index, amount: parsed.toString() });
     setIsReleaseConfirmOpen(true);
   }
 
@@ -460,9 +475,11 @@ export default function MilestoneCard({
                 style={{ width: `${releasePercent}%` }}
               />
             </div>
-            {/* Released amount vs total in stroops */}
+            {/* Released amount vs total, in token units (Issue #824) */}
             <p className="text-xs text-text-muted font-mono">
-              <span className="text-partial">{milestone.releasedAmount}</span>
+              <span className="text-partial">
+                {formatBaseUnits(milestone.releasedAmount ?? "0", { decimals: amountDecimals })}
+              </span>
               {" / "}
               {displayAmount} {amountSymbol}
             </p>
@@ -641,15 +658,22 @@ export default function MilestoneCard({
           className="w-full mt-1 pt-3 border-t border-border-subtle flex flex-col gap-2"
           data-testid="partial-release-section"
         >
-          {/* Remaining balance hint */}
+          {/* Remaining balance hint, in token units (Issue #824: no stroops) */}
           {milestone.releasedAmount && (
             <p className="text-xs text-text-muted">
-              Released so far: <span className="font-mono">{milestone.releasedAmount} stroops</span>
+              Released so far:{" "}
+              <span className="font-mono">
+                {formatBaseUnits(milestone.releasedAmount, { decimals: amountDecimals })}{" "}
+                {amountSymbol}
+              </span>
               {unreleasedBalance(milestone) !== null && (
                 <>
                   {" · "}Remaining:{" "}
                   <span className="font-mono">
-                    {unreleasedBalance(milestone)!.toString()} stroops
+                    {formatBaseUnits(unreleasedBalance(milestone)!.toString(), {
+                      decimals: amountDecimals,
+                    })}{" "}
+                    {amountSymbol}
                   </span>
                 </>
               )}
@@ -662,15 +686,16 @@ export default function MilestoneCard({
                 htmlFor={`partial-amount-${milestone.index}`}
                 className="text-xs text-text-muted sr-only"
               >
-                Release amount in stroops for {milestoneLabel}
+                {/* Issue #824: reference the token symbol, not stroops */}
+                Release amount in {amountSymbol} for {milestoneLabel}
               </label>
               <input
                 id={`partial-amount-${milestone.index}`}
                 type="number"
-                inputMode="numeric"
-                min="1"
-                step="1"
-                placeholder="Amount in stroops"
+                inputMode="decimal"
+                min="0"
+                step={amountStep}
+                placeholder={`Amount in ${amountSymbol}`}
                 value={partialAmount}
                 onChange={(e) => {
                   setPartialAmount(e.target.value);
