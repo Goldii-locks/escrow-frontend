@@ -205,6 +205,38 @@ export default function Milestones({ form }: { form: CreateJobForm }) {
                       aria-invalid={amountError !== null}
                       disabled={loading}
                     />
+                    <input
+                      id={`milestone-title-${i}`}
+                      className={`${inputClassName} flex-1 min-w-0`}
+                      value={m.title}
+                      onChange={(e) => s.updateMilestoneText(i, "title", e.target.value)}
+                      onFocus={onFocus}
+                      placeholder={`Milestone ${i + 1} title`}
+                      aria-label={`Milestone ${i + 1} title`}
+                      required
+                      disabled={loading}
+                    />
+                    <input
+                      id={`milestone-desc-${i}`}
+                      className={`${inputClassName} flex-1 min-w-0`}
+                      value={m.description}
+                      onChange={(e) => s.updateMilestoneText(i, "description", e.target.value)}
+                      onFocus={onFocus}
+                      placeholder={`Milestone ${i + 1} description (optional)`}
+                      aria-label={`Milestone ${i + 1} description`}
+                      disabled={loading}
+                    />
+                    <input
+                      id={`milestone-due-${i}`}
+                      type="date"
+                      className={`${inputClassName} w-32`}
+                      value={m.dueDate}
+                      onChange={(e) => s.updateMilestoneText(i, "dueDate", e.target.value)}
+                      onFocus={onFocus}
+                      placeholder="Due date"
+                      aria-label={`Milestone ${i + 1} due date`}
+                      disabled={loading}
+                    />
                     <button
                       type="button"
                       onClick={() => s.removeMilestone(i)}

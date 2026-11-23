@@ -12,7 +12,10 @@ export interface CreateJobDraft {
   autoReleaseDays: string;
   acceptedAssets: string[];
   requirements: string[];
-  milestones: { amount: string }[];
+  milestones: { amount: string; title: string; description: string }[];
+  fundingMode: "Upfront" | "PerMilestone";
+  disputeTimeoutDays: string;
+  arbiterFeeBps: string;
 }
 
 export const EMPTY_CREATE_JOB_DRAFT: CreateJobDraft = {
@@ -22,7 +25,10 @@ export const EMPTY_CREATE_JOB_DRAFT: CreateJobDraft = {
   autoReleaseDays: "7",
   acceptedAssets: [],
   requirements: [],
-  milestones: [{ amount: "" }],
+  milestones: [{ amount: "", title: "", description: "" }],
+  fundingMode: "Upfront",
+  disputeTimeoutDays: "30",
+  arbiterFeeBps: "0",
 };
 
 export const CREATE_JOB_DRAFT_DEBOUNCE_MS = 500;
@@ -52,7 +58,12 @@ export function loadCreateJobDraft(address: string): CreateJobDraft | null {
       !isStringArray(data.acceptedAssets) ||
       !isStringArray(data.requirements) ||
       !Array.isArray(data.milestones) ||
-      !data.milestones.every((m) => typeof m?.amount === "string")
+      !data.milestones.every(
+        (m) =>
+          typeof m?.amount === "string" &&
+          typeof m?.title === "string" &&
+          typeof m?.description === "string"
+      )
     ) {
       return null;
     }
@@ -63,7 +74,15 @@ export function loadCreateJobDraft(address: string): CreateJobDraft | null {
       autoReleaseDays: data.autoReleaseDays,
       acceptedAssets: data.acceptedAssets,
       requirements: data.requirements,
-      milestones: data.milestones.map((m) => ({ amount: m.amount })),
+      milestones: data.milestones.map((m) => ({
+        amount: m.amount,
+        title: m.title,
+        description: m.description,
+        dueDate: m.dueDate,
+      })),
+      fundingMode: data.fundingMode === "PerMilestone" ? "PerMilestone" : "Upfront",
+      disputeTimeoutDays: typeof data.disputeTimeoutDays === "string" ? data.disputeTimeoutDays : "30",
+      arbiterFeeBps: typeof data.arbiterFeeBps === "string" ? data.arbiterFeeBps : "0",
     };
   } catch {
     return null;

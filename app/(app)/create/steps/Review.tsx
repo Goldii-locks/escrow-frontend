@@ -8,6 +8,7 @@ import { StepPanel } from "../ui";
 export default function Review({ form }: { form: CreateJobForm }) {
   const { loading, setActiveSection } = form;
   const r = form.review;
+  const a = form.advanced;
   const counts = [
     { label: "Accepted assets", value: r.assetCount },
     { label: "Requirements", value: r.requirementCount },
@@ -33,6 +34,50 @@ export default function Review({ form }: { form: CreateJobForm }) {
           </div>
         ))}
       </dl>
+
+      {/*
+       * Milestone scope preview: title + description for each milestone
+       * (issue #813). The on-chain spec_hash is derived from this text.
+       */}
+      <div className="mt-5 rounded-xl border border-border-subtle bg-surface-field p-4">
+        <h3 className="text-sm font-semibold text-text-primary">Milestones</h3>
+        <ul className="mt-3 space-y-3 text-xs leading-5 text-text-secondary">
+          {form.scope.milestones.map((m, i) => (
+            <li key={i} className="flex flex-col gap-1">
+              <span className="font-semibold text-text-primary">
+                Milestone {i + 1}:{" "}
+                <span className="font-medium">{m.title || "(untitled)"}</span>
+              </span>
+              {m.description && (
+                <p className="ml-4 text-text-secondary">{m.description}</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/*
+       * Advanced escrow settings (issue #815).
+       */}
+      <div className="mt-5 rounded-xl border border-border-subtle bg-surface-field p-4">
+        <h3 className="text-sm font-semibold text-text-primary">Advanced settings</h3>
+        <ul className="mt-3 space-y-2 text-xs leading-5 text-text-secondary">
+          <li className="flex gap-2">
+            <span className="font-semibold text-text-primary shrink-0">Funding mode:</span>
+            <span className="text-text-secondary">{a.fundingMode === "Upfront" ? "Pay upfront" : "Pay per milestone"}</span>
+          </li>
+          <li className="flex gap-2">
+            <span className="font-semibold text-text-primary shrink-0">Dispute timeout:</span>
+            <span className="text-text-secondary">
+              {a.disputeTimeoutDays} day{a.disputeTimeoutDays === "1" ? "" : "s"}
+            </span>
+          </li>
+          <li className="flex gap-2">
+            <span className="font-semibold text-text-primary shrink-0">Arbiter fee:</span>
+            <span className="text-text-secondary">{a.arbiterFeeBps} bps</span>
+          </li>
+        </ul>
+      </div>
 
       {/*
        * "What you're agreeing to" panel (issue #669). A plain-language summary

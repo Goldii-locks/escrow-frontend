@@ -17,7 +17,22 @@ import { parseDecimalToBaseUnits } from "@/app/lib/amounts";
 import type { Milestone } from "./validation";
 import type { WalletSimulationResult } from "@/app/lib/wallet_session";
 
+import {
+  FACTORY_CONTRACT_ID,
+  submitContractTransaction,
+  type ContractArg,
+  type TxPhase,
+} from "@/app/lib/transactions";
+import { validateMilestoneAmount } from "@/app/lib/milestone_amount_validation";
+import { parseDecimalToBaseUnits } from "@/app/lib/amounts";
+import type { Milestone } from "./validation";
+import type { WalletSimulationResult } from "@/app/lib/wallet_session";
+import { hashSpec } from "@/app/lib/spec_hash";
+
 const SECONDS_PER_DAY = BigInt(24 * 60 * 60);
+
+/** The contract's default dispute timeout: 30 days for the arbiter to rule. */
+const DEFAULT_DISPUTE_TIMEOUT_SECONDS = BigInt(30) * SECONDS_PER_DAY;
 
 export interface CreateJobParams {
   /** Connected wallet; signs the transaction and becomes the client. */
@@ -28,6 +43,12 @@ export interface CreateJobParams {
   /** Whole days, as entered. */
   autoReleaseDays: string;
   milestones: Milestone[];
+  /** How the client funds the escrow. */
+  fundingMode: "Upfront" | "PerMilestone";
+  /** Dispute timeout in whole days (contract bounds enforced by the form). */
+  disputeTimeoutDays: string;
+  /** Arbiter fee as basis points (0–1000). */
+  arbiterFeeBps: string;
 }
 
 /**
@@ -60,9 +81,17 @@ export function randomSaltHex(): string {
 }
 
 /** `create_escrow` arguments, in contract order. */
-export function buildCreateEscrowArgs(params: CreateJobParams, salt: string): ContractArg[] {
+export async function buildCreateEscrowArgs(params: CreateJobParams, salt: string): Promise<ContractArg[]> {
   const autoReleaseSeconds = BigInt(params.autoReleaseDays) * SECONDS_PER_DAY;
   const amounts = toMilestoneAmounts(params.milestones);
+  const disputeTimeoutSeconds =
+    BigInt(params.disputeTimeoutDays) * SECONDS_PER_DAY || DEFAULT_DISPUTE_TIMEOUT_SECONDS;
+  const arbiterFeeBps = Number(params.arbiterFeeBps) || 0;
+
+  const specHashes = await Promise.all(
+    params.milestones.map((m) => hashSpec({ title: m.title, description: m.description }))
+  );
+
   return [
     { type: "address", value: params.client },
     { type: "address", value: params.freelancer },
@@ -70,15 +99,14 @@ export function buildCreateEscrowArgs(params: CreateJobParams, salt: string): Co
     { type: "address", value: params.token },
     { type: "u64", value: autoReleaseSeconds.toString() },
     { type: "vec", value: amounts.map((value) => ({ type: "i128", value })) },
-    { type: "vec", value: amounts.map(() => ({ type: "bytes", value: EMPTY_SPEC_HASH })) },
+    { type: "vec", value: specHashes.map((value) => ({ type: "bytes", value })) },
     {
-      // EscrowSettings: upfront funding, the standard dispute timeout, and
-      // no arbiter fee.
+      // EscrowSettings: funding mode, dispute timeout, and arbiter fee.
       type: "struct",
       value: {
-        funding_mode: { type: "enum", value: "Upfront" },
-        dispute_timeout_seconds: { type: "u64", value: DISPUTE_TIMEOUT_SECONDS.toString() },
-        arbiter_fee_bps: { type: "u32", value: 0 },
+        funding_mode: { type: "enum", value: params.fundingMode },
+        dispute_timeout_seconds: { type: "u64", value: disputeTimeoutSeconds.toString() },
+        arbiter_fee_bps: { type: "u32", value: arbiterFeeBps },
       },
     },
     { type: "bytes", value: salt },
@@ -107,10 +135,11 @@ export function submitCreateJob(
   }
 ): Promise<string> {
   if (!FACTORY_CONTRACT_ID) return Promise.reject(new Error(FACTORY_NOT_CONFIGURED));
+  const args = await buildCreateEscrowArgs(params, randomSaltHex());
   return submitContractTransaction({
     contractId: FACTORY_CONTRACT_ID,
     method: "create_escrow",
-    args: buildCreateEscrowArgs(params, randomSaltHex()),
+    args,
     sourceAddress: params.client,
     signTransaction,
     onPhase,

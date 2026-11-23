@@ -13,7 +13,19 @@ export const TOKEN_CONTRACT_PATTERN = /^C[A-Z2-7]{55}$/;
 export const MIN_DEADLINE_DAYS = 1;
 export const MAX_DEADLINE_DAYS = 365;
 
-export type Milestone = { amount: string };
+export type Milestone = {
+  amount: string;
+  title: string;
+  description: string;
+  dueDate: string;
+};
+
+export const EMPTY_MILESTONE: Milestone = {
+  amount: "",
+  title: "",
+  description: "",
+  dueDate: "",
+};
 
 /**
  * Error for the freelancer field, or "" when it's empty or valid. Uses the
@@ -45,6 +57,35 @@ export function validateDeadline(value: string): string | null {
   return null;
 }
 
+/**
+ * Error for a milestone due date (ISO date string), or null when valid.
+ * Must be a date in the future (today is acceptable).
+ */
+export function validateDueDate(value: string): string | null {
+  if (value.trim() === "") return null; // optional
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) return "Enter a valid date";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (parsed < today) return "Due date must be today or later";
+  return null;
+}
+
+/**
+ * Error when milestone due dates are not non-decreasing, or null when valid.
+ */
+export function validateDueDatesSequence(dates: string[]): string | null {
+  let previous: Date | null = null;
+  for (const value of dates) {
+    if (value.trim() === "") continue;
+    const parsed = new Date(value);
+    if (!Number.isFinite(parsed.getTime())) continue;
+    if (previous && parsed < previous) return "Due dates must not decrease across milestones";
+    previous = parsed;
+  }
+  return null;
+}
+
 /** Drops blank entries from a free-text list (accepted assets, requirements). */
 export function nonBlank(values: string[]): string[] {
   return values.filter((value) => value.trim().length > 0);
@@ -61,11 +102,20 @@ export interface MilestoneSummary {
 }
 
 export function summarizeMilestones(rows: (Milestone | null | undefined)[]): MilestoneSummary {
-  const milestones = rows.filter((m): m is Milestone => !!m && typeof m.amount === "string");
+  const milestones = rows.filter(
+    (m): m is Milestone =>
+      !!m &&
+      typeof m.amount === "string" &&
+      typeof m.title === "string" &&
+      typeof m.description === "string" &&
+      typeof m.dueDate === "string"
+  );
   return {
     milestones,
     hasNoMilestones: milestones.length === 0,
-    hasPartialMilestones: milestones.some((m) => m.amount.trim().length === 0),
+    hasPartialMilestones: milestones.some(
+      (m) => m.amount.trim().length === 0 || m.title.trim().length === 0
+    ),
     hasInvalidMilestones: milestones.some((m) => {
       const trimmed = m.amount.trim();
       return trimmed.length > 0 && validateMilestoneAmount(trimmed) !== null;

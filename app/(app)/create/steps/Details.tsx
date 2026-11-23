@@ -165,6 +165,91 @@ export default function Details({ form }: { form: CreateJobForm }) {
             </p>
           )}
         </div>
+
+        {/* Advanced escrow settings (#815) */}
+        <fieldset disabled={loading}>
+          <legend className="block text-sm text-text-muted mb-2">Advanced settings</legend>
+          <p className="text-xs text-text-muted mb-3">
+            Per-escrow behaviour. Changing these alters how the funded escrow
+            operates on-chain.
+          </p>
+
+          <div>
+            <label htmlFor="funding-mode" className="block text-sm text-text-muted mb-1">
+              Funding mode
+            </label>
+            <div role="group" aria-label="Funding mode" className="mb-3 flex flex-wrap gap-2">
+              {["Upfront", "PerMilestone"] as const}.map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  role="radio"
+                  aria-checked={form.advanced.fundingMode === mode}
+                  onClick={() => form.advanced.changeFundingMode(mode)}
+                  disabled={loading}
+                  className={`${buttonClassName} border px-3 py-1.5 text-xs ${
+                    form.advanced.fundingMode === mode
+                      ? "border-accent-soft bg-accent/10 text-text-primary"
+                      : "border-border-subtle bg-surface-card text-text-secondary hover:border-accent-soft"
+                  }`}
+                >
+                  {mode === "Upfront" ? "Pay upfront" : "Pay per milestone"}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-text-muted">
+              {form.advanced.fundingMode === "Upfront"
+                ? "The full amount is funded when the escrow is created."
+                : "Fund each milestone as work progresses."}
+            </p>
+          </div>
+
+          <div className="mt-4">
+            <label htmlFor="dispute-timeout" className="block text-sm text-text-muted mb-1">
+              Dispute timeout (days)
+            </label>
+            <input
+              id="dispute-timeout"
+              type="number"
+              min="1"
+              max="365"
+              aria-required="true"
+              className={`${inputClassName} w-24`}
+              value={form.advanced.disputeTimeoutDays}
+              onChange={(e) => form.advanced.changeDisputeTimeoutDays(e.target.value)}
+              onFocus={onFocus}
+              disabled={loading}
+              placeholder="30"
+            />
+            <p className="mt-1 text-xs text-text-muted">
+              How long the arbiter has to rule on a dispute before funds auto-release.
+            </p>
+          </div>
+
+          <div className="mt-4">
+            <label htmlFor="arbiter-fee" className="block text-sm text-text-muted mb-1">
+              Arbiter fee
+            </label>
+            <input
+              id="arbiter-fee"
+              type="number"
+              min="0"
+              max="1000"
+              step="1"
+              aria-required="true"
+              className={`${inputClassName} w-24`}
+              value={form.advanced.arbiterFeeBps}
+              onChange={(e) => form.advanced.changeArbiterFeeBps(e.target.value)}
+              onFocus={onFocus}
+              disabled={loading}
+              placeholder="0"
+            />
+            <span className="ml-2 text-xs text-text-muted">bps</span>
+            <p className="mt-1 text-xs text-text-muted">
+              Basis points (100 bps = 1%). Capped at 10% ({form.advanced.arbiterFeeBps} bps entered).
+            </p>
+          </div>
+        </fieldset>
       </div>
     </StepPanel>
   );
