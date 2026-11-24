@@ -44,7 +44,24 @@ export const ERROR_MESSAGES: Record<number, string> = {
   35: "The fee is higher than the contract allows.",
   36: "The amount is too large to process.",
   37: "The escrow balance is too low for this action.",
+  38: "The contract rejected this transaction (error code 38). Check the job state and try again.",
+  39: "The dispute's escalation timeout hasn't been reached yet. Wait until the timeout passes before escalating.",
+  40: "This funding method isn't valid for this job's funding mode. Per-milestone jobs must be funded one milestone at a time.",
+  41: "This milestone has already reached its maximum number of revision requests.",
   42: "There's nothing to recover: this escrow holds no tokens beyond what it still owes.",
+  43: "Both parties must accept this job before it can be delivered or disputed.",
+  44: "The contract rejected this transaction (error code 44). Check the job state and try again.",
+  45: "This job already has the maximum number of milestones allowed.",
+  46: "This dispute has reached its maximum number of evidence entries.",
+  47: "The contract rejected this transaction (error code 47). Check the job state and try again.",
+  48: "The contract rejected this transaction (error code 48). Check the job state and try again.",
+  49: "The contract rejected this transaction (error code 49). Check the job state and try again.",
+  50: "The contract rejected this transaction (error code 50). Check the job state and try again.",
+  51: "This escrow was upgraded and needs to be migrated before it can be modified further. Run the migration before trying again.",
+  52: "The contract rejected this transaction (error code 52). Check the job state and try again.",
+  53: "The contract rejected this transaction (error code 53). Check the job state and try again.",
+  54: "The contract rejected this transaction (error code 54). Check the job state and try again.",
+  55: "The arbiter can't be replaced while a dispute is in progress on this escrow.",
 };
 
 export class WalletRejectedError extends Error {
@@ -204,6 +221,8 @@ export function parseContractErrorCode(message: string): number | null {
  */
 export const FACTORY_ERROR_MESSAGES: Record<number, string> = {
   1: "Escrow creation isn't set up yet: the escrow factory hasn't been initialized.",
+  2: "The escrow factory has already been initialized.",
+  3: "You are not authorized to create escrows through this factory.",
   4: "This token isn't accepted for new escrows. Pick one of the listed tokens.",
   5: "Add at least one milestone with a valid amount.",
 };

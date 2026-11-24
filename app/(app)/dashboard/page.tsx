@@ -40,6 +40,7 @@ import {
   shortAddress,
 } from "@/app/lib/job_list_summary";
 import { hashDisputeReason } from "@/app/lib/dispute_reason";
+import DisputeReasonBackupPanel from "@/app/components/DisputeReasonBackupPanel";
 import { canFund } from "@/app/lib/milestone_actions";
 import { fetchArbiterFeeBps } from "@/app/lib/arbiter_fee";
 import {
@@ -99,6 +100,13 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
   const [disputeMilestoneIndex, setDisputeMilestoneIndex] = useState<number | null>(null);
+  // #804: the contract only ever sees the reason's hash. This is the one
+  // chance the user gets to save the text itself, right after it's hashed
+  // and submitted.
+  const [disputeReasonBackup, setDisputeReasonBackup] = useState<{
+    reason: string;
+    hash: string;
+  } | null>(null);
   /** Delivered milestones selected for batch approval, keyed by job (#899). */
   const [batchSelection, setBatchSelection] = useState<{ jobId: string | null; indices: number[] }>(
     { jobId: null, indices: [] }
@@ -829,14 +837,25 @@ export default function Dashboard() {
     if (!address || disputeMilestoneIndex === null || !expandedJobId) return;
 
     // The contract takes a 32-byte hash of the reason, not the text (#590).
-    await executeTx(actionKey(expandedJobId, "dispute", disputeMilestoneIndex), "raise_dispute", [
-      { type: "address", value: address },
-      { type: "u32", value: disputeMilestoneIndex.toString() },
-      { type: "bytes", value: await hashDisputeReason(reason) },
-    ]);
+    const hash = await hashDisputeReason(reason);
+    const txHash = await executeTx(
+      actionKey(expandedJobId, "dispute", disputeMilestoneIndex),
+      "raise_dispute",
+      [
+        { type: "address", value: address },
+        { type: "u32", value: disputeMilestoneIndex.toString() },
+        { type: "bytes", value: hash },
+      ]
+    );
 
     setDisputeModalOpen(false);
     setDisputeMilestoneIndex(null);
+
+    // #804: the text never goes anywhere else, on-chain or off — this is
+    // the only chance to hand it back to the user.
+    if (txHash !== null) {
+      setDisputeReasonBackup({ reason, hash });
+    }
   };
 
   const handleResolveDispute = async (index: number, releaseToFreelancer: boolean) => {
@@ -1483,6 +1502,14 @@ export default function Dashboard() {
               ? getState(actionKey(expandedJobId, "dispute", disputeMilestoneIndex))?.error
               : undefined
           }
+        />
+      )}
+
+      {disputeReasonBackup && (
+        <DisputeReasonBackupPanel
+          reason={disputeReasonBackup.reason}
+          hash={disputeReasonBackup.hash}
+          onDismiss={() => setDisputeReasonBackup(null)}
         />
       )}
     </div>
