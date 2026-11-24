@@ -65,9 +65,7 @@ describe("transactions signature timeout bounds (#214)", () => {
     );
 
     const promise = signTxWithTimeout(request, signFn, 1_000);
-    const assertion = expect(promise).rejects.toBeInstanceOf(
-      TxSignatureTimeoutError
-    );
+    const assertion = expect(promise).rejects.toBeInstanceOf(TxSignatureTimeoutError);
 
     await vi.advanceTimersByTimeAsync(1_000);
     await assertion;
@@ -93,9 +91,7 @@ describe("transactions signature timeout bounds (#214)", () => {
     const signFn = vi.fn(() => new Promise<string>(() => {}));
 
     const promise = signTxWithTimeout(request, signFn, 500);
-    const assertion = expect(promise).rejects.toBeInstanceOf(
-      TxSignatureTimeoutError
-    );
+    const assertion = expect(promise).rejects.toBeInstanceOf(TxSignatureTimeoutError);
 
     await vi.advanceTimersByTimeAsync(500);
     await assertion;
@@ -111,10 +107,7 @@ describe("transactions signature timeout bounds (#214)", () => {
 
     // signFn resolves at 500 ms, timeout at 1000 ms — should resolve normally
     const signFn = vi.fn(
-      () =>
-        new Promise<string>((resolve) =>
-          setTimeout(() => resolve("on-time"), 500)
-        )
+      () => new Promise<string>((resolve) => setTimeout(() => resolve("on-time"), 500))
     );
 
     const promise = signTxWithTimeout(request, signFn, 1_000);
@@ -184,9 +177,7 @@ describe("transactions signature timeout bounds (#214)", () => {
     });
 
     const promise = signTxWithTimeout(request, signFn, 5_000);
-    const assertion = expect(promise).rejects.not.toBeInstanceOf(
-      TxSignatureTimeoutError
-    );
+    const assertion = expect(promise).rejects.not.toBeInstanceOf(TxSignatureTimeoutError);
 
     await vi.runAllTimersAsync();
     await assertion;
@@ -199,9 +190,7 @@ describe("transactions signature timeout bounds (#214)", () => {
       throw new Error("horizon unreachable");
     });
 
-    await expect(
-      signTxWithTimeout(request, signFn, 5_000)
-    ).rejects.toThrow("horizon unreachable");
+    await expect(signTxWithTimeout(request, signFn, 5_000)).rejects.toThrow("horizon unreachable");
   });
 
   // -------------------------------------------------------------------------
@@ -224,7 +213,13 @@ describe("transactions signature timeout bounds (#214)", () => {
     await vi.advanceTimersByTimeAsync(59_999);
 
     let settled = false;
-    promise.then(() => { settled = true; }).catch(() => { settled = true; });
+    promise
+      .then(() => {
+        settled = true;
+      })
+      .catch(() => {
+        settled = true;
+      });
     // give microtask queue a tick
     await Promise.resolve();
     expect(settled).toBe(false);
@@ -296,9 +291,7 @@ describe("transactions signature timeout bounds (#214)", () => {
     const signFn = vi.fn(() => new Promise<string>(() => {}));
 
     const promise = signTxWithTimeout(request, signFn, 500);
-    const assertion = expect(promise).rejects.toBeInstanceOf(
-      TxSignatureTimeoutError
-    );
+    const assertion = expect(promise).rejects.toBeInstanceOf(TxSignatureTimeoutError);
     await vi.advanceTimersByTimeAsync(500);
     await assertion;
   });

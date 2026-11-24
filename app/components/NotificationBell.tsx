@@ -75,8 +75,7 @@ export default function NotificationBell({
   const isDropdownOpen = controlledIsOpen ?? internalIsOpen;
 
   const showUnreadDotOrBadge =
-    (hasUnread !== undefined ? hasUnread : resolvedUnreadCount > 0) ||
-    resolvedUnreadCount > 0;
+    (hasUnread !== undefined ? hasUnread : resolvedUnreadCount > 0) || resolvedUnreadCount > 0;
 
   const handleToggle = () => {
     if (disabled) return;
@@ -99,10 +98,7 @@ export default function NotificationBell({
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-soft focus-visible:ring-offset-2 focus-visible:ring-offset-surface-page";
 
   return (
-    <div
-      className={`relative inline-block ${className}`}
-      data-testid="notification-bell-container"
-    >
+    <div className={`relative inline-block ${className}`} data-testid="notification-bell-container">
       <button
         type="button"
         data-testid="notification-bell"
@@ -145,9 +141,7 @@ export default function NotificationBell({
           <span
             data-testid="notification-badge"
             aria-label={
-              resolvedUnreadCount > 0
-                ? `${resolvedUnreadCount} unread notifications`
-                : undefined
+              resolvedUnreadCount > 0 ? `${resolvedUnreadCount} unread notifications` : undefined
             }
             className={`absolute -top-1 -right-1 flex items-center justify-center rounded-full border-2 border-surface-page bg-accent text-white text-xs font-bold ${
               resolvedUnreadCount > 0
@@ -245,12 +239,8 @@ export default function NotificationBell({
                         />
                       )}
                     </div>
-                    <p className="text-xs text-gray-400 line-clamp-2 mt-0.5">
-                      {item.message}
-                    </p>
-                    <p className="text-[10px] text-gray-500 font-mono mt-1">
-                      {item.timestamp}
-                    </p>
+                    <p className="text-xs text-gray-400 line-clamp-2 mt-0.5">{item.message}</p>
+                    <p className="text-[10px] text-gray-500 font-mono mt-1">{item.timestamp}</p>
                   </div>
                 </div>
               ))

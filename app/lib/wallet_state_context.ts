@@ -6,6 +6,8 @@
  * `app/lib/network_sync_checker.ts` and `app/lib/ledger_usb_bridge.ts`.
  */
 
+import { TransactionBuilder } from "@stellar/stellar-sdk";
+
 const LOG_PREFIX = "[wallet_state_context]";
 
 // =============================================================
@@ -167,17 +169,11 @@ export function parseMultiSigEnvelope(
   options: WalletMultiSigParseOptions = {}
 ): WalletMultiSigEnvelopeShape {
   if (typeof baseXdr !== "string") {
-    throw new WalletMultiSigStructureError(
-      "empty_xdr",
-      "Multi-sig envelope XDR must be a string."
-    );
+    throw new WalletMultiSigStructureError("empty_xdr", "Multi-sig envelope XDR must be a string.");
   }
   const trimmed = baseXdr.trim();
   if (trimmed.length === 0) {
-    throw new WalletMultiSigStructureError(
-      "empty_xdr",
-      "Multi-sig envelope XDR is empty."
-    );
+    throw new WalletMultiSigStructureError("empty_xdr", "Multi-sig envelope XDR is empty.");
   }
   const bytes = decodeBase64Envelope(trimmed);
   if (bytes.length === 0) {
@@ -209,11 +205,7 @@ export function parseMultiSigEnvelope(
           : "Multi-sig envelope XDR could not be parsed."
       );
     }
-    if (
-      !parsed ||
-      typeof parsed.signatures !== "number" ||
-      !Number.isFinite(parsed.signatures)
-    ) {
+    if (!parsed || typeof parsed.signatures !== "number" || !Number.isFinite(parsed.signatures)) {
       throw new WalletMultiSigStructureError(
         "envelope_parse_failure",
         "Multi-sig envelope parser returned an invalid shape — `signatures` must be a finite number."
@@ -223,8 +215,7 @@ export function parseMultiSigEnvelope(
     parsedSourceAccount = parsed.sourceAccount ?? null;
   }
   if (typeof signatures !== "number") {
-    signatures =
-      (options.countSignatures ?? DEFAULT_SIGNATURE_SLOT_EXTRACTOR)(bytes);
+    signatures = (options.countSignatures ?? DEFAULT_SIGNATURE_SLOT_EXTRACTOR)(bytes);
     // Strict only for the byte-heuristic fallback: parseEnvelopeXdr path may
     // legitimately return 0 when the envelope is unsigned-so-far.
     if (signatures < 1) {
@@ -234,10 +225,7 @@ export function parseMultiSigEnvelope(
       );
     }
   }
-  if (
-    typeof options.expectedSignatures === "number" &&
-    signatures !== options.expectedSignatures
-  ) {
+  if (typeof options.expectedSignatures === "number" && signatures !== options.expectedSignatures) {
     throw new WalletMultiSigStructureError(
       "decorator_mismatch",
       `Multi-sig envelope has ${signatures} signature slot(s); expected ${options.expectedSignatures}.`
@@ -247,16 +235,13 @@ export function parseMultiSigEnvelope(
     parsedSourceAccount && parsedSourceAccount.length > 0
       ? parsedSourceAccount
       : Object.hasOwn(options, "sourceAccount")
-        ? options.sourceAccount ?? null
+        ? (options.sourceAccount ?? null)
         : null;
   return {
     baseXdr: trimmed,
     signatures,
     sourceAccount,
-    signatureSlotIndices: Array.from(
-      { length: signatures },
-      (_, i) => i + 1
-    ),
+    signatureSlotIndices: Array.from({ length: signatures }, (_, i) => i + 1),
   };
 }
 
@@ -305,10 +290,7 @@ export function applyMultiSigSignature(
   signedXdr: string
 ): WalletMultiSigSplit {
   if (typeof signedXdr !== "string" || signedXdr.trim().length === 0) {
-    throw new WalletMultiSigStructureError(
-      "empty_xdr",
-      "Multi-sig split signed XDR is empty."
-    );
+    throw new WalletMultiSigStructureError("empty_xdr", "Multi-sig split signed XDR is empty.");
   }
   split.signedXdr = signedXdr.trim();
   return split;
@@ -329,9 +311,10 @@ function signerKey(signer: WalletMultiSigSigner): string {
  * structural checks are performed by {@link validateMultiSigAssembly} which
  * always runs first.
  */
-export function simulateMultiSigAssembly(
-  splits: WalletMultiSigSplit[]
-): { uniqueSigners: number; duplicates: WalletMultiSigSigner[] } {
+export function simulateMultiSigAssembly(splits: WalletMultiSigSplit[]): {
+  uniqueSigners: number;
+  duplicates: WalletMultiSigSigner[];
+} {
   const seen = new Set<string>();
   const duplicates: WalletMultiSigSigner[] = [];
   for (const split of splits ?? []) {
@@ -391,17 +374,84 @@ export function validateMultiSigAssembly(
   };
 }
 
+/** Pulls the source account off a parsed envelope, handling Transaction and FeeBump shapes. */
+function extractSourceAccount(env: unknown): string | null {
+  if (!env || typeof env !== "object") return null;
+  const record = env as Record<string, unknown>;
+  const source = record["source"];
+  if (source) {
+    const stringified = stringifyStellarAccount(source);
+    if (stringified) return stringified;
+  }
+  const feeSource = record["feeSource"] ?? record["feeAccount"];
+  if (feeSource) {
+    const stringified = stringifyStellarAccount(feeSource);
+    if (stringified) return stringified;
+  }
+  return null;
+}
+
+/**
+ * Stringify a Stellar account descriptor (MuxedAccount-like). Prefers the
+ * SDK's `accountId()` method, falls back to a plain string when the
+ * descriptor is already a G/M address, and warns (instead of guessing) when
+ * neither works.
+ */
+function stringifyStellarAccount(value: unknown): string | null {
+  if (typeof value === "string" && value.length > 0) return value;
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Record<string, unknown>;
+  const accountId = candidate["accountId"];
+  if (typeof accountId === "function") {
+    try {
+      const result = (accountId as () => unknown).call(value);
+      if (typeof result === "string" && result.length > 0) return result;
+    } catch (err) {
+      console.warn(
+        `${LOG_PREFIX} stellar accountId() extraction failed:`,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+  return null;
+}
+
+/**
+ * Returns a {@link WalletMultiSigParseOptions.parseEnvelopeXdr}
+ * implementation backed by the Stellar SDK's `TransactionBuilder.fromXDR`.
+ * Use this from production paths so the multi-sig helpers see real
+ * `DecoratedSignature` counts (and the actual source account) rather than
+ * the byte-length heuristic.
+ */
+export function createStellarEnvelopeParser(
+  networkPassphrase: string
+): (baseXdr: string) => WalletMultiSigEnvelopeParsed {
+  if (typeof networkPassphrase !== "string" || networkPassphrase.trim().length === 0) {
+    throw new Error(
+      `${LOG_PREFIX} createStellarEnvelopeParser requires a non-empty network passphrase.`
+    );
+  }
+  const passphrase = networkPassphrase;
+  return (baseXdr: string): WalletMultiSigEnvelopeParsed => {
+    const env = TransactionBuilder.fromXDR(baseXdr, passphrase);
+    if (!Array.isArray(env?.signatures)) {
+      throw new Error(
+        `${LOG_PREFIX} createStellarEnvelopeParser: TransactionBuilder.fromXDR returned a shape without a signatures array.`
+      );
+    }
+    return {
+      signatures: env.signatures.length,
+      sourceAccount: extractSourceAccount(env),
+    };
+  };
+}
+
 // =============================================================
 // Console error formatting + transaction tracking (#121)
 // =============================================================
 
 export type WalletTxPhase =
-  | "idle"
-  | "connecting"
-  | "signing"
-  | "disconnecting"
-  | "success"
-  | "error";
+  "idle" | "connecting" | "signing" | "disconnecting" | "success" | "error";
 
 export interface WalletTxTrackEntry {
   txId: string;
@@ -429,16 +479,12 @@ export function formatStackTrace(err?: unknown): string {
     return err;
   }
 
-  const synthetic = new Error(
-    typeof err === "string" ? err : "Wallet state context trace"
-  );
+  const synthetic = new Error(typeof err === "string" ? err : "Wallet state context trace");
   return synthetic.stack ?? "Error: Wallet state context trace";
 }
 
 /** Builds a multi-line console warning block for transaction debug tracking. */
-export function formatConsoleWarningBlock(
-  block: WalletConsoleWarningBlock
-): string {
+export function formatConsoleWarningBlock(block: WalletConsoleWarningBlock): string {
   const lines = [
     `${LOG_PREFIX} ╔══════════════════════════════════════╗`,
     `${LOG_PREFIX} ║ ${block.title.padEnd(36).slice(0, 36)} ║`,
@@ -483,12 +529,7 @@ export function logWalletWarning(
 export class WalletTransactionTracker {
   private entries: WalletTxTrackEntry[] = [];
 
-  track(
-    txId: string,
-    phase: WalletTxPhase,
-    message: string,
-    err?: unknown
-  ): WalletTxTrackEntry {
+  track(txId: string, phase: WalletTxPhase, message: string, err?: unknown): WalletTxTrackEntry {
     const entry: WalletTxTrackEntry = {
       txId,
       phase,
@@ -538,9 +579,7 @@ export class WalletSignatureTimeoutError extends Error {
 }
 
 /** Zeroes and drops a sensitive buffer so it cannot be retained after abort. */
-export function clearWalletSensitiveMemory(
-  request: WalletSignRequest
-): WalletSignRequest {
+export function clearWalletSensitiveMemory(request: WalletSignRequest): WalletSignRequest {
   if (request.payload) {
     request.payload.fill(0);
   }
@@ -552,6 +591,13 @@ export function clearWalletSensitiveMemory(
  * Races an active wallet context signature operation against a timeout
  * clock. On timeout the operation is aborted and any sensitive payload
  * memory is cleared.
+ *
+ * The timeout is derived from the transaction's own `maxTime` when one is
+ * supplied (#628). A transaction whose envelope advertises no maxTime falls
+ * back to `DEFAULT_WALLET_SIGNATURE_TIMEOUT_MS`; an unparseable XDR falls
+ * back to the same default rather than hanging indefinitely. This keeps a
+ * single timeout implementation — the one in WalletContext — and lets
+ * `submitContractTransaction` rely on it.
  */
 export async function signWalletWithTimeout<T>(
   request: WalletSignRequest,
@@ -583,6 +629,28 @@ export async function signWalletWithTimeout<T>(
   }
 }
 
+/**
+ * Seconds left before the transaction's `timeBounds.maxTime` (#628), read from
+ * a base64 envelope XDR. Returns `null` when the envelope can't be parsed, has
+ * no upper bound (maxTime 0), or has already expired, so callers fall back to
+ * the default bound instead of guessing.
+ */
+export function readTransactionMaxTimeSecs(xdr: string, nowMs: number = Date.now()): number | null {
+  if (typeof xdr !== "string" || xdr.length === 0) return null;
+
+  try {
+    // maxTime is network-independent, so any passphrase parses the envelope.
+    const parsed = TransactionBuilder.fromXDR(xdr, "Test SDF Network ; September 2015");
+    const tx = "innerTransaction" in parsed ? parsed.innerTransaction : parsed;
+    const maxTime = Number(tx.timeBounds?.maxTime ?? 0);
+    if (!Number.isFinite(maxTime) || maxTime <= 0) return null;
+    const remaining = Math.floor(maxTime - nowMs / 1000);
+    return remaining > 0 ? remaining : null;
+  } catch {
+    return null;
+  }
+}
+
 // =============================================================
 // Loader overlay listener (#118)
 // =============================================================
@@ -594,9 +662,7 @@ export function isWalletLoading(): boolean {
   return activeOperationsCount > 0;
 }
 
-export function subscribeToWalletLoading(
-  listener: (isLoading: boolean) => void
-): () => void {
+export function subscribeToWalletLoading(listener: (isLoading: boolean) => void): () => void {
   loaderListeners.add(listener);
   listener(activeOperationsCount > 0);
   return () => {

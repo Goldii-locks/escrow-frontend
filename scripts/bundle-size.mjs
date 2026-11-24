@@ -1,23 +1,15 @@
-#!/usr/bin/env node
-/**
- * Measure first-load JavaScript for each statically exported route.
- *
- * `next build` (output: "export") writes one HTML document per route in out/.
- * We sum the gzipped size of every <script src> referenced by that document,
- * which is the JavaScript a browser downloads before the route renders.
- *
- * Usage:
- *   node scripts/bundle-size.mjs             # compare against bundle-budget.json
- *   node scripts/bundle-size.mjs --update    # rewrite budgets with 10% headroom
- */
+// Measures first-load JS per route from the static export in out/ and
+// checks it against bundle-budget.json. Next 16 no longer prints sizes in
+// `next build`, so we sum the gzipped <script src> chunks each page loads.
+//
+//   node scripts/bundle-size.mjs           check against the budget
+//   node scripts/bundle-size.mjs --update  rewrite the budget (current + 10%)
+import { readFileSync, writeFileSync, appendFileSync, existsSync } from "node:fs";
 import { gzipSync } from "node:zlib";
-import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const ROOT = process.cwd();
-const OUT = join(ROOT, "out");
-const BUDGET_FILE = join(ROOT, "bundle-budget.json");
-const HEADROOM = 1.1;
+const OUT = "out";
+const BUDGET_FILE = "bundle-budget.json";
 const ROUTES = {
   "/": "index.html",
   "/dashboard": "dashboard.html",
@@ -25,12 +17,11 @@ const ROUTES = {
   "/admin": "admin.html",
 };
 
+const kb = (n) => `${(n / 1024).toFixed(1)} kB`;
+
 function firstLoadJs(htmlFile) {
   const html = readFileSync(join(OUT, htmlFile), "utf8");
-  const srcs = new Set(
-    [...html.matchAll(/<script[^>]+src="([^"]+\.js)"/g)].map((m) => m[1]),
-  );
-
+  const srcs = new Set([...html.matchAll(/<script[^>]+src="([^"]+\.js)"/g)].map((m) => m[1]));
   let total = 0;
   for (const src of srcs) {
     total += gzipSync(readFileSync(join(OUT, src.split("?")[0]))).length;
@@ -38,47 +29,41 @@ function firstLoadJs(htmlFile) {
   return total;
 }
 
-const measured = Object.fromEntries(
-  Object.entries(ROUTES).map(([route, htmlFile]) => [
-    route,
-    firstLoadJs(htmlFile),
-  ]),
+const sizes = Object.fromEntries(
+  Object.entries(ROUTES).map(([route, file]) => [route, firstLoadJs(file)])
 );
 
 if (process.argv.includes("--update")) {
-  const budgets = Object.fromEntries(
-    Object.entries(measured).map(([route, bytes]) => [
-      route,
-      Math.ceil(bytes * HEADROOM),
-    ]),
-  );
-  writeFileSync(BUDGET_FILE, `${JSON.stringify(budgets, null, 2)}\n`);
-  console.log(`Updated ${BUDGET_FILE}`);
+  const budget = Object.fromEntries(Object.entries(sizes).map(([r, s]) => [r, Math.ceil(s * 1.1)]));
+  writeFileSync(BUDGET_FILE, JSON.stringify(budget, null, 2) + "\n");
+  console.log(`Wrote ${BUDGET_FILE}`);
+  process.exit(0);
 }
 
-const budgets = JSON.parse(readFileSync(BUDGET_FILE, "utf8"));
+const budget = existsSync(BUDGET_FILE) ? JSON.parse(readFileSync(BUDGET_FILE, "utf8")) : {};
 let failed = false;
-
-const rows = Object.entries(measured).map(([route, bytes]) => {
-  const budget = budgets[route];
-  const ok = budget === undefined || bytes <= budget;
+const rows = Object.entries(sizes).map(([route, size]) => {
+  const limit = budget[route];
+  const ok = limit === undefined || size <= limit;
   if (!ok) failed = true;
-  return `| ${route} | ${(bytes / 1024).toFixed(1)} kB | ${budget === undefined ? "-" : `${(budget / 1024).toFixed(1)} kB`} | ${ok ? "✅" : "❌"} |`;
+  return `| \`${route}\` | ${kb(size)} | ${limit ? kb(limit) : "—"} | ${ok ? "✅" : "❌ over budget"} |`;
 });
+const table = [
+  "### First-load JS per route (gzip)",
+  "",
+  "| Route | Size | Budget | Status |",
+  "|---|---|---|---|",
+  ...rows,
+  "",
+].join("\n");
 
-console.log(
-  ["| Route | First-load JS (gzip) | Budget | Result |", "| --- | --- | --- | --- |", ...rows].join("\n"),
-);
-
+console.log(table);
 if (process.env.GITHUB_STEP_SUMMARY) {
-  const summary = [
-    "## First-load JavaScript budgets",
-    "",
-    ["| Route | First-load JS (gzip) | Budget | Result |", "| --- | --- | --- | --- |", ...rows].join("\n"),
-    "",
-  ].join("\n");
-  const { appendFileSync } = await import("node:fs");
-  appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
+  appendFileSync(process.env.GITHUB_STEP_SUMMARY, table + "\n");
 }
-
-if (failed) process.exitCode = 1;
+if (failed) {
+  console.error(
+    `First-load JS exceeds ${BUDGET_FILE}. If the increase is intended, run \`node scripts/bundle-size.mjs --update\` after a build.`
+  );
+  process.exit(1);
+}

@@ -70,10 +70,7 @@ describe("signature_timeout_alert timeout bounds (#244)", () => {
     const request: SignatureTimeoutAlertRequest = { xdr: "FFFF..." };
     // signFn resolves at 500 ms; timeout at 1 000 ms
     const signFn = vi.fn(
-      () =>
-        new Promise<string>((resolve) =>
-          setTimeout(() => resolve("ok"), 500)
-        )
+      () => new Promise<string>((resolve) => setTimeout(() => resolve("ok"), 500))
     );
 
     const promise = runSignatureWithTimeout(request, signFn, 1_000);
@@ -93,9 +90,7 @@ describe("signature_timeout_alert timeout bounds (#244)", () => {
     const signFn = vi.fn(() => new Promise<string>(() => {})); // never resolves
 
     const promise = runSignatureWithTimeout(request, signFn, 1_000);
-    const assertion = expect(promise).rejects.toBeInstanceOf(
-      SignatureTimeoutAlertError
-    );
+    const assertion = expect(promise).rejects.toBeInstanceOf(SignatureTimeoutAlertError);
 
     await vi.advanceTimersByTimeAsync(1_000);
     await assertion;
@@ -197,9 +192,7 @@ describe("signature_timeout_alert timeout bounds (#244)", () => {
     });
 
     const promise = runSignatureWithTimeout(request, signFn, 5_000);
-    const assertion = expect(promise).rejects.not.toBeInstanceOf(
-      SignatureTimeoutAlertError
-    );
+    const assertion = expect(promise).rejects.not.toBeInstanceOf(SignatureTimeoutAlertError);
     await vi.runAllTimersAsync();
     await assertion;
   });
@@ -270,9 +263,7 @@ describe("signature_timeout_alert timeout bounds (#244)", () => {
 
   describe("SignatureTimeoutAlertError", () => {
     it("has the correct error name", () => {
-      expect(new SignatureTimeoutAlertError(5_000).name).toBe(
-        "SignatureTimeoutAlertError"
-      );
+      expect(new SignatureTimeoutAlertError(5_000).name).toBe("SignatureTimeoutAlertError");
     });
 
     it("message includes the timeout value in ms", () => {
@@ -317,9 +308,7 @@ describe("signature_timeout_alert timeout bounds (#244)", () => {
     const signFn = vi.fn(() => new Promise<string>(() => {}));
 
     const promise = runSignatureWithTimeout(request, signFn, 500);
-    const assertion = expect(promise).rejects.toBeInstanceOf(
-      SignatureTimeoutAlertError
-    );
+    const assertion = expect(promise).rejects.toBeInstanceOf(SignatureTimeoutAlertError);
     await vi.advanceTimersByTimeAsync(500);
     await assertion;
   });

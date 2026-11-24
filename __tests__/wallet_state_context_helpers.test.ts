@@ -84,15 +84,15 @@ describe("wallet_state_context multi-sig helpers (#119)", () => {
   });
 
   it("createMultiSigSplit rejects an empty base XDR", () => {
-    expect(() =>
-      createMultiSigSplit("", { publicKey: "GABC", hint: "abcd" })
-    ).toThrow(WalletMultiSigStructureError);
+    expect(() => createMultiSigSplit("", { publicKey: "GABC", hint: "abcd" })).toThrow(
+      WalletMultiSigStructureError
+    );
   });
 
   it("createMultiSigSplit rejects a signer missing publicKey or hint", () => {
-    expect(() =>
-      createMultiSigSplit(toBase64("x"), { publicKey: "", hint: "abcd" })
-    ).toThrow(WalletMultiSigStructureError);
+    expect(() => createMultiSigSplit(toBase64("x"), { publicKey: "", hint: "abcd" })).toThrow(
+      WalletMultiSigStructureError
+    );
   });
 
   it("createMultiSigSplit builds a split seeded with the base XDR as signedXdr", () => {

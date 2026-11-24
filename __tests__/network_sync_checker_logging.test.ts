@@ -28,9 +28,7 @@ describe("network_sync_checker formatted console output", () => {
     });
 
     it("synthesizes a stack for primitives and single-line values", () => {
-      expect(formatStackTrace("just a message")).toContain(
-        "Error: just a message"
-      );
+      expect(formatStackTrace("just a message")).toContain("Error: just a message");
       expect(formatStackTrace(undefined)).toContain("network_sync_checker trace");
     });
   });
@@ -145,13 +143,9 @@ describe("network_sync_checker transaction tracking", () => {
     const showToast = vi.fn();
     const signFn = vi.fn();
 
-    const result = await validateNetworkSyncWithSignature(
-      "mainnet",
-      "testnet",
-      signFn,
-      showToast,
-      { txId: "sync-mismatch" }
-    );
+    const result = await validateNetworkSyncWithSignature("mainnet", "testnet", signFn, showToast, {
+      txId: "sync-mismatch",
+    });
 
     expect(result).toBeNull();
     expect(signFn).not.toHaveBeenCalled();

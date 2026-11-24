@@ -43,10 +43,7 @@ export default function TransactionHash({
       className={`flex flex-wrap items-center gap-x-3 gap-y-1 ${className}`}
       data-testid="transaction-hash"
     >
-      <code
-        className="break-all font-mono text-xs"
-        data-testid="transaction-hash-value"
-      >
+      <code className="break-all font-mono text-xs" data-testid="transaction-hash-value">
         {txHash}
       </code>
       {explorerUrl && (

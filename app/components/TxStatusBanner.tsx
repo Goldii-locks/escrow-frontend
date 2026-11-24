@@ -37,11 +37,7 @@ export default function TxStatusBanner({
       >
         <p>{successMessage}</p>
         {txHash && (
-          <TransactionHash
-            txHash={txHash}
-            passphrase={passphrase}
-            className="text-indigo-400"
-          />
+          <TransactionHash txHash={txHash} passphrase={passphrase} className="text-indigo-400" />
         )}
       </div>
     );

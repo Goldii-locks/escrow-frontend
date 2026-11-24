@@ -9,9 +9,6 @@ export function milestoneLimitHint(max: number = MAX_MILESTONES): string {
   return `Up to ${max} milestones per escrow`;
 }
 
-export function isMilestoneCapReached(
-  count: number,
-  max: number = MAX_MILESTONES,
-): boolean {
+export function isMilestoneCapReached(count: number, max: number = MAX_MILESTONES): boolean {
   return count >= max;
 }

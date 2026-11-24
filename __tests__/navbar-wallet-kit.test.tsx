@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Navbar from "@/app/components/Navbar";
@@ -14,6 +15,10 @@ vi.mock("@/app/context/WalletContext", () => ({
   useWallet: () => mockUseWallet(),
 }));
 
+vi.mock("@/app/context/ToastContext", () => ({
+  useToast: () => ({ showToast: vi.fn() }),
+}));
+
 vi.mock("@/app/hooks/useIsAdmin", () => ({
   useIsAdmin: () => ({ isAdminUser: false }),
 }));
@@ -23,7 +28,7 @@ describe("Navbar wallet selector", () => {
     vi.clearAllMocks();
   });
 
-  it("shows wallet provider selector when disconnected", () => {
+  it("shows the Milestone logo and product name as the brand", () => {
     mockUseWallet.mockReturnValue({
       address: null,
       connect: vi.fn(),
@@ -36,12 +41,19 @@ describe("Navbar wallet selector", () => {
 
     render(<Navbar />);
 
-    expect(screen.getByLabelText("Wallet provider")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Connect Wallet" })).toBeInTheDocument();
+    const brandLink = screen.getByRole("link", { name: "Milestone home" });
+    expect(brandLink).toBeInTheDocument();
+    // The logo is an inline SVG with aria-hidden, so the accessible name
+    // comes from the "Milestone" text node.
+    expect(brandLink).toHaveTextContent("Milestone");
+    // The padlock emoji must not be present.
+    expect(brandLink).not.toHaveTextContent("🔐");
+    expect(brandLink).not.toHaveTextContent("Escrow");
+    // The LandingLogo SVG should be rendered inside the link.
+    expect(brandLink.querySelector("svg")).not.toBeNull();
   });
 
-  it("updates selected wallet when changed", () => {
-    const setSelectedWalletId = vi.fn();
+  it("opens the wallet selector modal when Connect Wallet is clicked", () => {
     mockUseWallet.mockReturnValue({
       address: null,
       connect: vi.fn(),
@@ -49,15 +61,31 @@ describe("Navbar wallet selector", () => {
       isConnecting: false,
       networkMismatchMessage: null,
       selectedWalletId: "freighter",
-      setSelectedWalletId,
+      setSelectedWalletId: vi.fn(),
     });
 
     render(<Navbar />);
 
-    const select = screen.getByLabelText("Wallet provider") as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: "albedo" } });
+    expect(screen.queryByLabelText("Wallet provider")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Connect Wallet" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
 
-    expect(setSelectedWalletId).toHaveBeenCalledWith("albedo");
+  it("shows an install link when no wallet extension is detected", () => {
+    mockUseWallet.mockReturnValue({
+      address: null,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      isConnecting: false,
+      networkMismatchMessage: null,
+      selectedWalletId: "freighter",
+      setSelectedWalletId: vi.fn(),
+    });
+
+    render(<Navbar />);
+    fireEvent.click(screen.getByRole("button", { name: "Connect Wallet" }));
+
+    expect(screen.getByRole("link", { name: /install/i })).toHaveAttribute("href");
   });
 
   it("displays network mismatch warning when provided", () => {
@@ -66,7 +94,8 @@ describe("Navbar wallet selector", () => {
       connect: vi.fn(),
       disconnect: vi.fn(),
       isConnecting: false,
-      networkMismatchMessage: "Network mismatch: your Freighter is on Mainnet but this app expects Stellar Testnet.",
+      networkMismatchMessage:
+        "Network mismatch: your Freighter is on Mainnet but this app expects Stellar Testnet.",
       selectedWalletId: "freighter",
       setSelectedWalletId: vi.fn(),
     });

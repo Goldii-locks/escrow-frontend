@@ -54,6 +54,29 @@ export function formatRemaining(msRemaining: number): string {
   return parts.slice(0, 2).join(", ");
 }
 
+/**
+ * Format the absolute deadline as a locale-aware date/time string including
+ * the time zone, e.g. "Releases Thu 21 Oct, 14:00 GMT+1".
+ *
+ * Uses `Intl.DateTimeFormat` with the user's locale (or `en-US` as a fallback
+ * in test environments where `navigator.language` may be unavailable).
+ */
+export function formatAbsoluteDeadline(deadlineMs: number): string {
+  const locale =
+    typeof navigator !== "undefined" && navigator.language ? navigator.language : "en-US";
+
+  const formatter = new Intl.DateTimeFormat(locale, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "shortOffset",
+  });
+
+  return `Releases ${formatter.format(new Date(deadlineMs))}`;
+}
+
 export default function CountdownTimer({
   deadline,
   eligibleLabel = "Eligible for auto-release",
@@ -67,22 +90,29 @@ export default function CountdownTimer({
   const elapsedFired = useRef(false);
   const warningFired = useRef(false);
 
+  // A non-finite deadline (NaN, Infinity) can't be counted down to or
+  // converted to an ISO string, so it renders a fallback instead.
+  const hasValidDeadline = Number.isFinite(deadline);
   const remaining = deadline - now;
-  const isElapsed = remaining <= 0;
+  const isElapsed = hasValidDeadline && remaining <= 0;
+  const isTicking = hasValidDeadline && !isElapsed;
+
+  // ISO string for the <time dateTime> attribute — stable per deadline.
+  const isoDeadline = hasValidDeadline ? new Date(deadline).toISOString() : "";
 
   useEffect(() => {
-    if (isElapsed) {
+    if (!isTicking) {
       return;
     }
 
     // The interval callback runs after mount, so this is not a synchronous
     // setState within the effect. A deadline prop change re-renders and
     // recomputes `remaining` without needing an immediate setState here.
+    // `isTicking` is a dependency so the interval is cleared as soon as the
+    // countdown reaches zero, instead of re-rendering every second forever.
     const id = setInterval(() => setNow(Date.now()), intervalMs);
     return () => clearInterval(id);
-    // Re-arm whenever the deadline changes; isElapsed is derived from it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deadline, intervalMs]);
+  }, [deadline, intervalMs, isTicking]);
 
   useEffect(() => {
     if (isElapsed && !elapsedFired.current) {
@@ -108,6 +138,14 @@ export default function CountdownTimer({
     }
   }, [remaining, warningThresholdMs, onWarningThreshold]);
 
+  if (!hasValidDeadline) {
+    return (
+      <span data-testid="countdown-unavailable" className={`text-xs text-text-muted ${className}`}>
+        Release time unavailable
+      </span>
+    );
+  }
+
   if (isElapsed) {
     return (
       <span
@@ -129,6 +167,13 @@ export default function CountdownTimer({
       className={`text-xs text-text-muted tabular-nums ${className}`}
     >
       {formatRemaining(remaining)} remaining
+      <time
+        dateTime={isoDeadline}
+        data-testid="countdown-absolute"
+        className="ml-1 text-text-muted/70"
+      >
+        {formatAbsoluteDeadline(deadline)}
+      </time>
     </span>
   );
 }

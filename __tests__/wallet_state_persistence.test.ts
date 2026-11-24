@@ -32,9 +32,7 @@ function createMockStorage(): Storage {
   };
 }
 
-function makeState(
-  overrides: Partial<WalletActiveState> = {}
-): WalletActiveState {
+function makeState(overrides: Partial<WalletActiveState> = {}): WalletActiveState {
   return {
     address: "GABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890",
     selectedWalletId: "freighter",

@@ -9,33 +9,23 @@ import {
 describe("arbitration_escrow_details form input sanitization (#482)", () => {
   it("detects code tags and script payloads", () => {
     expect(arbitrationContainsCodeTags("<script>alert(1)</script>")).toBe(true);
-    expect(arbitrationContainsCodeTags("<img src=x onerror=alert(1)>")).toBe(
-      true,
-    );
+    expect(arbitrationContainsCodeTags("<img src=x onerror=alert(1)>")).toBe(true);
     expect(arbitrationContainsCodeTags("<iframe src=evil></iframe>")).toBe(true);
     expect(arbitrationContainsCodeTags("javascript:alert(1)")).toBe(true);
     expect(arbitrationContainsCodeTags("<b>bold text</b>")).toBe(true);
-    expect(arbitrationContainsCodeTags("Legitimate evidence explanation")).toBe(
-      false,
-    );
+    expect(arbitrationContainsCodeTags("Legitimate evidence explanation")).toBe(false);
   });
 
   it("asserts form ignores input containing code tags in reasons (#482)", () => {
     expect(sanitizeArbitrationReason("<script>exploit()</script>")).toBe("");
-    expect(
-      sanitizeArbitrationReason("Hello <svg onload=alert(1)> world"),
-    ).toBe("");
+    expect(sanitizeArbitrationReason("Hello <svg onload=alert(1)> world")).toBe("");
     expect(sanitizeArbitrationReason("javascript:void(0)")).toBe("");
-    expect(sanitizeArbitrationReason("Valid reason description")).toBe(
-      "Valid reason description",
-    );
+    expect(sanitizeArbitrationReason("Valid reason description")).toBe("Valid reason description");
   });
 
   it("asserts form ignores input containing code tags in comments", () => {
     expect(sanitizeArbitrationComment("<script>evil()</script>")).toBe("");
-    expect(sanitizeArbitrationComment("Evidence details note")).toBe(
-      "Evidence details note",
-    );
+    expect(sanitizeArbitrationComment("Evidence details note")).toBe("Evidence details note");
   });
 
   it("asserts form ignores input containing code tags in amounts", () => {

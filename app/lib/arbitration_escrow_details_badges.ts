@@ -4,12 +4,7 @@
  * Distinct label, color and marker per dispute/arbitration state. Pure and React-free.
  */
 
-export type ArbitrationBadgeState =
-  | "locked"
-  | "under_review"
-  | "resolved"
-  | "pending"
-  | "appealed";
+export type ArbitrationBadgeState = "locked" | "under_review" | "resolved" | "pending" | "appealed";
 
 export interface ArbitrationBadge {
   state: ArbitrationBadgeState;
@@ -58,9 +53,7 @@ const BADGES: Record<ArbitrationBadgeState, ArbitrationBadge> = {
 };
 
 /** Badge for an arbitration state; unknown or missing values fall back to pending badge. */
-export function getArbitrationBadge(
-  state: string | null | undefined,
-): ArbitrationBadge {
+export function getArbitrationBadge(state: string | null | undefined): ArbitrationBadge {
   const normalized = (state ?? "")
     .trim()
     .toLowerCase()

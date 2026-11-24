@@ -1,24 +1,23 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { WalletProvider } from "../context/WalletContext";
+import WalletLoaderOverlay from "../components/WalletLoaderOverlay";
+import GasEstimationWarningBanner from "../components/GasEstimationWarningBanner";
+import SignatureTimeoutAlert from "../components/SignatureTimeoutAlert";
+import TestnetOnboardingPanel from "../components/TestnetOnboardingPanel";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-/** App routes load only the Geist pair; the landing page never sees them (#863). */
+// Wallet providers and overlays live here, not in the root layout, so the
+// landing page doesn't ship the wallet stack in its first-load JS.
 export default function AppLayout({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <div
-      className={`${geistSans.variable} ${geistMono.variable} font-sans flex min-h-full flex-1 flex-col`}
-    >
+    <WalletProvider>
+      <GasEstimationWarningBanner className="mx-4 mt-4" />
+      <TestnetOnboardingPanel />
+      <SignatureTimeoutAlert />
       {children}
-    </div>
+      <WalletLoaderOverlay />
+    </WalletProvider>
   );
 }

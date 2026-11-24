@@ -12,10 +12,7 @@
 export type EscrowPartyRole = "client" | "freelancer" | "arbiter";
 
 /** Lifecycle of an escrow record once a dispute is locked for arbitration. */
-export type ArbitrationEscrowStatus =
-  | "locked"
-  | "under_review"
-  | "resolved";
+export type ArbitrationEscrowStatus = "locked" | "under_review" | "resolved";
 
 /** The locked escrow record rendered by the details view. */
 export interface ArbitrationEscrowDetailsRecord {
@@ -54,20 +51,14 @@ export const ESCROW_ROLE_LABELS: Record<EscrowPartyRole, string> = {
  * not a non-empty string, so a missing arbiter never compares equal to a
  * disconnected wallet.
  */
-export function normalizeEscrowPartyAddress(
-  address: string | null | undefined,
-): string | null {
+export function normalizeEscrowPartyAddress(address: string | null | undefined): string | null {
   if (typeof address !== "string") return null;
   const normalized = address.trim().toLowerCase();
   return normalized ? normalized : null;
 }
 
 /** The party roles a wallet can hold on an escrow record, in check order. */
-const ESCROW_PARTY_ROLES: readonly EscrowPartyRole[] = [
-  "client",
-  "freelancer",
-  "arbiter",
-];
+const ESCROW_PARTY_ROLES: readonly EscrowPartyRole[] = ["client", "freelancer", "arbiter"];
 
 /**
  * Resolves which role a wallet holds on a locked escrow record.
@@ -81,7 +72,7 @@ export function resolveEscrowPartyRole(
   record: Pick<
     ArbitrationEscrowDetailsRecord,
     "clientAddress" | "freelancerAddress" | "arbiterAddress"
-  >,
+  >
 ): EscrowPartyRole | null {
   const viewer = normalizeEscrowPartyAddress(viewerAddress);
   if (!viewer) return null;
@@ -108,7 +99,7 @@ export function isEscrowDetailsAuthorized(
     ArbitrationEscrowDetailsRecord,
     "clientAddress" | "freelancerAddress" | "arbiterAddress"
   >,
-  options?: { additionalViewers?: string[] },
+  options?: { additionalViewers?: string[] }
 ): boolean {
   if (resolveEscrowPartyRole(viewerAddress, record)) return true;
 
@@ -132,7 +123,7 @@ export function isEscrowDetailsAuthorized(
  * give up on this dispute entirely.
  */
 export function getEscrowAccessDenialReason(
-  viewerAddress: string | null | undefined,
+  viewerAddress: string | null | undefined
 ): "disconnected" | "not-a-party" {
   return normalizeEscrowPartyAddress(viewerAddress) ? "not-a-party" : "disconnected";
 }
@@ -152,7 +143,7 @@ export interface ArbitrationEscrowReadout {
  * truncating, so no identifier is lost.
  */
 export function getArbitrationEscrowReadouts(
-  record: ArbitrationEscrowDetailsRecord,
+  record: ArbitrationEscrowDetailsRecord
 ): ArbitrationEscrowReadout[] {
   const orDash = (value: string | null | undefined): string => {
     if (typeof value !== "string") return "—";
@@ -175,57 +166,31 @@ export function getArbitrationEscrowReadouts(
 }
 
 /**
- * Mock locked escrow record used as the fallback for backend queries.
- */
-export const MOCK_ARBITRATION_ESCROW_DETAILS: ArbitrationEscrowDetailsRecord = {
-  escrowId: "ESC-000000000000000000000000000000000000000000000042",
-  disputeId: "DIS-000000000000000000000000000000000000000000000117",
-  status: "under_review",
-  lockedAt: "2026-09-23T09:12:00Z",
-  lockedAmount: "500.00 USDC",
-  token: "USDC",
-  clientAddress: "GCLIENT7HQ2WKM4XPL6TFV3ZB9DCNR8YASEK5",
-  freelancerAddress: "GFREELANCER3NZ8WQ6LK2VH5CJB0DTXR4MASEK9",
-  arbiterAddress: "GARBITER5PD3XCW8QL0NR6ZTKM2VBHJF4SASEK2",
-  reason: "Freelancer marked the milestone delivered; client disputes acceptance.",
-};
-
-/**
  * Queries the locked escrow record for a dispute.
  *
  * Pulls from the backend when reachable and the payload carries the party
- * addresses the role check needs; otherwise falls back to
- * `MOCK_ARBITRATION_ESCROW_DETAILS`.
+ * addresses the role check needs; throws when the backend is unreachable.
  */
 export async function fetchArbitrationEscrowDetails(
   disputeId: string,
-  options?: { apiUrl?: string; signal?: AbortSignal },
+  options?: { apiUrl?: string; signal?: AbortSignal }
 ): Promise<ArbitrationEscrowDetailsRecord> {
-  const url =
-    options?.apiUrl ??
-    `/api/disputes/${encodeURIComponent(disputeId)}/escrow`;
+  const url = options?.apiUrl ?? `/api/disputes/${encodeURIComponent(disputeId)}/escrow`;
 
-  try {
-    const res = await fetch(url, { signal: options?.signal });
-    if (res.ok) {
-      const data: unknown = await res.json();
-      const payload =
-        typeof data === "object" &&
-        data !== null &&
-        "success" in data &&
-        "data" in data
-          ? (data as { data: unknown }).data
-          : data;
-
-      if (isArbitrationEscrowDetailsRecord(payload)) {
-        return payload;
-      }
-    }
-  } catch {
-    // Network or server error - fall through to the mock record.
+  const res = await fetch(url, { signal: options?.signal });
+  if (!res.ok) {
+    throw new Error(`Failed to load escrow details for dispute ${disputeId} (${res.status})`);
   }
+  const data: unknown = await res.json();
+  const payload =
+    typeof data === "object" && data !== null && "success" in data && "data" in data
+      ? (data as { data: unknown }).data
+      : data;
 
-  return { ...MOCK_ARBITRATION_ESCROW_DETAILS };
+  if (isArbitrationEscrowDetailsRecord(payload)) {
+    return payload;
+  }
+  throw new Error(`Invalid escrow details response for dispute ${disputeId}`);
 }
 
 /**
@@ -236,7 +201,7 @@ export async function fetchArbitrationEscrowDetails(
  * indistinguishable from one where every wallet is unauthorized.
  */
 export function isArbitrationEscrowDetailsRecord(
-  value: unknown,
+  value: unknown
 ): value is ArbitrationEscrowDetailsRecord {
   if (typeof value !== "object" || value === null) return false;
   const candidate = value as Record<string, unknown>;

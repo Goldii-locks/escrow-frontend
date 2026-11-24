@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CountdownTimer, { formatRemaining } from "@/app/components/CountdownTimer";
@@ -64,9 +65,7 @@ describe("CountdownTimer", () => {
     });
 
     expect(screen.queryByTestId("countdown-remaining")).not.toBeInTheDocument();
-    expect(screen.getByTestId("countdown-eligible")).toHaveTextContent(
-      "Eligible for auto-release"
-    );
+    expect(screen.getByTestId("countdown-eligible")).toHaveTextContent("Eligible for auto-release");
     expect(onElapsed).toHaveBeenCalledTimes(1);
   });
 

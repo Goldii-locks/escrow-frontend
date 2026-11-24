@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Issue #278 – Incorporate CSS micro-animations on loading_spinner_skeleton elements
  *

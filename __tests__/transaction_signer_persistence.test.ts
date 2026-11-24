@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -71,9 +72,7 @@ describe("transaction_signer_component — address validation", () => {
 
 describe("transaction_signer_component — serialization", () => {
   it("stamps the schema version onto the envelope", () => {
-    expect(serializeSignerState(VALID_SESSION).version).toBe(
-      TX_SIGNER_STATE_VERSION
-    );
+    expect(serializeSignerState(VALID_SESSION).version).toBe(TX_SIGNER_STATE_VERSION);
   });
 
   it("carries every session field through", () => {
@@ -104,9 +103,7 @@ describe("transaction_signer_component — serialization", () => {
 
 describe("transaction_signer_component — parsing and validation", () => {
   it("rejects malformed JSON", () => {
-    expect(() => parseSignerState("{not json")).toThrow(
-      TransactionSignerStateParseError
-    );
+    expect(() => parseSignerState("{not json")).toThrow(TransactionSignerStateParseError);
   });
 
   it("rejects a non-object payload", () => {
@@ -118,9 +115,9 @@ describe("transaction_signer_component — parsing and validation", () => {
   });
 
   it("rejects an unsupported schema version", () => {
-    expect(() =>
-      validateSignerState({ ...VALID_SESSION, version: 99 })
-    ).toThrow("unsupported version");
+    expect(() => validateSignerState({ ...VALID_SESSION, version: 99 })).toThrow(
+      "unsupported version"
+    );
   });
 
   it("rejects an invalid address", () => {
@@ -233,17 +230,13 @@ describe("transaction_signer_component — save / load across a reload", () => {
 
   it("refuses to persist an invalid address", () => {
     const storage = createMemoryStorage();
-    expect(
-      saveSignerState({ ...VALID_SESSION, address: "bad" }, { storage })
-    ).toBe(false);
+    expect(saveSignerState({ ...VALID_SESSION, address: "bad" }, { storage })).toBe(false);
     expect(storage.getItem(TX_SIGNER_STORAGE_KEY)).toBeNull();
   });
 
   it("refuses to persist an empty walletId", () => {
     const storage = createMemoryStorage();
-    expect(saveSignerState({ ...VALID_SESSION, walletId: "" }, { storage })).toBe(
-      false
-    );
+    expect(saveSignerState({ ...VALID_SESSION, walletId: "" }, { storage })).toBe(false);
   });
 
   it("returns false when the storage write throws", () => {
@@ -318,10 +311,7 @@ describe("transaction_signer_component — save / load across a reload", () => {
   it("overwrites a previous session with the newer one", () => {
     const storage = createMemoryStorage();
     saveSignerState(VALID_SESSION, { storage });
-    saveSignerState(
-      { ...VALID_SESSION, address: OTHER_ADDRESS, walletId: "albedo" },
-      { storage }
-    );
+    saveSignerState({ ...VALID_SESSION, address: OTHER_ADDRESS, walletId: "albedo" }, { storage });
 
     expect(loadSignerState({ storage }).session?.address).toBe(OTHER_ADDRESS);
   });
@@ -416,8 +406,6 @@ describe("TransactionSignerSessionStore", () => {
   it("uses the real localStorage adapter by default", () => {
     const store = new TransactionSignerSessionStore();
     expect(store.persist(VALID_SESSION)).toBe(true);
-    expect(
-      new TransactionSignerSessionStore().getActiveAddress()
-    ).toBe(ADDRESS);
+    expect(new TransactionSignerSessionStore().getActiveAddress()).toBe(ADDRESS);
   });
 });

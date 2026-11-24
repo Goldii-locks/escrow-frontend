@@ -33,11 +33,7 @@ interface LoadingSkeletonProps {
  * arrays), used to normalize the flexible `validationErrors` prop.
  */
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
-  );
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**
@@ -61,9 +57,7 @@ export default function LoadingSkeleton({
     ? "cursor-pointer transition-all duration-200 ease-in-out hover:border-gray-700 hover:bg-gray-900/90 hover:shadow-lg hover:shadow-gray-950/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
     : "";
 
-  const disabledClasses = disabled
-    ? "opacity-50 cursor-not-allowed pointer-events-none"
-    : "";
+  const disabledClasses = disabled ? "opacity-50 cursor-not-allowed pointer-events-none" : "";
 
   // Normalize the validation errors into a stable list of { message, field }.
   const renderedErrors: ValidationError[] = (() => {
@@ -87,7 +81,7 @@ export default function LoadingSkeleton({
       aria-label={ariaLabel}
       aria-describedby={renderedErrors.length > 0 ? "loading-skeleton-errors" : undefined}
       aria-disabled={disabled ? "true" : undefined}
-      tabIndex={interactive ? (disabled ? -1 : tabIndex ?? 0) : undefined}
+      tabIndex={interactive ? (disabled ? -1 : (tabIndex ?? 0)) : undefined}
       onClick={!disabled ? onClick : undefined}
       onKeyDown={
         interactive && !disabled && onClick
@@ -194,10 +188,7 @@ export default function LoadingSkeleton({
             </div>
           </div>
 
-          <div
-            className="space-y-3 sm:space-y-4"
-            data-testid="skeleton-milestones"
-          >
+          <div className="space-y-3 sm:space-y-4" data-testid="skeleton-milestones">
             <div
               className="border border-border-strong rounded-lg p-3 sm:p-4 bg-surface-card animate-pulse [animation-delay:325ms]"
               data-testid="skeleton-milestone-card-0"

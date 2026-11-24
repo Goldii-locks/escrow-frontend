@@ -9,7 +9,7 @@ nothing in `app/` imports them.
 
 Those three packages were also the only paths to `elliptic <= 6.6.1`
 (GHSA advisory, no patched release exists) and its 22 downstream audit
-findings — the whole @trezor/*, @near-js/*, secp256k1, crypto-browserify tree.
+findings — the whole @trezor/_, @near-js/_, secp256k1, crypto-browserify tree.
 
 The `overrides` block in package.json replaces all three with
 `npm:empty-npm-package@1.0.0` (328 bytes, no dependencies, no install

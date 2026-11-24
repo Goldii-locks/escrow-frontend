@@ -1,6 +1,8 @@
+// @vitest-environment jsdom
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Dashboard from "@/app/(app)/dashboard/page";
+import { wrapFetchWithJobDetails } from "@/__tests__/helpers/job_details_fetch";
 
 const mockUseWallet = vi.fn();
 
@@ -39,6 +41,7 @@ describe("Dashboard empty milestones transition", () => {
         }),
       })
     );
+    wrapFetchWithJobDetails();
   };
 
   beforeEach(() => {

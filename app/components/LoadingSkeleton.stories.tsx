@@ -129,11 +129,14 @@ export const ReducedMotion: Story = {
   },
   decorators: [
     (Story) => (
-      <style>{`
-        @media (prefers-reduced-motion: reduce) {
-          .animate-pulse { animation: none !important; }
-        }
-      `}</style>
+      <>
+        <style>{`
+          @media (prefers-reduced-motion: reduce) {
+            .animate-pulse { animation: none !important; }
+          }
+        `}</style>
+        <Story />
+      </>
     ),
   ],
 };

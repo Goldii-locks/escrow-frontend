@@ -1,10 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  getEvidenceConfirmCopy,
-  type EvidenceAction,
-} from "@/app/lib/arbitrator_evidence_list";
+import { getEvidenceConfirmCopy, type EvidenceAction } from "@/app/lib/arbitrator_evidence_list";
 
 export interface ArbitratorEvidenceConfirmModalProps {
   /** Action awaiting confirmation; `null` keeps the modal closed. */

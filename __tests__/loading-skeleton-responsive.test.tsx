@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Issue #275 – Implement responsive sizing layouts on loading_spinner_skeleton
  *

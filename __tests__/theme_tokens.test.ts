@@ -67,18 +67,21 @@ describe("classifyColourUtility", () => {
     expect(classifyColourUtility(cls, TOKENS)).toMatchObject({ kind: "non-colour" });
   });
 
-  it.each(["bg-gray-800", "text-white", "border-[#111827]", "bg-[var(--color-nope)]", "ring-indigo-500/20"])(
-    "%s is off-palette",
-    (cls) => {
-      expect(classifyColourUtility(cls, TOKENS)).toMatchObject({ kind: "off-palette" });
-    },
-  );
+  it.each([
+    "bg-gray-800",
+    "text-white",
+    "border-[#111827]",
+    "bg-[var(--color-nope)]",
+    "ring-indigo-500/20",
+  ])("%s is off-palette", (cls) => {
+    expect(classifyColourUtility(cls, TOKENS)).toMatchObject({ kind: "off-palette" });
+  });
 
   it.each(["flex", "rounded-lg", "min-h-[44px]", "sm:grid-cols-2", "animate-fade-in"])(
     "%s is not a colour utility",
     (cls) => {
       expect(classifyColourUtility(cls, TOKENS)).toBeNull();
-    },
+    }
   );
 
   it("classifies whole class strings, skipping non-colour classes", () => {
@@ -107,7 +110,7 @@ describe("parseThemeColourTokens", () => {
 
   it("parses the project's globals.css", () => {
     const tokens = parseThemeColourTokens(
-      readFileSync(resolve(__dirname, "../app/globals.css"), "utf8"),
+      readFileSync(resolve(__dirname, "../app/globals.css"), "utf8")
     );
     expect(tokens.get("surface-card")).toBe("#111827");
     expect(tokens.get("accent-soft")).toBe("#818cf8");

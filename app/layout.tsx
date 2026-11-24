@@ -1,35 +1,51 @@
 import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { WalletProvider } from "./context/WalletContext";
 import { ToastProvider } from "./context/ToastContext";
 import Toast from "./components/Toast";
-import WalletOverlays from "./components/WalletOverlays";
-import GasEstimationWarningBanner from "./components/GasEstimationWarningBanner";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
-  title: "Milestone Escrow",
+  title: {
+    default: "Milestone Escrow",
+    template: "%s · Milestone Escrow",
+  },
   description: "Trustless milestone-based escrow on Stellar",
+  openGraph: {
+    type: "website",
+    siteName: "Milestone Escrow",
+    title: "Milestone Escrow",
+    description: "Trustless milestone-based escrow on Stellar",
+    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "Milestone Escrow" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Milestone Escrow",
+    description: "Trustless milestone-based escrow on Stellar",
+    images: ["/og-image.svg"],
+  },
 };
 
-/**
- * Route-agnostic shell. Fonts are declared in the (marketing) and (app)
- * layouts so each exported page only preloads the families it renders (#863).
- */
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <ToastProvider>
-          <WalletProvider>
-            <GasEstimationWarningBanner className="mx-4 mt-4" />
-            {children}
-            <Toast />
-            <WalletOverlays />
-          </WalletProvider>
+          {children}
+          <Toast />
         </ToastProvider>
       </body>
     </html>

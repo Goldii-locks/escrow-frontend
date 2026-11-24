@@ -28,13 +28,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const showToast = useCallback((message: string, type: ToastType) => {
-    const id = Date.now().toString();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      hideToast(id);
-    }, 5000);
-  }, [hideToast]);
+  const showToast = useCallback(
+    (message: string, type: ToastType) => {
+      const id = Date.now().toString();
+      setToasts((prev) => [...prev, { id, message, type }]);
+      setTimeout(() => {
+        hideToast(id);
+      }, 5000);
+    },
+    [hideToast]
+  );
 
   return (
     <ToastContext.Provider value={{ toasts, showToast, hideToast }}>

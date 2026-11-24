@@ -69,14 +69,8 @@ describe("warnOnTransactionSignerNetworkMismatch (#216)", () => {
 
   it("returns the same state as checkTransactionSignerNetworkMatch", () => {
     warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const warnState = warnOnTransactionSignerNetworkMismatch(
-      "mainnet",
-      "testnet"
-    );
-    const checkState = checkTransactionSignerNetworkMatch(
-      "mainnet",
-      "testnet"
-    );
+    const warnState = warnOnTransactionSignerNetworkMismatch("mainnet", "testnet");
+    const checkState = checkTransactionSignerNetworkMatch("mainnet", "testnet");
     expect(warnState.mismatched).toBe(checkState.mismatched);
     expect(warnState.warningMessage).toBe(checkState.warningMessage);
     expect(warnState.walletNetwork).toBe(checkState.walletNetwork);
@@ -86,10 +80,7 @@ describe("warnOnTransactionSignerNetworkMismatch (#216)", () => {
 
 describe("TransactionSignerNetworkMismatchError (#216)", () => {
   it("has the correct name and message", () => {
-    const err = new TransactionSignerNetworkMismatchError(
-      "mainnet",
-      "testnet"
-    );
+    const err = new TransactionSignerNetworkMismatchError("mainnet", "testnet");
     expect(err.name).toBe("TransactionSignerNetworkMismatchError");
     expect(err.message).toContain("Network mismatch");
     expect(err.walletNetwork).toBe("mainnet");
@@ -97,10 +88,7 @@ describe("TransactionSignerNetworkMismatchError (#216)", () => {
   });
 
   it("is an instance of Error", () => {
-    const err = new TransactionSignerNetworkMismatchError(
-      "testnet",
-      "mainnet"
-    );
+    const err = new TransactionSignerNetworkMismatchError("testnet", "mainnet");
     expect(err).toBeInstanceOf(Error);
   });
 });

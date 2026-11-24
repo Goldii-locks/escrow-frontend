@@ -108,14 +108,45 @@ const COLOUR_PREFIXES = [
  */
 const NON_COLOUR_SUFFIXES = new Set([
   // text
-  "xs", "sm", "base", "lg", "xl", "2xl", "3xl", "center", "left", "right", "justify",
+  "xs",
+  "sm",
+  "base",
+  "lg",
+  "xl",
+  "2xl",
+  "3xl",
+  "center",
+  "left",
+  "right",
+  "justify",
   // border / ring / outline widths and styles
-  "0", "1", "2", "4", "8", "t", "b", "l", "r", "x", "y", "t-0", "b-0",
-  "dashed", "dotted", "solid", "double", "none", "inset", "hidden",
+  "0",
+  "1",
+  "2",
+  "4",
+  "8",
+  "t",
+  "b",
+  "l",
+  "r",
+  "x",
+  "y",
+  "t-0",
+  "b-0",
+  "dashed",
+  "dotted",
+  "solid",
+  "double",
+  "none",
+  "inset",
+  "hidden",
   // shadow sizes
-  "md", "inner",
+  "md",
+  "inner",
   // keywords that carry no palette colour
-  "transparent", "current", "inherit",
+  "transparent",
+  "current",
+  "inherit",
 ]);
 
 export type ColourUtility =
@@ -135,7 +166,7 @@ export type ColourUtility =
  */
 export function classifyColourUtility(
   className: string,
-  themeTokens: ReadonlySet<string>,
+  themeTokens: ReadonlySet<string>
 ): ColourUtility | null {
   // Drop variants: everything up to the last `:` that is not inside [...].
   let depth = 0;
@@ -146,11 +177,12 @@ export function classifyColourUtility(
     else if (ch === "]") depth -= 1;
     else if (ch === ":" && depth === 0) cut = i;
   }
-  let utility = className.slice(cut + 1).replace(/^!/, "").replace(/^-/, "");
+  let utility = className
+    .slice(cut + 1)
+    .replace(/^!/, "")
+    .replace(/^-/, "");
 
-  const prefix = COLOUR_PREFIXES.find(
-    (p) => utility === p || utility.startsWith(`${p}-`),
-  );
+  const prefix = COLOUR_PREFIXES.find((p) => utility === p || utility.startsWith(`${p}-`));
   if (!prefix) return null;
   if (utility === prefix) return { kind: "non-colour", utility };
 
@@ -175,7 +207,7 @@ export function classifyColourUtility(
 /** Classifies every class in a whitespace-separated class string. */
 export function classifyClassString(
   classes: string,
-  themeTokens: ReadonlySet<string>,
+  themeTokens: ReadonlySet<string>
 ): ColourUtility[] {
   return classes
     .split(/\s+/)

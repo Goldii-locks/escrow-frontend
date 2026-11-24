@@ -1,6 +1,8 @@
+// @vitest-environment jsdom
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Dashboard from "@/app/(app)/dashboard/page";
+import { wrapFetchWithJobDetails } from "@/__tests__/helpers/job_details_fetch";
 
 const mockUseWallet = vi.fn();
 const mockUseToast = vi.fn();
@@ -34,6 +36,7 @@ vi.mock("@/app/components/EmptyStateCard", () => ({
     description,
     icon,
     badges,
+    statusTitle,
   }: {
     testId?: string;
     ariaLabel?: string;
@@ -41,6 +44,7 @@ vi.mock("@/app/components/EmptyStateCard", () => ({
     description: string;
     icon?: string;
     badges?: string[];
+    statusTitle?: boolean;
   }) => (
     <div
       data-testid={testId}
@@ -51,7 +55,13 @@ vi.mock("@/app/components/EmptyStateCard", () => ({
       <div data-testid="empty-state-icon" aria-hidden="true">
         {icon}
       </div>
-      <h2 className="font-semibold">{title}</h2>
+      <h2
+        className="font-semibold"
+        role={statusTitle ? "status" : undefined}
+        aria-live={statusTitle ? "polite" : undefined}
+      >
+        {title}
+      </h2>
       <p className="text-sm text-gray-400">{description}</p>
       <div className="flex flex-wrap gap-2 justify-center">
         {badges?.map((badge) => (
@@ -96,10 +106,7 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
 
   type MockJob = ReturnType<typeof mockJob>;
 
-  const mockJobsResponse = (
-    jobs: MockJob[] = [],
-    overrides: Record<string, unknown> = {}
-  ) => ({
+  const mockJobsResponse = (jobs: MockJob[] = [], overrides: Record<string, unknown> = {}) => ({
     success: true,
     data: jobs,
     page: 1,
@@ -124,9 +131,13 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
   });
 
   const setupFetch = (response: unknown) => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-      json: async () => response,
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        json: async () => response,
+      })
+    );
+    wrapFetchWithJobDetails();
   };
 
   describe("Loading state", () => {
@@ -136,6 +147,7 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
         resolveFetch = resolve;
       });
       vi.stubGlobal("fetch", vi.fn().mockReturnValue(fetchPromise));
+      wrapFetchWithJobDetails();
 
       render(<Dashboard />);
 
@@ -145,9 +157,13 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
     });
 
     it("shows loading skeleton with proper accessible status role", () => {
-      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-        json: async () => mockJobsResponse([]),
-      }));
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          json: async () => mockJobsResponse([]),
+        })
+      );
+      wrapFetchWithJobDetails();
 
       render(<Dashboard />);
 
@@ -158,12 +174,16 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
 
   describe("Error state", () => {
     it("displays error alert when API fails", async () => {
-      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-        json: async () => ({
-          success: false,
-          error: "Failed to fetch jobs",
-        }),
-      }));
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          json: async () => ({
+            success: false,
+            error: "Failed to fetch jobs",
+          }),
+        })
+      );
+      wrapFetchWithJobDetails();
 
       render(<Dashboard />);
 
@@ -176,19 +196,23 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
     });
 
     it("error alert has proper ARIA attributes", async () => {
-      vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
-        json: async () => ({
-          success: false,
-          error: "Backend unavailable",
-        }),
-      }));
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          json: async () => ({
+            success: false,
+            error: "Backend unavailable",
+          }),
+        })
+      );
+      wrapFetchWithJobDetails();
 
       render(<Dashboard />);
 
       await waitFor(() => {
         const alert = screen.getByTestId("dashboard-error-alert");
-        expect(alert).toHaveAttribute("role", "alert");
-        expect(alert).toHaveAttribute("aria-live", "assertive");
+        expect(alert).toHaveAttribute("role", "region");
+        expect(alert).toHaveAttribute("aria-label", "Error loading jobs");
       });
     });
   });
@@ -281,11 +305,13 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
     });
 
     it("displays role badges for user's roles", async () => {
-      const jobs = [mockJob({
-        id: "job-with-roles",
-        client: "GCLIENTADDRESS1234567890123456789012345678901234",
-        freelancer: "GFREELANCERADDRESS12345678901234567890123456",
-      })];
+      const jobs = [
+        mockJob({
+          id: "job-with-roles",
+          client: "GCLIENTADDRESS1234567890123456789012345678901234",
+          freelancer: "GFREELANCERADDRESS12345678901234567890123456",
+        }),
+      ];
       setupFetch(mockJobsResponse(jobs));
 
       render(<Dashboard />);
@@ -346,13 +372,15 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
       render(<Dashboard />);
 
       await waitFor(() => {
-        const filterTabs = screen.getByRole("tablist", { name: "Filter jobs by role" });
+        const filterTabs = screen.getByRole("group", { name: "Filter jobs by role" });
         expect(filterTabs).toBeInTheDocument();
 
-        expect(screen.getByRole("tab", { name: "Filter jobs: All" })).toBeInTheDocument();
-        expect(screen.getByRole("tab", { name: "Filter jobs: As Client" })).toBeInTheDocument();
-        expect(screen.getByRole("tab", { name: "Filter jobs: As Freelancer" })).toBeInTheDocument();
-        expect(screen.getByRole("tab", { name: "Filter jobs: As Arbiter" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Filter jobs: All" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Filter jobs: As Client" })).toBeInTheDocument();
+        expect(
+          screen.getByRole("button", { name: "Filter jobs: As Freelancer" })
+        ).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Filter jobs: As Arbiter" })).toBeInTheDocument();
       });
     });
 
@@ -362,8 +390,8 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
       render(<Dashboard />);
 
       await waitFor(() => {
-        const allTab = screen.getByRole("tab", { name: "Filter jobs: All" });
-        expect(allTab).toHaveAttribute("aria-selected", "true");
+        const allTab = screen.getByRole("button", { name: "Filter jobs: All" });
+        expect(allTab).toHaveAttribute("aria-pressed", "true");
       });
     });
   });
@@ -401,25 +429,10 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
       render(<Dashboard />);
 
       await waitFor(() => {
-        expect(screen.getByRole("heading", { level: 1, name: "Job Dashboard" })).toBeInTheDocument();
+        expect(
+          screen.getByRole("heading", { level: 1, name: "Job Dashboard" })
+        ).toBeInTheDocument();
       });
     });
   });
 });
-
-function mockJob(overrides = {}) {
-  return {
-    id: "job-1234567890abcdef",
-    client: "GCLIENTADDRESS1234567890123456789012345678901234",
-    freelancer: "GFREELANCERADDRESS12345678901234567890123456",
-    arbiter: "GARBITERADDRESS12345678901234567890123456789012",
-    funded: true,
-    milestones: [
-      { index: 0, amount: "250000000", status: "Pending" },
-      { index: 1, amount: "500000000", status: "Delivered" },
-    ],
-    tokenSymbol: "USDC",
-    tokenDecimals: 7,
-    ...overrides,
-  };
-}

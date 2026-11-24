@@ -21,27 +21,54 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
+      - name: Audit runtime dependencies
+        # High/critical advisories fail the build unless allowlisted with a
+        # reason in .audit-allowlist.json.
+        run: node scripts/audit-gate.mjs
+
+      - name: Check generated tokens are up to date
+        # app/lib/generated_tokens.ts is derived from the @theme block in
+        # app/globals.css. Regenerate it and fail if the committed copy differs.
+        run: |
+          npm run generate-tokens
+          if ! git diff --exit-code app/lib/generated_tokens.ts; then
+            echo "::error file=app/lib/generated_tokens.ts::generated_tokens.ts is out of date with app/globals.css. Run 'npm run generate-tokens' and commit the result."
+            exit 1
+          fi
+
+      - name: Format check
+        run: npm run format:check
+
       - name: Lint
-        run: npm run lint
+        run: npm run lint -- --max-warnings=0
 
       - name: Type check
         run: npx tsc --noEmit
 
-      - name: Test
-        run: npm run test
+      - name: Test with coverage
+        run: npm run test:coverage
+
+      - name: Publish coverage summary
+        if: ${{ !cancelled() }}
+        run: node scripts/coverage-summary.mjs
+
+      - name: Upload coverage report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: coverage/
+          if-no-files-found: ignore
 
       - name: Build
         run: npm run build
 
-      - name: Check first-load JS budgets
-        run: npm run bundle-size
+      - name: Bundle size budget
+        run: node scripts/bundle-size.mjs
 
-      - name: Check route-group font preloads
-        run: npm run check:font-preloads
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
 
-      - name: Install E2E dependencies
-        run: npm run test:e2e:install
-
-      - name: E2E flow (mocked wallet)
-        timeout-minutes: 2
+      - name: Smoke test static export
+        timeout-minutes: 3
         run: npm run test:e2e

@@ -17,6 +17,8 @@ import {
   type ArbiterFieldErrors,
   type ArbiterOutcome,
 } from "@/app/lib/arbiter_action_panel";
+import { formatFeeBps, type ArbiterResolutionBreakdown } from "@/app/lib/arbiter_fee";
+import { formatBaseUnits } from "@/app/lib/amounts";
 import ButtonSpinner from "./ButtonSpinner";
 import TxStatusBanner from "./TxStatusBanner";
 
@@ -41,6 +43,17 @@ export interface ArbiterActionPanelProps {
   resolveState?: ActionState | null;
   /** Externally supplied panel-level error (e.g. a provider failure). */
   errorMessage?: string | null;
+  /**
+   * Remaining amount, arbiter fee and payout (#900). When given, the panel
+   * shows all three and repeats them in the confirmation.
+   */
+  feeBreakdown?: ArbiterResolutionBreakdown | null;
+  /** Whether the arbiter fee rate is still being read. */
+  feeLoading?: boolean;
+  /** Token decimals for the breakdown amounts. */
+  amountDecimals?: number;
+  /** Token symbol for the breakdown amounts. */
+  amountSymbol?: string;
   className?: string;
 }
 
@@ -71,10 +84,7 @@ export interface ArbiterPanelPlaceholderProps {
  * handed to the panel, a job with no disputed milestones, or a job with no
  * milestones at all. Announced politely as a status, never as an error.
  */
-export function ArbiterPanelPlaceholder({
-  variant,
-  className = "",
-}: ArbiterPanelPlaceholderProps) {
+export function ArbiterPanelPlaceholder({ variant, className = "" }: ArbiterPanelPlaceholderProps) {
   const copy = ARBITER_EMPTY_COPY[variant];
   const titleId = `${useId()}-title`;
 
@@ -141,6 +151,10 @@ function ArbiterActionPanelBody({
   isPending = false,
   resolveState = null,
   errorMessage = null,
+  feeBreakdown = null,
+  feeLoading = false,
+  amountDecimals = 7,
+  amountSymbol = "XLM",
   className = "",
 }: ArbiterActionPanelProps & { milestoneIndex: number }) {
   const layout = getArbiterPanelLayout(useArbiterPanelViewport());
@@ -205,6 +219,22 @@ function ArbiterActionPanelBody({
     onResolve?.(milestoneIndex, outcome === "release");
   }
 
+  const formatAmount = (value: bigint) =>
+    `${formatBaseUnits(value.toString(), { decimals: amountDecimals })} ${amountSymbol}`;
+  const feeUnknownText = feeLoading ? "Loading…" : "Unknown";
+  const payoutRecipient =
+    outcome === "release" ? "Freelancer" : outcome === "refund" ? "Client" : "Winning party";
+  const confirmationText =
+    feeBreakdown && feeBreakdown.payout !== null && feeBreakdown.fee !== null && outcome !== null
+      ? `I understand this decision is final: ${formatAmount(feeBreakdown.payout)} goes to the ${
+          outcome === "release" ? "freelancer" : "client"
+        }${
+          feeBreakdown.fee > BigInt(0)
+            ? ` and ${formatAmount(feeBreakdown.fee)} to the arbiter`
+            : ""
+        }.`
+      : "I understand this decision is final.";
+
   const submitLabel = isPending
     ? outcome === "refund"
       ? "Refunding..."
@@ -226,10 +256,7 @@ function ArbiterActionPanelBody({
       aria-busy={isPending}
       className={`${ARBITER_PANEL_CLASSES.container} ${ARBITER_PANEL_MOTION.enter} ${ARBITER_PANEL_MOTION.stateTint} ${className}`}
     >
-      <div
-        data-testid="arbiter-panel-scroll"
-        className={ARBITER_PANEL_CLASSES.scrollableContent}
-      >
+      <div data-testid="arbiter-panel-scroll" className={ARBITER_PANEL_CLASSES.scrollableContent}>
         <h3 id={ids.heading} className={ARBITER_PANEL_CLASSES.title}>
           Resolve dispute — Milestone {milestoneNumber}
         </h3>
@@ -239,6 +266,39 @@ function ArbiterActionPanelBody({
             : "Decide where the disputed funds go. "}
           This decision is final and cannot be undone.
         </p>
+
+        {feeBreakdown && (
+          <dl
+            data-testid="arbiter-fee-breakdown"
+            aria-label={`Payout breakdown for Milestone ${milestoneNumber}`}
+            className="grid grid-cols-1 gap-1 rounded-lg border border-border-subtle bg-surface-field px-3 py-2 text-xs sm:text-sm"
+          >
+            <div className="flex justify-between gap-3">
+              <dt className="text-text-muted">Remaining in escrow</dt>
+              <dd data-testid="arbiter-fee-remaining" className="font-mono text-text-primary">
+                {formatAmount(feeBreakdown.remaining)}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-text-muted">
+                Arbiter fee
+                {feeBreakdown.feeBps !== null ? ` (${formatFeeBps(feeBreakdown.feeBps)})` : ""}
+              </dt>
+              <dd data-testid="arbiter-fee-amount" className="font-mono text-text-primary">
+                {feeBreakdown.fee !== null ? formatAmount(feeBreakdown.fee) : feeUnknownText}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3 border-t border-border-subtle pt-1">
+              <dt className="text-text-secondary font-medium">{payoutRecipient} receives</dt>
+              <dd
+                data-testid="arbiter-fee-payout"
+                className="font-mono font-semibold text-text-primary"
+              >
+                {feeBreakdown.payout !== null ? formatAmount(feeBreakdown.payout) : feeUnknownText}
+              </dd>
+            </div>
+          </dl>
+        )}
 
         {panelError && (
           <div
@@ -261,9 +321,7 @@ function ArbiterActionPanelBody({
           disabled={controlsDisabled}
           className={ARBITER_PANEL_CLASSES.fieldset}
         >
-          <legend className={ARBITER_PANEL_CLASSES.legend}>
-            Outcome
-          </legend>
+          <legend className={ARBITER_PANEL_CLASSES.legend}>Outcome</legend>
           <div
             data-testid="arbiter-outcome-grid"
             data-columns={layout.outcomeColumns}
@@ -322,7 +380,7 @@ function ArbiterActionPanelBody({
               aria-describedby={fieldErrors.confirmation ? ids.confirmError : undefined}
               className={ARBITER_PANEL_CLASSES.checkbox}
             />
-            <span>I understand this decision is final.</span>
+            <span data-testid="arbiter-confirm-label">{confirmationText}</span>
           </label>
           {fieldErrors.confirmation && (
             <p
@@ -339,10 +397,7 @@ function ArbiterActionPanelBody({
         </div>
 
         {resolveState && resolveState.phase !== "idle" && (
-          <div
-            data-testid="arbiter-panel-status"
-            className={ARBITER_PANEL_MOTION.status}
-          >
+          <div data-testid="arbiter-panel-status" className={ARBITER_PANEL_MOTION.status}>
             <TxStatusBanner
               state={resolveState}
               successMessage="Dispute resolved successfully. Funds have been distributed."

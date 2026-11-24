@@ -70,7 +70,7 @@ const MockDashboardList = ({ jobs = mockJobs, loading = false, error = null, exp
   return (
     <div className="space-y-3" role="region" aria-label="Jobs list">
       <div className="border border-gray-800 rounded-lg bg-gray-900 overflow-hidden overflow-x-auto">
-        {jobs.map((job, index) => {
+        {jobs.map((job) => {
           const isExpanded = expandedJobId === job.id;
           const roleBadges = [
             mockAddress === job.client ? "Client" : null,

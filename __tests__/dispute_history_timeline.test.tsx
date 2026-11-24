@@ -1,8 +1,9 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import DisputeHistoryTimeline from "@/app/components/DisputeHistoryTimeline";
+import { MOCK_DISPUTE_HISTORY } from "@/__tests__/fixtures/dispute_history_timeline";
 import {
-  MOCK_DISPUTE_HISTORY,
   fetchDisputeHistory,
   isTimelineViewerAuthorized,
   sanitizeTimelineInput,
@@ -41,9 +42,9 @@ describe("fetchDisputeHistory (#443)", () => {
     expect(await fetchDisputeHistory("disp-101")).toEqual(data);
   });
 
-  it("falls back to the mock dataset on failure", async () => {
+  it("throws when the backend is unreachable", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
-    expect(await fetchDisputeHistory("disp-101")).toEqual(MOCK_DISPUTE_HISTORY);
+    await expect(fetchDisputeHistory("disp-101")).rejects.toThrow(/down/);
   });
 });
 
@@ -55,18 +56,21 @@ describe("DisputeHistoryTimeline", () => {
         currentWalletAddress="GSTRANGER"
         authorizedWallets={[WALLET]}
         initialEvents={MOCK_DISPUTE_HISTORY}
-      />,
+      />
     );
     expect(screen.getByTestId("dispute-timeline-unauthorized-warning")).toBeInTheDocument();
     expect(screen.queryByTestId("dispute-history-timeline")).not.toBeInTheDocument();
   });
 
   it("shows placeholder frames while the query runs (#441)", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {}))
+    );
     render(<DisputeHistoryTimeline disputeId="disp-101" currentWalletAddress={WALLET} />);
     expect(screen.getByTestId("dispute-timeline-loading-skeletons")).toHaveAttribute(
       "aria-busy",
-      "true",
+      "true"
     );
     expect(screen.getAllByLabelText("Timeline event placeholder")).toHaveLength(3);
   });
@@ -77,7 +81,7 @@ describe("DisputeHistoryTimeline", () => {
         disputeId="disp-101"
         currentWalletAddress={WALLET}
         initialEvents={[]}
-      />,
+      />
     );
     fireEvent.change(screen.getByLabelText(/add note/i), {
       target: { value: "<script>alert(1)</script>" },
@@ -92,7 +96,7 @@ describe("DisputeHistoryTimeline", () => {
         disputeId="disp-101"
         currentWalletAddress={WALLET}
         initialEvents={[]}
-      />,
+      />
     );
     fireEvent.change(screen.getByLabelText(/add note/i), {
       target: { value: "hello <code>evil()</code>" },
@@ -103,7 +107,10 @@ describe("DisputeHistoryTimeline", () => {
   });
 
   it("loads events from the backend mock dataset (#443)", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: async () => MOCK_DISPUTE_HISTORY })
+    );
     render(<DisputeHistoryTimeline disputeId="disp-101" currentWalletAddress={WALLET} />);
     await waitFor(() => expect(screen.getByText("Dispute raised")).toBeInTheDocument());
     expect(screen.getByText("Arbiter assigned")).toBeInTheDocument();
@@ -118,7 +125,7 @@ describe("DisputeHistoryTimeline grid layout and mock data (#448, #449)", () => 
         disputeId="disp-101"
         currentWalletAddress={WALLET}
         initialEvents={events}
-      />,
+      />
     );
 
   it("lays events out in a responsive grid", () => {
@@ -143,12 +150,12 @@ describe("DisputeHistoryTimeline grid layout and mock data (#448, #449)", () => 
   it("summarises the event count with singular and plural wording", () => {
     const { unmount } = renderWith();
     expect(screen.getByTestId("dispute-timeline-summary")).toHaveTextContent(
-      `Showing ${MOCK_DISPUTE_HISTORY.length} events`,
+      `Showing ${MOCK_DISPUTE_HISTORY.length} events`
     );
     unmount();
     renderWith([MOCK_DISPUTE_HISTORY[0]]);
     expect(screen.getByTestId("dispute-timeline-summary")).toHaveTextContent(
-      /Showing 1 event(?!s)/,
+      /Showing 1 event(?!s)/
     );
   });
 
@@ -165,7 +172,7 @@ describe("DisputeHistoryTimeline grid layout and mock data (#448, #449)", () => 
         currentWalletAddress={WALLET}
         initialEvents={MOCK_DISPUTE_HISTORY}
         isLoading
-      />,
+      />
     );
     expect(screen.getByTestId("dispute-timeline-loading-skeletons")).toBeInTheDocument();
     expect(screen.queryByText(MOCK_DISPUTE_HISTORY[0].title)).not.toBeInTheDocument();
