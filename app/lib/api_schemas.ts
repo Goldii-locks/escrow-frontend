@@ -123,6 +123,14 @@ export const JobSchema = z.object({
     .finite()
     .nullish()
     .transform((v) => v ?? undefined),
+  freelancerAccepted: z
+    .boolean()
+    .nullish()
+    .transform((v) => v ?? undefined),
+  arbiterAccepted: z
+    .boolean()
+    .nullish()
+    .transform((v) => v ?? undefined),
 });
 
 export type Job = z.infer<typeof JobSchema>;
@@ -257,6 +265,8 @@ export const EscrowStateResponseSchema = z.object({
           tokenSymbol: z.string().optional(),
           tokenDecimals: z.number().finite().optional(),
           milestones: z.array(MilestoneSchema).optional(),
+          freelancerAccepted: z.boolean().optional(),
+          arbiterAccepted: z.boolean().optional(),
         })
         .passthrough(),
     }),

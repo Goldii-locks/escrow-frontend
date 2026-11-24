@@ -20,6 +20,7 @@ import { BACKEND_URL, runContractAction, submitContractTransaction } from "@/app
 import { fetchJobStateFromContract, isIndexerStale } from "@/app/lib/contract_job_state";
 import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
 import EscrowLockBanner from "@/app/components/EscrowLockBanner";
+import AcceptJobBanner from "@/app/components/AcceptJobBanner";
 import { getEscrowLockState } from "@/app/lib/escrow_lock_state";
 import {
   JobListResponseSchema,
@@ -40,7 +41,7 @@ import {
   shortAddress,
 } from "@/app/lib/job_list_summary";
 import { hashDisputeReason } from "@/app/lib/dispute_reason";
-import { canFund } from "@/app/lib/milestone_actions";
+import { canFund, isJobFullyAccepted } from "@/app/lib/milestone_actions";
 import { fetchArbiterFeeBps } from "@/app/lib/arbiter_fee";
 import {
   MAX_BATCH_APPROVALS,
@@ -849,6 +850,20 @@ export default function Dashboard() {
     ]);
   };
 
+  const handleAcceptJob = async () => {
+    if (!address || !expandedJobId) return;
+    await executeTx(actionKey(expandedJobId, "accept-job"), "accept_job", [
+      { type: "address", value: address },
+    ]);
+  };
+
+  const handleAcceptArbiter = async () => {
+    if (!address || !expandedJobId) return;
+    await executeTx(actionKey(expandedJobId, "accept-arbiter"), "accept_arbiter", [
+      { type: "address", value: address },
+    ]);
+  };
+
   const paginationButtons = useMemo(() => {
     const pages: number[] = [];
     const start = Math.max(1, page - 2);
@@ -1270,6 +1285,21 @@ export default function Dashboard() {
                                   role="region"
                                   aria-label="Milestones"
                                 >
+                                  {/* Issue #802: banner when freelancer or arbiter has not accepted */}
+                                  <AcceptJobBanner
+                                    freelancerAccepted={expandedJob.freelancerAccepted}
+                                    arbiterAccepted={expandedJob.arbiterAccepted}
+                                    isFreelancer={isFreelancer}
+                                    isArbiter={isArbiter}
+                                    acceptJobState={getState(actionKey(expandedJobId, "accept-job"))}
+                                    acceptArbiterState={getState(actionKey(expandedJobId, "accept-arbiter"))}
+                                    isAcceptJobPending={isPending(actionKey(expandedJobId, "accept-job"))}
+                                    isAcceptArbiterPending={isPending(actionKey(expandedJobId, "accept-arbiter"))}
+                                    onAcceptJob={handleAcceptJob}
+                                    onAcceptArbiter={handleAcceptArbiter}
+                                    escrowLocked={escrowLock.actionsDisabled}
+                                    lockTooltip={escrowLock.tooltip}
+                                  />
                                   {/* Issue #896: banner when escrow is paused or cancel-locked */}
                                   <EscrowLockBanner
                                     kind={escrowLock.kind}
@@ -1330,9 +1360,9 @@ export default function Dashboard() {
                                           }
                                           onPartialRelease={handlePartialRelease}
                                           onClaimAutoRelease={handleClaimAutoRelease}
-                                          onMarkDelivered={handleMarkDelivered}
+                                          onMarkDelivered={isJobFullyAccepted(expandedJob ?? {}) ? handleMarkDelivered : undefined}
                                           onApprove={handleApprove}
-                                          onDispute={handleDispute}
+                                          onDispute={isJobFullyAccepted(expandedJob ?? {}) ? handleDispute : undefined}
                                           escrowLocked={escrowLock.actionsDisabled}
                                           lockTooltip={escrowLock.tooltip}
                                           arbiterFeeBps={

@@ -66,3 +66,31 @@ export function canClaimAutoRelease(
     milestoneClaimEligibility(milestone, backendDeadlineMs, now).show
   );
 }
+
+/**
+ * True when the freelancer still needs to call accept_job.
+ * When the backend has not yet exposed the field, we treat it as accepted
+ * (i.e. unknown = no blocker shown) so the UI degrades gracefully.
+ */
+export function needsFreelancerAcceptance(job: { freelancerAccepted?: boolean }): boolean {
+  return job.freelancerAccepted === false;
+}
+
+/**
+ * True when the arbiter still needs to call accept_arbiter.
+ * Same graceful-degradation rule: undefined = treated as accepted.
+ */
+export function needsArbiterAcceptance(job: { arbiterAccepted?: boolean }): boolean {
+  return job.arbiterAccepted === false;
+}
+
+/**
+ * True when both parties have accepted (or the backend doesn't expose the
+ * fields yet). This gates mark_delivered, raise_dispute, etc.
+ */
+export function isJobFullyAccepted(job: {
+  freelancerAccepted?: boolean;
+  arbiterAccepted?: boolean;
+}): boolean {
+  return !needsFreelancerAcceptance(job) && !needsArbiterAcceptance(job);
+}

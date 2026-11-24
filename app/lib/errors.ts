@@ -45,6 +45,7 @@ export const ERROR_MESSAGES: Record<number, string> = {
   36: "The amount is too large to process.",
   37: "The escrow balance is too low for this action.",
   42: "There's nothing to recover: this escrow holds no tokens beyond what it still owes.",
+  43: "This job hasn't been accepted yet. The freelancer and arbiter must each accept the job before work can proceed.",
 };
 
 export class WalletRejectedError extends Error {
