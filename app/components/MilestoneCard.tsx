@@ -104,6 +104,15 @@ interface Props {
   selected?: boolean;
   /** Called when the batch-approval checkbox changes. */
   onSelectChange?: (index: number, selected: boolean) => void;
+  /**
+   * True while the freelancer or arbiter has not accepted the job (#802).
+   * `mark_delivered` and `raise_dispute` revert with `NotAccepted` until both
+   * have, so the buttons stay disabled and `acceptanceMessage` explains who
+   * is still missing.
+   */
+  acceptancePending?: boolean;
+  /** Explanation shown while `acceptancePending` blocks delivery/dispute. */
+  acceptanceMessage?: string | null;
 }
 
 const statusColor: Record<string, string> = {
@@ -198,6 +207,8 @@ export default function MilestoneCard({
   selectable = false,
   selected = false,
   onSelectChange,
+  acceptancePending = false,
+  acceptanceMessage = null,
   ...unusedProps
 }: Props) {
   void unusedProps;
@@ -361,6 +372,17 @@ export default function MilestoneCard({
         })
       : null;
   const showBatchCheckbox = selectable && isClient && milestone.status === "Delivered";
+  const showDeliver = canMarkDelivered(milestone, isFreelancer);
+  const showDispute =
+    (isClient || isFreelancer) &&
+    ["Pending", "Delivered", "PartiallyReleased"].includes(milestone.status);
+  // Acceptance blocks a scripted action more specifically than an escrow lock,
+  // so its explanation wins when both apply.
+  const blockedTitle = acceptancePending
+    ? (acceptanceMessage ?? undefined)
+    : escrowLocked
+      ? lockTooltip
+      : undefined;
 
   return (
     <div
@@ -519,12 +541,13 @@ export default function MilestoneCard({
             )}
           </div>
 
-          {canMarkDelivered(milestone, isFreelancer) && (
+          {showDeliver && (
             <button
+              data-testid="mark-delivered-button"
               onClick={() => onMarkDelivered?.(milestone.index)}
-              disabled={!onMarkDelivered || escrowLocked}
-              aria-disabled={!onMarkDelivered || escrowLocked}
-              title={escrowLocked ? lockTooltip : undefined}
+              disabled={!onMarkDelivered || escrowLocked || acceptancePending}
+              aria-disabled={!onMarkDelivered || escrowLocked || acceptancePending}
+              title={blockedTitle}
               aria-label={`Mark ${milestoneLabel} as delivered`}
               className={`${baseBtn} bg-info-soft text-surface-page font-medium hover:bg-info-soft/80 active:scale-[0.97] focus-visible:ring-info-soft disabled:hover:bg-info-soft disabled:active:scale-100`}
             >
@@ -570,21 +593,31 @@ export default function MilestoneCard({
               <span className="text-xs text-text-muted">{CLAIM_UNKNOWN_DEADLINE_NOTE}</span>
             )}
 
-          {(isClient || isFreelancer) &&
-            ["Pending", "Delivered", "PartiallyReleased"].includes(milestone.status) && (
-              <button
-                onClick={() => setIsDisputeModalOpen(true)}
-                disabled={!onDispute || escrowLocked}
-                aria-disabled={!onDispute || escrowLocked}
-                title={escrowLocked ? lockTooltip : undefined}
-                aria-label={`Dispute ${milestoneLabel}`}
-                className={`${baseBtn} bg-danger text-text-primary hover:bg-danger/80 active:scale-[0.97] focus-visible:ring-danger-soft disabled:hover:bg-danger disabled:active:scale-100`}
-              >
-                Dispute
-              </button>
-            )}
+          {showDispute && (
+            <button
+              data-testid="dispute-button"
+              onClick={() => setIsDisputeModalOpen(true)}
+              disabled={!onDispute || escrowLocked || acceptancePending}
+              aria-disabled={!onDispute || escrowLocked || acceptancePending}
+              title={blockedTitle}
+              aria-label={`Dispute ${milestoneLabel}`}
+              className={`${baseBtn} bg-danger text-text-primary hover:bg-danger/80 active:scale-[0.97] focus-visible:ring-danger-soft disabled:hover:bg-danger disabled:active:scale-100`}
+            >
+              Dispute
+            </button>
+          )}
         </div>
       </div>
+
+      {acceptancePending && acceptanceMessage && (showDeliver || showDispute) && (
+        <p
+          role="status"
+          data-testid="milestone-acceptance-note"
+          className="w-full text-xs text-warning-soft"
+        >
+          {acceptanceMessage}
+        </p>
+      )}
 
       {/* Arbiter resolution panel — full-width row beneath the card summary */}
       {canResolveDispute(milestone, !!isArbiter) && (

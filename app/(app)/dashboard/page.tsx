@@ -18,6 +18,14 @@ import { getArbiterJobEmptyState } from "@/app/lib/arbiter_action_panel";
 import { useActionStates } from "@/app/hooks/useActionStates";
 import { BACKEND_URL, runContractAction, submitContractTransaction } from "@/app/lib/transactions";
 import { fetchJobStateFromContract, isIndexerStale } from "@/app/lib/contract_job_state";
+import JobAcceptancePanel from "@/app/components/JobAcceptancePanel";
+import {
+  acceptanceBlockedMessage,
+  fetchJobAcceptance,
+  isJobAccepted,
+  mergeAcceptance,
+  type JobAcceptance,
+} from "@/app/lib/job_acceptance";
 import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
 import EscrowLockBanner from "@/app/components/EscrowLockBanner";
 import { getEscrowLockState } from "@/app/lib/escrow_lock_state";
@@ -91,6 +99,11 @@ export default function Dashboard() {
   const [detailsError, setDetailsError] = useState<Record<string, string>>({});
   /** Jobs whose milestone data came from the contract directly (#895). */
   const [contractFallbackIds, setContractFallbackIds] = useState<Set<string>>(new Set());
+  /**
+   * Job acceptance per contract (#802), rebuilt from the indexed
+   * `acceptjob` / `acceptarb` events. `null` = could not be read.
+   */
+  const [jobAcceptance, setJobAcceptance] = useState<Record<string, JobAcceptance | null>>({});
   const [page, setPage] = useState(1);
   const [limit] = useState(5);
   const [total, setTotal] = useState(0);
@@ -482,6 +495,40 @@ export default function Dashboard() {
     };
   }, [expandedJobId, fetchJobDetails]);
 
+  /**
+   * Indexed ledger of the expanded job. Acceptance events move it, so this is
+   * also the signal to re-read the acceptance state after either party acts.
+   */
+  const expandedJobLatestLedger = expandedJobId
+    ? (jobs.find((job) => job.id === expandedJobId)?.latestLedger ?? null)
+    : null;
+
+  useEffect(() => {
+    if (!expandedJobId) return;
+    const jobId = expandedJobId;
+    const controller = new AbortController();
+
+    fetchJobAcceptance(jobId, { signal: controller.signal })
+      .then((acceptance) => {
+        if (controller.signal.aborted) return;
+        setJobAcceptance((current) => ({
+          ...current,
+          [jobId]: mergeAcceptance(current[jobId], acceptance),
+        }));
+      })
+      .catch((err: unknown) => {
+        if (err instanceof Error && err.name === "AbortError") return;
+        // Keep any bit already read: acceptance never reverses, and a
+        // transient read failure must not resurface the accept CTA.
+        setJobAcceptance((current) => ({
+          ...current,
+          [jobId]: mergeAcceptance(current[jobId], null),
+        }));
+      });
+
+    return () => controller.abort();
+  }, [expandedJobId, expandedJobLatestLedger]);
+
   useEffect(() => {
     if (!address) return;
 
@@ -543,6 +590,8 @@ export default function Dashboard() {
 
   const expandedJob = expandedJobId ? (jobDetails[expandedJobId] ?? null) : null;
   const milestoneList = Array.isArray(expandedJob?.milestones) ? expandedJob.milestones : [];
+  /** Acceptance for the open job; `null` until read or when unreadable (#802). */
+  const acceptanceForExpandedJob = expandedJob ? (jobAcceptance[expandedJob.id] ?? null) : null;
 
   // Refetch the activity timeline whenever the job changes: a new ledger in
   // the list summary, or a new funded/milestone state from the detail (#892).
@@ -789,6 +838,48 @@ export default function Dashboard() {
     await executeTx(actionKey(expandedJob.id, "fund"), "fund", [
       { type: "address", value: address },
     ]);
+  };
+
+  /** Freelancer accepts the job so `mark_delivered` becomes available (#802). */
+  const handleAcceptJob = async () => {
+    if (!address || !expandedJobId) return;
+    const jobId = expandedJobId;
+
+    const txHash = await executeTx(actionKey(jobId, "accept-job"), "accept_job", [
+      { type: "address", value: address },
+    ]);
+
+    if (txHash !== null) {
+      // Acceptance never moves backwards on-chain: show it immediately while
+      // the indexer catches up with the new event.
+      setJobAcceptance((current) => ({
+        ...current,
+        [jobId]: {
+          freelancerAccepted: true,
+          arbiterAccepted: current[jobId]?.arbiterAccepted ?? false,
+        },
+      }));
+    }
+  };
+
+  /** Arbiter accepts the job so delivery and disputes become available (#802). */
+  const handleAcceptArbiter = async () => {
+    if (!address || !expandedJobId) return;
+    const jobId = expandedJobId;
+
+    const txHash = await executeTx(actionKey(jobId, "accept-arbiter"), "accept_arbiter", [
+      { type: "address", value: address },
+    ]);
+
+    if (txHash !== null) {
+      setJobAcceptance((current) => ({
+        ...current,
+        [jobId]: {
+          freelancerAccepted: current[jobId]?.freelancerAccepted ?? false,
+          arbiterAccepted: true,
+        },
+      }));
+    }
   };
 
   const handleApprove = async (i: number) => {
@@ -1225,6 +1316,26 @@ export default function Dashboard() {
                                     </button>
                                   </div>
                                 )}
+                                <JobAcceptancePanel
+                                  acceptance={acceptanceForExpandedJob}
+                                  loading={!(expandedJob.id in jobAcceptance)}
+                                  isFreelancer={isFreelancer}
+                                  isArbiter={isArbiter}
+                                  onAcceptJob={handleAcceptJob}
+                                  onAcceptArbiter={handleAcceptArbiter}
+                                  isAcceptJobPending={isPending(
+                                    actionKey(expandedJob.id, "accept-job")
+                                  )}
+                                  isAcceptArbiterPending={isPending(
+                                    actionKey(expandedJob.id, "accept-arbiter")
+                                  )}
+                                  acceptJobError={
+                                    getState(actionKey(expandedJob.id, "accept-job")).error
+                                  }
+                                  acceptArbiterError={
+                                    getState(actionKey(expandedJob.id, "accept-arbiter")).error
+                                  }
+                                />
                                 {contractFallbackIds.has(job.id) && (
                                   <p
                                     data-testid="contract-fallback-banner"
@@ -1346,6 +1457,13 @@ export default function Dashboard() {
                                           selectable={offerBatchApproval}
                                           selected={selectedForBatch.includes(m.index)}
                                           onSelectChange={handleBatchSelectChange}
+                                          acceptancePending={
+                                            acceptanceForExpandedJob !== null &&
+                                            !isJobAccepted(acceptanceForExpandedJob)
+                                          }
+                                          acceptanceMessage={acceptanceBlockedMessage(
+                                            acceptanceForExpandedJob
+                                          )}
                                         />
                                       </div>
                                     ))
