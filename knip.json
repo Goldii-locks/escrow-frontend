@@ -17,7 +17,8 @@
     "app/hooks/useDisputeViewport.ts": ["exports"],
     "app/lib/safe_storage.ts": ["exports"],
     "app/lib/errors.ts": ["exports"],
-    "app/lib/ledgerTime.ts": ["exports"]
+    "app/lib/ledgerTime.ts": ["exports"],
+    "app/lib/arbiter_action_panel.ts": ["exports"]
   },
   "ignoreExportsUsedInFile": true
 }
