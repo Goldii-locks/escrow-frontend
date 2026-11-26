@@ -1175,7 +1175,11 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-surface-page text-text-primary">
       <Navbar />
-      <main className="w-full max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-12">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="w-full max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-12"
+      >
         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6">Job Dashboard</h1>
 
         {!address ? (
