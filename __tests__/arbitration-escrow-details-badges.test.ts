@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   deriveArbitrationBadgeState,
   getArbitrationBadge,
-} from "@/app/lib/arbitration_escrow_details_badges";
+} from "@/app/lib/arbitration_escrow_details_logic";
 
 describe("arbitration_escrow_details state badges (#484)", () => {
   it("returns distinct badges for each active state", () => {

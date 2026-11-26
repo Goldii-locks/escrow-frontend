@@ -85,6 +85,7 @@ export const SUPPORTED_WALLETS = [
   { id: "hana", label: "Hana" },
   { id: "lobstr", label: "LOBSTR" },
   { id: "wallet_connect", label: "WalletConnect" },
+  { id: "ledger", label: "Ledger" },
 ] as const;
 
 export type SupportedWalletId = (typeof SUPPORTED_WALLETS)[number]["id"];

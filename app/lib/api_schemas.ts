@@ -32,7 +32,7 @@ export class ApiShapeError extends Error {
     super(
       `Unexpected response from server at ${endpoint}: ${zodError.issues
         .slice(0, 3)
-        .map((i) => `${i.path.join(".")}: ${i.message}`)
+        .map((i) => `${i.path.map(String).join(".")}: ${i.message}`)
         .join("; ")}`
     );
     this.name = "ApiShapeError";
@@ -288,6 +288,28 @@ export type AutoReleaseResponse = z.infer<typeof AutoReleaseResponseSchema>;
 // Helper: validate and throw ApiShapeError on failure
 // ---------------------------------------------------------------------------
 
+/** Largest serialised response (in characters) we will hand to the validator. */
+export const MAX_RESPONSE_CHARS = 5_000_000;
+
+/** Thrown when a backend response is too large to validate safely. */
+export class ApiResponseTooLargeError extends Error {
+  constructor(endpoint: string) {
+    super(`Response from ${endpoint} is too large to process`);
+    this.name = "ApiResponseTooLargeError";
+  }
+}
+
+/** Caps response size before parsing (defence in depth against oversized collections). */
+export function assertResponseSize(data: unknown, endpoint: string): void {
+  let size = 0;
+  try {
+    size = JSON.stringify(data)?.length ?? 0;
+  } catch {
+    size = Infinity;
+  }
+  if (size > MAX_RESPONSE_CHARS) throw new ApiResponseTooLargeError(endpoint);
+}
+
 /**
  * Validates `data` against `schema`.  Throws `ApiShapeError` if validation
  * fails, so callers can surface it as "Unexpected response from server".
@@ -295,7 +317,8 @@ export type AutoReleaseResponse = z.infer<typeof AutoReleaseResponseSchema>;
  * @example
  * const validated = validateResponse(JobListResponseSchema, rawJson, '/api/jobs/by-wallet/…');
  */
-export function validateResponse<T>(schema: z.ZodSchema<T>, data: unknown, endpoint: string): T {
+export function validateResponse<T>(schema: z.ZodType<T>, data: unknown, endpoint: string): T {
+  assertResponseSize(data, endpoint);
   const result = schema.safeParse(data);
   if (!result.success) {
     throw new ApiShapeError(endpoint, result.error);

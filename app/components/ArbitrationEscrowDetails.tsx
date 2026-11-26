@@ -21,12 +21,12 @@ import {
   isEscrowDetailsAuthorized,
   resolveEscrowPartyRole,
 } from "@/app/lib/arbitration_escrow_details";
-import { getArbitrationBadge } from "@/app/lib/arbitration_escrow_details_badges";
-import { handleArbitrationExport } from "@/app/lib/arbitration_escrow_details_export";
 import {
   ARBITRATION_SKELETON_ARIA,
+  getArbitrationBadge,
   getArbitrationSkeleton,
-} from "@/app/lib/arbitration_escrow_details_skeleton";
+  handleArbitrationExport,
+} from "@/app/lib/arbitration_escrow_details_logic";
 
 export interface ArbitrationEscrowDetailsProps {
   /** Dispute whose locked escrow should be shown. */
