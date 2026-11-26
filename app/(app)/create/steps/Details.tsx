@@ -22,6 +22,12 @@ export default function Details({ form }: { form: CreateJobForm }) {
       onActivate={onFocus}
     >
       <div className="space-y-4">
+        {d.clientError && (
+          <p role="alert" className="text-sm text-danger-soft">
+            {d.clientError}
+          </p>
+        )}
+
         {/* Freelancer Address */}
         <div>
           <label htmlFor="freelancer-address" className="block text-sm text-text-muted mb-1">
@@ -33,6 +39,8 @@ export default function Details({ form }: { form: CreateJobForm }) {
             autoComplete="off"
             spellCheck={false}
             aria-required="true"
+            aria-invalid={!!d.freelancerError}
+            aria-describedby={d.freelancerError ? "freelancer-address-error" : undefined}
             className={`${inputClassName} ${d.freelancerError ? "!border-danger" : ""}`}
             value={d.freelancer}
             onChange={(e) => d.changeFreelancer(e.target.value)}
@@ -43,7 +51,9 @@ export default function Details({ form }: { form: CreateJobForm }) {
             disabled={loading}
           />
           {d.freelancerError && (
-            <p className="text-sm text-danger-soft mt-1">{d.freelancerError}</p>
+            <p id="freelancer-address-error" role="alert" className="text-sm text-danger-soft mt-1">
+              {d.freelancerError}
+            </p>
           )}
         </div>
 
@@ -91,6 +101,8 @@ export default function Details({ form }: { form: CreateJobForm }) {
                 autoComplete="off"
                 spellCheck={false}
                 aria-required="true"
+                aria-invalid={!!d.arbiterError}
+                aria-describedby={d.arbiterError ? "arbiter-address-error" : undefined}
                 className={`${inputClassName} ${d.arbiterError ? "!border-danger" : ""}`}
                 value={d.arbiter}
                 onChange={(e) => d.changeArbiter(e.target.value)}
@@ -100,9 +112,22 @@ export default function Details({ form }: { form: CreateJobForm }) {
                 required
                 disabled={loading}
               />
+              {d.arbiterError && (
+                <p
+                  id="arbiter-address-error"
+                  role="alert"
+                  className="text-sm text-danger-soft mt-1"
+                >
+                  {d.arbiterError}
+                </p>
+              )}
             </>
           )}
-          {d.arbiterError && <p className="text-sm text-danger-soft mt-1">{d.arbiterError}</p>}
+          {d.arbiterMode !== "custom" && d.arbiterError && (
+            <p role="alert" className="text-sm text-danger-soft mt-1">
+              {d.arbiterError}
+            </p>
+          )}
         </div>
 
         <TokenField form={form} />

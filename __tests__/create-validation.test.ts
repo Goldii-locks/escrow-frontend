@@ -1,9 +1,11 @@
+import { Keypair } from "@stellar/stellar-sdk";
 import { describe, expect, it } from "vitest";
 import {
   checkSubmission,
   hasTokenIssue,
   nonBlank,
   summarizeMilestones,
+  validatePartyAddressCollisions,
   validateAccountAddress,
   validateDeadline,
   validateTokenAddress,
@@ -14,6 +16,7 @@ import {
 // Real StrKeys: validation checks the checksum, not just the shape (#579).
 const ACCOUNT = "GAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQDZ7H";
 const OTHER_ACCOUNT = "GABAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEJXA";
+const THIRD_ACCOUNT = Keypair.random().publicKey();
 const TOKEN = "CAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQC526";
 // ACCOUNT with its last character changed: right shape, bad checksum.
 const BAD_CHECKSUM = ACCOUNT.slice(0, -1) + (ACCOUNT.endsWith("A") ? "B" : "A");
@@ -63,6 +66,58 @@ describe("validateDeadline", () => {
 describe("nonBlank", () => {
   it("drops empty and whitespace-only entries", () => {
     expect(nonBlank(["USDC", "", "  ", "XLM"])).toEqual(["USDC", "XLM"]);
+  });
+});
+
+describe("validatePartyAddressCollisions", () => {
+  it.each([
+    [
+      { client: ACCOUNT, freelancer: ACCOUNT, arbiter: OTHER_ACCOUNT },
+      "The freelancer can't be your own address.",
+      "",
+      "",
+    ],
+    [
+      { client: ACCOUNT, freelancer: THIRD_ACCOUNT, arbiter: ACCOUNT },
+      "",
+      "The arbiter can't be your own address.",
+      "",
+    ],
+    [
+      { client: THIRD_ACCOUNT, freelancer: ACCOUNT, arbiter: ACCOUNT },
+      "",
+      "The arbiter can't use the freelancer's address.",
+      "",
+    ],
+    [
+      { client: ACCOUNT, freelancer: THIRD_ACCOUNT, arbiter: OTHER_ACCOUNT, adminAddress: ACCOUNT },
+      "",
+      "",
+      "The client can't be the platform admin address.",
+    ],
+    [
+      { client: THIRD_ACCOUNT, freelancer: ACCOUNT, arbiter: OTHER_ACCOUNT, adminAddress: ACCOUNT },
+      "The freelancer can't be the platform admin address.",
+      "",
+      "",
+    ],
+    [
+      {
+        client: THIRD_ACCOUNT,
+        freelancer: ACCOUNT,
+        arbiter: OTHER_ACCOUNT,
+        adminAddress: OTHER_ACCOUNT,
+      },
+      "",
+      "The arbiter can't be the platform admin address.",
+      "",
+    ],
+  ])("rejects overlapping roles: %j", (input, freelancerError, arbiterError, clientError) => {
+    expect(validatePartyAddressCollisions(input)).toEqual({
+      clientError,
+      freelancerError,
+      arbiterError,
+    });
   });
 });
 
@@ -118,6 +173,7 @@ describe("hasTokenIssue", () => {
 
 describe("checkSubmission", () => {
   const valid: SubmissionInput = {
+    client: THIRD_ACCOUNT,
     freelancer: ACCOUNT,
     arbiter: OTHER_ACCOUNT,
     autoReleaseDays: "7",
@@ -127,6 +183,20 @@ describe("checkSubmission", () => {
 
   it("passes a complete form", () => {
     expect(checkSubmission(valid)).toEqual({ ok: true });
+  });
+
+  it.each([
+    [{ freelancer: valid.client }, "The freelancer can't be your own address."],
+    [{ arbiter: valid.client }, "The arbiter can't be your own address."],
+    [{ arbiter: valid.freelancer }, "The arbiter can't use the freelancer's address."],
+    [{ adminAddress: valid.client }, "The client can't be the platform admin address."],
+    [{ adminAddress: valid.freelancer }, "The freelancer can't be the platform admin address."],
+    [{ adminAddress: valid.arbiter }, "The arbiter can't be the platform admin address."],
+  ])("rejects colliding party addresses: %j", (overrides, message) => {
+    expect(checkSubmission({ ...valid, ...overrides })).toMatchObject({
+      ok: false,
+      message,
+    });
   });
 
   it("reports the deadline first, with its field error", () => {

@@ -128,42 +128,55 @@ export const JobSchema = z.object({
 export type Job = z.infer<typeof JobSchema>;
 
 // ---------------------------------------------------------------------------
-// Paginated jobs list response
+// Paginated jobs list response (GET /api/jobs/by-wallet/:address)
 // ---------------------------------------------------------------------------
 
-const PaginationSchema = z.object({
-  page: z.number().optional(),
-  limit: z.number().optional(),
-  total: z.number().optional(),
+/**
+ * One row of the by-wallet job list, exactly as `escrow-backend`'s
+ * `getJobsByWallet` returns it (`src/indexer/db.ts` `JobSummary`). The
+ * backend wraps the whole page in `sendSuccess(res, { jobs, total, page, limit })`,
+ * so the row field names are snake_case and intentionally minimal: the list
+ * carries only what the indexer can derive from events (contract id, the
+ * caller's role, milestone count and the latest event's type/ledger/time).
+ *
+ * The full job state (client, freelancer, arbiter, token, funded, milestones)
+ * comes from the per-contract detail endpoint (`GET /api/jobs/:contractId`),
+ * which is fetched separately when a row is expanded. Keeping the list shape
+ * strict means a renamed backend field fails the contract test instead of
+ * silently dropping the row from the dashboard.
+ */
+export const JobSummarySchema = z.object({
+  contract_id: z.string().min(1),
+  role: z.enum(["client", "freelancer", "arbiter", "unknown"]),
+  milestone_count: z.number().int().nonnegative(),
+  latest_event_type: z.string(),
+  latest_ledger: z.number().int(),
+  latest_timestamp: z.number().int().nullable(),
 });
 
+export type JobSummary = z.infer<typeof JobSummarySchema>;
+
 /**
- * The backend returns jobs in one of several envelope shapes.  We capture all
- * known variants and normalise them in `parseJobListResponse`.
+ * Exact body of `GET /api/jobs/by-wallet/:address`. The backend wraps the
+ * page with `sendSuccess(res, PaginatedJobs)` →
+ * `{ success: true, data: { jobs, total, page, limit } }`, and errors with the
+ * standard `{ success: false, error }` envelope (`sendError`).
  */
-export const JobListResponseSchema = z.object({
-  success: z.boolean().optional(),
-  error: z.string().optional(),
-  data: z
-    .union([
-      z.array(z.unknown()),
-      z.object({
-        jobs: z.array(z.unknown()).optional(),
-        items: z.array(z.unknown()).optional(),
-        id: z.string().optional(),
-        page: z.number().optional(),
-        limit: z.number().optional(),
-        total: z.number().optional(),
-        totalItems: z.number().optional(),
-      }),
-    ])
-    .optional(),
-  pagination: PaginationSchema.optional(),
-  page: z.number().optional(),
-  limit: z.number().optional(),
-  total: z.number().optional(),
-  totalItems: z.number().optional(),
-});
+export const JobListResponseSchema = z.discriminatedUnion("success", [
+  z.object({
+    success: z.literal(true),
+    data: z.object({
+      jobs: z.array(z.unknown()),
+      total: z.number(),
+      page: z.number(),
+      limit: z.number(),
+    }),
+  }),
+  z.object({
+    success: z.literal(false),
+    error: z.string(),
+  }),
+]);
 
 export type JobListResponse = z.infer<typeof JobListResponseSchema>;
 

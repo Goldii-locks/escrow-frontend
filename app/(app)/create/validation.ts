@@ -30,6 +30,55 @@ export function validateArbiterAddress(value: string): string {
     : "";
 }
 
+export interface PartyAddressInput {
+  client: string;
+  freelancer: string;
+  arbiter: string;
+  adminAddress?: string | null;
+}
+
+export interface PartyAddressErrors {
+  clientError: string;
+  freelancerError: string;
+  arbiterError: string;
+}
+
+/** Returns role-specific errors for party addresses that must be distinct. */
+export function validatePartyAddressCollisions({
+  client,
+  freelancer,
+  arbiter,
+  adminAddress,
+}: PartyAddressInput): PartyAddressErrors {
+  let clientError = "";
+  let freelancerError = "";
+  let arbiterError = "";
+
+  if (client && freelancer && client === freelancer) {
+    freelancerError = "The freelancer can't be your own address.";
+  }
+  if (client && arbiter && client === arbiter) {
+    arbiterError = "The arbiter can't be your own address.";
+  }
+  if (freelancer && arbiter && freelancer === arbiter) {
+    arbiterError = "The arbiter can't use the freelancer's address.";
+  }
+
+  if (adminAddress) {
+    if (client && client === adminAddress) {
+      clientError = "The client can't be the platform admin address.";
+    }
+    if (freelancer && freelancer === adminAddress) {
+      freelancerError = "The freelancer can't be the platform admin address.";
+    }
+    if (arbiter && arbiter === adminAddress) {
+      arbiterError = "The arbiter can't be the platform admin address.";
+    }
+  }
+
+  return { clientError, freelancerError, arbiterError };
+}
+
 /** Error for the token field, or "" when it's empty or valid. */
 export function validateTokenAddress(value: string): string {
   return value && !StrKey.isValidContract(value) ? "Invalid Soroban contract ID format" : "";
@@ -103,8 +152,10 @@ export function hasTokenIssue({
 }
 
 export interface SubmissionInput {
+  client: string;
   freelancer: string;
   arbiter: string;
+  adminAddress?: string | null;
   autoReleaseDays: string;
   milestones: MilestoneSummary;
   token: Omit<TokenStatus, "whitelisted"> & {
@@ -120,6 +171,7 @@ export type SubmissionCheck =
       /** Form-level message for the error alert. */
       message: string;
       deadlineError?: string;
+      clientError?: string;
       freelancerError?: string;
       arbiterError?: string;
     };
@@ -177,6 +229,19 @@ export function checkSubmission(input: SubmissionInput): SubmissionCheck {
       message: "Please fix the address fields before creating a job.",
       freelancerError: freelancer ? validateAccountAddress(freelancer) : "This field is required.",
       arbiterError: arbiter ? validateArbiterAddress(arbiter) : "This field is required.",
+    };
+  }
+
+  const partyErrors = validatePartyAddressCollisions(input);
+  if (partyErrors.clientError || partyErrors.freelancerError || partyErrors.arbiterError) {
+    return {
+      ok: false,
+      message:
+        partyErrors.clientError ||
+        partyErrors.freelancerError ||
+        partyErrors.arbiterError ||
+        "Each party must use a different address.",
+      ...partyErrors,
     };
   }
 

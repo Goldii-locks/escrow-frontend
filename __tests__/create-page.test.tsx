@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CreateJob from "@/app/(app)/create/page";
 
+const CLIENT_ADDRESS = "GAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQDZ7H";
 const mockPush = vi.fn();
 const mockUseWallet = vi.fn();
 const mockShowToast = vi.fn();
@@ -144,6 +145,20 @@ describe("Create page", () => {
     fireEvent.click(screen.getByTestId("agreement-checkbox"));
 
     expect(screen.getByRole("button", { name: "Create Job" })).not.toBeDisabled();
+  });
+
+  it("shows an inline error when the freelancer is the connected wallet", () => {
+    mockUseWallet.mockReturnValue({
+      address: CLIENT_ADDRESS,
+      signTransaction: vi.fn(),
+    });
+
+    render(<CreateJob />);
+    fireEvent.change(screen.getByLabelText("Freelancer Address"), {
+      target: { value: CLIENT_ADDRESS },
+    });
+
+    expect(screen.getByText("The freelancer can't be your own address.")).toBeInTheDocument();
   });
 
   it("renders the success screen after a confirmed create and surfaces a toast instead of alert()", async () => {

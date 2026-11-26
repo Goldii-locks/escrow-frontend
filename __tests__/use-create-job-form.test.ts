@@ -634,6 +634,33 @@ describe("useCreateJobForm — handleSubmit", () => {
     expect(result.current.error).toBeTruthy();
   });
 
+  it.each(["freelancer-client", "arbiter-client", "arbiter-freelancer"])(
+    "blocks submit before signing for the %s collision",
+    async (collision) => {
+      const { result } = renderHook(() => useCreateJobForm());
+      setupValidForm(result);
+      act(() => {
+        if (collision === "freelancer-client") {
+          result.current.details.changeFreelancer(ADDRESS);
+        } else if (collision === "arbiter-client") {
+          result.current.details.changeArbiter(ADDRESS);
+        } else {
+          result.current.details.changeArbiter(FREELANCER);
+        }
+      });
+
+      await act(async () => {
+        await result.current.handleSubmit({
+          preventDefault: vi.fn(),
+        } as unknown as React.FormEvent);
+      });
+
+      expect(mockSubmitCreateJob).not.toHaveBeenCalled();
+      expect(mockSignTransaction).not.toHaveBeenCalled();
+      expect(result.current.error).toMatch(/address/i);
+    }
+  );
+
   it("does not double-submit while a request is pending", async () => {
     // The hook's isSubmitDisabled includes `loading`, which is the UI-level
     // guard against double-submission. When loading is true the button is
