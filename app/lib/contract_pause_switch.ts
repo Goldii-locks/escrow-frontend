@@ -13,6 +13,8 @@
  * `app/lib/arbiter_action_panel.ts`.
  */
 
+import { z } from "zod";
+import { apiGet } from "@/app/lib/api";
 import { BACKEND_URL, CONTRACT_ID } from "@/app/lib/transactions";
 import type { ToastType } from "@/app/context/ToastContext";
 
@@ -284,6 +286,14 @@ export interface ContractPauseState {
   reason: string;
 }
 
+const ContractPauseStateSchema = z.object({
+  contractId: z.string(),
+  paused: z.boolean(),
+  updatedAt: z.string(),
+  updatedBy: z.string(),
+  reason: z.string(),
+});
+
 /** One entry in the freeze transition log. */
 export interface ContractPauseTransition {
   id: string;
@@ -366,25 +376,10 @@ export async function fetchContractPauseState(options?: {
     `${BACKEND_URL}/api/jobs/query?contractId=${encodeURIComponent(contractId)}&method=is_paused`;
 
   try {
-    const res = await fetch(url, { signal: options?.signal });
-    if (res.ok) {
-      const data: unknown = await res.json();
-      // The backend may return the snapshot bare or wrapped in a success
-      // envelope; accept either, but only when the payload is complete.
-      const payload =
-        typeof data === "object" && data !== null && "success" in data && "data" in data
-          ? (data as { data: unknown }).data
-          : data;
-
-      if (isContractPauseState(payload)) {
-        return payload;
-      }
-      console.warn(`${LOG_PREFIX} pause state response missing fields, returning null`);
-    } else {
-      console.warn(
-        `${LOG_PREFIX} pause state request failed with status ${res.status}, returning null`
-      );
-    }
+    return await apiGet(url, ContractPauseStateSchema, {
+      signal: options?.signal,
+      envelope: "optional",
+    });
   } catch (err) {
     console.warn(`${LOG_PREFIX} pause state request threw, returning null`, err);
   }

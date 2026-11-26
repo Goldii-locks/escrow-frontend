@@ -118,7 +118,11 @@ describe("arbitrator_evidence_list module", () => {
     it("fetchArbitratorEvidence returns data from the backend", async () => {
       vi.stubGlobal(
         "fetch",
-        vi.fn().mockResolvedValue({ ok: true, json: async () => MOCK_EVIDENCE_DATASET })
+        vi.fn().mockResolvedValue({
+          ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
+          json: async () => MOCK_EVIDENCE_DATASET,
+        })
       );
       const data = await fetchArbitratorEvidence("disp-101");
       expect(data.length).toBeGreaterThan(0);
@@ -209,6 +213,7 @@ describe("arbitrator_evidence_list module", () => {
         "fetch",
         vi.fn().mockResolvedValue({
           ok: true,
+          headers: new Headers({ "Content-Type": "application/json" }),
           json: async () => ({ success: true, data: MOCK_EVIDENCE_DATASET }),
         })
       );

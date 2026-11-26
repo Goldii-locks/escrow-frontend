@@ -44,6 +44,7 @@ describe("arbitration_escrow_details data mapping bindings (#483)", () => {
         vi.fn().mockResolvedValue({
           ok: true,
           status: 200,
+          headers: new Headers({ "Content-Type": "application/json" }),
           json: async () => MOCK_ARBITRATION_DATASET,
         })
       );
@@ -59,6 +60,7 @@ describe("arbitration_escrow_details data mapping bindings (#483)", () => {
         vi.fn().mockResolvedValue({
           ok: false,
           status: 500,
+          headers: new Headers({ "Content-Type": "application/json" }),
           json: async () => ({}),
         })
       );

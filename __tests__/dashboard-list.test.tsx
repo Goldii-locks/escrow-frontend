@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Dashboard from "@/app/(app)/dashboard/page";
 import { wrapFetchWithJobDetails } from "@/__tests__/helpers/job_details_fetch";
@@ -134,6 +134,9 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "Content-Type": "application/json" }),
         json: async () => response,
       })
     );
@@ -153,13 +156,21 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
 
       expect(screen.getByTestId("loading-skeleton")).toBeInTheDocument();
 
-      await resolveFetch(mockJobsResponse([]));
+      await resolveFetch({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "Content-Type": "application/json" }),
+        json: async () => mockJobsResponse([]),
+      });
     });
 
     it("shows loading skeleton with proper accessible status role", () => {
       vi.stubGlobal(
         "fetch",
         vi.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          headers: new Headers({ "Content-Type": "application/json" }),
           json: async () => mockJobsResponse([]),
         })
       );
@@ -177,6 +188,9 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
       vi.stubGlobal(
         "fetch",
         vi.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          headers: new Headers({ "Content-Type": "application/json" }),
           json: async () => ({
             success: false,
             error: "Failed to fetch jobs",
@@ -199,6 +213,9 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
       vi.stubGlobal(
         "fetch",
         vi.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          headers: new Headers({ "Content-Type": "application/json" }),
           json: async () => ({
             success: false,
             error: "Backend unavailable",
@@ -392,6 +409,60 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
       await waitFor(() => {
         const allTab = screen.getByRole("button", { name: "Filter jobs: All" });
         expect(allTab).toHaveAttribute("aria-pressed", "true");
+      });
+    });
+
+    it.each([
+      ["All", ["CLIENT01", "FREELAN", "ARBITER1"]],
+      ["As Client", ["CLIENT01"]],
+      ["As Freelancer", ["FREELAN"]],
+      ["As Arbiter", ["ARBITER1"]],
+    ] as const)("filters the current page for the %s tab", async (tab, expectedIds) => {
+      const walletAddress = "GCLIENTADDRESS1234567890123456789012345678901234";
+      const mixedJobs = [
+        mockJob({
+          id: "CLIENT01",
+          client: walletAddress,
+          freelancer: "GFREELANCERADDRESS12345678901234567890123456",
+          arbiter: "GARBITERADDRESS12345678901234567890123456789012",
+        }),
+        mockJob({
+          id: "FREELAN",
+          client: "GOTHERCLIENT1234567890123456789012345678901234",
+          freelancer: walletAddress,
+          arbiter: "GARBITERADDRESS12345678901234567890123456789012",
+        }),
+        mockJob({
+          id: "ARBITER1",
+          client: "GOTHERCLIENT1234567890123456789012345678901234",
+          freelancer: "GOTHERFREELANCER1234567890123456789012345",
+          arbiter: walletAddress,
+        }),
+      ];
+      setupFetch(mockJobsResponse(mixedJobs));
+
+      render(<Dashboard />);
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId("dashboard-list-item")).toHaveLength(3);
+      });
+
+      fireEvent.click(await screen.findByRole("button", { name: `Filter jobs: ${tab}` }));
+
+      await waitFor(() => {
+        const rows = screen.getAllByTestId("dashboard-list-item");
+        const rowLabels = rows.map((row) => row.querySelector("button")?.getAttribute("aria-label"));
+        expect(rowLabels).toHaveLength(expectedIds.length);
+        for (const id of expectedIds) {
+          expect(rowLabels.some((label) => label?.includes(`Job #${id}`))).toBe(true);
+        }
+        if (tab === "All") {
+          expect(screen.queryByTestId("dashboard-filter-hint")).not.toBeInTheDocument();
+        } else {
+          expect(screen.getByTestId("dashboard-filter-hint")).toHaveTextContent(
+            `Showing ${expectedIds.length} of 3 jobs on this page`
+          );
+        }
       });
     });
   });

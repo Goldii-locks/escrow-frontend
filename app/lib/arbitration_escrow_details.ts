@@ -7,6 +7,8 @@
  *
  * Mirrors the conventions established by `app/lib/arbitrator_evidence_list.ts`.
  */
+import { z } from "zod";
+import { apiGet } from "@/app/lib/api";
 
 /** Roles that hold a standing interest in a locked escrow record. */
 export type EscrowPartyRole = "client" | "freelancer" | "arbiter";
@@ -30,6 +32,19 @@ export interface ArbitrationEscrowDetailsRecord {
   arbiterAddress: string | null;
   reason: string;
 }
+
+const ArbitrationEscrowDetailsSchema = z.object({
+  escrowId: z.string(),
+  disputeId: z.string(),
+  status: z.enum(["locked", "under_review", "resolved"]),
+  lockedAt: z.string(),
+  lockedAmount: z.string(),
+  token: z.string(),
+  clientAddress: z.string(),
+  freelancerAddress: z.string(),
+  arbiterAddress: z.string().nullable(),
+  reason: z.string(),
+});
 
 /** Copy shown on the fallback warning screen for unauthorized accounts. */
 export const UNAUTHORIZED_ARBITRATION_WARNING =
@@ -177,20 +192,10 @@ export async function fetchArbitrationEscrowDetails(
 ): Promise<ArbitrationEscrowDetailsRecord> {
   const url = options?.apiUrl ?? `/api/disputes/${encodeURIComponent(disputeId)}/escrow`;
 
-  const res = await fetch(url, { signal: options?.signal });
-  if (!res.ok) {
-    throw new Error(`Failed to load escrow details for dispute ${disputeId} (${res.status})`);
-  }
-  const data: unknown = await res.json();
-  const payload =
-    typeof data === "object" && data !== null && "success" in data && "data" in data
-      ? (data as { data: unknown }).data
-      : data;
-
-  if (isArbitrationEscrowDetailsRecord(payload)) {
-    return payload;
-  }
-  throw new Error(`Invalid escrow details response for dispute ${disputeId}`);
+  return apiGet(url, ArbitrationEscrowDetailsSchema, {
+    signal: options?.signal,
+    envelope: "optional",
+  });
 }
 
 /**

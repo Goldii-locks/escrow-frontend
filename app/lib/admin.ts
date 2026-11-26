@@ -1,5 +1,8 @@
-import { BACKEND_URL } from "@/app/lib/transactions";
-import { AdminResponseSchema, validateResponse } from "@/app/lib/api_schemas";
+import { apiGet, apiPost } from "@/app/lib/api";
+import {
+  AdminResponseDataSchema,
+  EscrowFundedResponseDataSchema,
+} from "@/app/lib/api_schemas";
 
 /**
  * The contract's read-only view that includes the admin address. The
@@ -23,21 +26,13 @@ export async function fetchAdminAddress(
 ): Promise<string | null> {
   const endpoint = "/api/jobs/query";
   try {
-    const res = await fetch(`${BACKEND_URL}${endpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contractId, method: ADMIN_QUERY_METHOD }),
-      signal: options?.signal,
-    });
-
-    if (!res.ok) {
-      console.error(`Admin query failed with status ${res.status}`);
-      return null;
-    }
-
-    const rawData: unknown = await res.json();
-    const body = validateResponse(AdminResponseSchema, rawData, endpoint);
-    return body.data.result.admin;
+    const body = await apiPost(
+      endpoint,
+      { contractId, method: ADMIN_QUERY_METHOD },
+      AdminResponseDataSchema,
+      { signal: options?.signal }
+    );
+    return body.result.admin;
   } catch (err) {
     console.error("Failed to fetch admin address", err);
     return null;
@@ -69,14 +64,12 @@ export async function fetchEscrowFunded(
   options?: { signal?: AbortSignal }
 ): Promise<boolean | null> {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/jobs/${encodeURIComponent(contractId)}`, {
-      signal: options?.signal,
-    });
-    if (!res.ok) return null;
-
-    const body = await res.json();
-    const funded = body?.success ? body.data?.funded : undefined;
-    return typeof funded === "boolean" ? funded : null;
+    const body = await apiGet(
+      `/api/jobs/${encodeURIComponent(contractId)}`,
+      EscrowFundedResponseDataSchema,
+      { signal: options?.signal }
+    );
+    return body.funded ?? null;
   } catch {
     return null;
   }

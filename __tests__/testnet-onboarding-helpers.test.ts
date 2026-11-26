@@ -20,6 +20,7 @@ vi.mock("@/app/lib/network_config", () => ({
 }));
 
 vi.mock("@/app/lib/config", () => ({
+  BACKEND_URL: "http://localhost:3001",
   NETWORK_PASSPHRASE: "Test SDF Network ; September 2015",
   RPC_URL: "https://soroban-testnet.stellar.org",
   createRpcServer: vi.fn(),
@@ -45,23 +46,41 @@ describe("fundWithFriendbot()", () => {
   });
 
   it("resolves when Friendbot returns HTTP 200", async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: true });
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "Content-Type": "application/json" }),
+      json: async () => ({}),
+    });
     await expect(fundWithFriendbot("GCTEST")).resolves.toBeUndefined();
-    expect(fetch).toHaveBeenCalledWith(`${FRIENDBOT_URL}?addr=GCTEST`);
+    expect(fetch).toHaveBeenCalledWith(
+      `${FRIENDBOT_URL}?addr=GCTEST`,
+      expect.objectContaining({ method: "GET" })
+    );
   });
 
   it("throws with status code when Friendbot returns a non-OK response", async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    const response = {
       ok: false,
       status: 429,
+      headers: new Headers({ "Content-Type": "application/json" }),
       json: vi.fn().mockResolvedValue({ detail: "rate limited" }),
-    });
+      clone() {
+        return this;
+      },
+    };
+    global.fetch = vi.fn().mockResolvedValue(response);
     await expect(fundWithFriendbot("GCTEST")).rejects.toThrow(/HTTP 429/);
     await expect(fundWithFriendbot("GCTEST")).rejects.toThrow(/rate limited/);
   });
 
   it("URL-encodes the address", async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: true });
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ "Content-Type": "application/json" }),
+      json: async () => ({}),
+    });
     await fundWithFriendbot("G+SPECIAL");
     const url = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
     expect(url).toContain("G%2BSPECIAL");

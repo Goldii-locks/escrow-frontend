@@ -10,8 +10,8 @@
  * show "Live from the contract; history may be delayed".
  */
 
-import { BACKEND_URL } from "@/app/lib/transactions";
-import { EscrowStateResponseSchema, type Job } from "@/app/lib/api_schemas";
+import { apiPost } from "@/app/lib/api";
+import { EscrowStateResponseDataSchema, type Job } from "@/app/lib/api_schemas";
 
 /** Ledgers older than this threshold trigger the contract fallback (#895). */
 export const STALE_LEDGER_THRESHOLD = 150;
@@ -29,20 +29,13 @@ export async function fetchJobStateFromContract(
   options?: { signal?: AbortSignal }
 ): Promise<Job | null> {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/jobs/query`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contractId, method: "get_escrow_state" }),
-      signal: options?.signal,
-    });
-
-    if (!res.ok) return null;
-
-    const rawData: unknown = await res.json();
-    const parsed = EscrowStateResponseSchema.safeParse(rawData);
-    if (!parsed.success) return null;
-
-    const { job, admin } = parsed.data.data.result;
+    const data = await apiPost(
+      "/api/jobs/query",
+      { contractId, method: "get_escrow_state" },
+      EscrowStateResponseDataSchema,
+      { signal: options?.signal }
+    );
+    const { job, admin } = data.result;
 
     const contractJob: Job = {
       id: contractId,

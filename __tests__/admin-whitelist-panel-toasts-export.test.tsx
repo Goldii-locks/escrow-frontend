@@ -39,6 +39,8 @@ function stubFetch(data: string[]) {
     "fetch",
     vi.fn().mockResolvedValue({
       ok: true,
+      status: 200,
+      headers: new Headers({ "Content-Type": "application/json" }),
       json: async () => ({ success: true, data }),
     })
   );
@@ -187,9 +189,9 @@ describe("AdminPage whitelist panel", () => {
     render(<AdminPage />);
     await waitFor(() =>
       expect(mockShowToast).toHaveBeenCalledWith(
-        "Could not connect to backend to load whitelist.",
+        expect.stringContaining("Network request failed"),
         "error"
-      )
+      );
     );
   });
 });

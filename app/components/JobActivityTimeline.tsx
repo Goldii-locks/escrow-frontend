@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BACKEND_URL } from "@/app/lib/transactions";
-import { reportApiResponse } from "@/app/lib/errorReporter";
+import { z } from "zod";
+import { apiGet } from "@/app/lib/api";
 import { getStellarExpertTxUrl } from "@/app/lib/stellar";
 
 const PAGE_SIZE = 10;
@@ -24,6 +24,23 @@ interface HistoryResponse {
   order?: string;
   error?: string;
 }
+
+const HistoryEventSchema = z.object({
+  id: z.number().optional(),
+  event_type: z.string(),
+  ledger_sequence: z.number(),
+  timestamp: z.number().nullable(),
+  data_json: z.string().nullable().optional(),
+  tx_hash: z.string().nullable().optional(),
+});
+
+const HistoryResponseSchema = z.object({
+  success: z.boolean().optional(),
+  events: z.array(HistoryEventSchema).optional(),
+  total: z.number().optional(),
+  order: z.string().optional(),
+  error: z.string().optional(),
+});
 
 function pageCount(total: number | undefined): number {
   return Math.max(1, Math.ceil((total ?? 0) / PAGE_SIZE));
@@ -125,12 +142,11 @@ export default function JobActivityTimeline({
     const controller = new AbortController();
 
     const load = async (backendPage: number): Promise<HistoryResponse> => {
-      const res = await fetch(
-        `${BACKEND_URL}/api/jobs/${encodeURIComponent(contractId)}/history?page=${backendPage}&limit=${PAGE_SIZE}&order=desc`,
-        { signal: controller.signal }
+      const payload = await apiGet(
+        `/api/jobs/${encodeURIComponent(contractId)}/history?page=${backendPage}&limit=${PAGE_SIZE}&order=desc`,
+        HistoryResponseSchema,
+        { signal: controller.signal, envelope: "none" }
       );
-      reportApiResponse(res, "/api/jobs/:contractId/history");
-      const payload = (await res.json()) as HistoryResponse;
       if (payload.success === false || !Array.isArray(payload.events)) {
         throw new Error(payload.error || "Failed to load activity");
       }

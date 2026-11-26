@@ -7,6 +7,38 @@ import {
 import { reportClientError } from "@/app/lib/errorReporter";
 import { verifyPreparedTransaction } from "@/app/lib/tx_verification";
 import type { WalletSimulationResult } from "@/app/lib/wallet_session";
+import { apiPost } from "@/app/lib/api";
+import { z } from "zod";
+
+const BuildTransactionResponseSchema = z
+  .object({
+    success: z.boolean().optional(),
+    xdr: z.string().optional(),
+    data: z
+      .object({
+        xdr: z.string().optional(),
+        simulationResult: z.unknown().optional(),
+      })
+      .passthrough()
+      .optional(),
+    simulationResult: z.unknown().optional(),
+  })
+  .passthrough();
+
+const SubmitTransactionResponseSchema = z
+  .object({
+    success: z.boolean().optional(),
+    status: z.string().optional(),
+    hash: z.string().optional(),
+    data: z
+      .object({
+        status: z.string().optional(),
+        hash: z.string().optional(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough();
 
 /**
  * `BACKEND_URL`, `CONTRACT_ID` and `FACTORY_CONTRACT_ID` are deployment
@@ -209,14 +241,6 @@ function collectValidationDetails(body: Record<string, unknown>): string[] {
   return details;
 }
 
-async function parseErrorResponse(res: Response, fallback: string): Promise<string> {
-  try {
-    return extractBackendErrorMessage(await res.json(), fallback);
-  } catch {
-    return fallback;
-  }
-}
-
 export async function submitContractTransaction({
   contractId = CONTRACT_ID,
   method,
@@ -242,26 +266,20 @@ export async function submitContractTransaction({
 }): Promise<string> {
   onPhase?.("building");
 
-  const buildTxRes = await fetch(`${BACKEND_URL}/api/jobs/build-tx`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  const buildTxBody = await apiPost(
+    "/api/jobs/build-tx",
+    {
       contractId,
       method,
       args,
       sourceAddress,
-    }),
-  });
-
-  if (!buildTxRes.ok) {
-    const message = await parseErrorResponse(
-      buildTxRes,
-      "We could not prepare your transaction. Please try again."
-    );
-    throw new Error(message);
-  }
-
-  const buildTxBody: unknown = await buildTxRes.json();
+    },
+    BuildTransactionResponseSchema,
+    {
+      envelope: "optional",
+      fallbackMessage: "We could not prepare your transaction. Please try again.",
+    }
+  );
   // The standard `data` envelope first, then the deprecated top-level copy.
   const xdr = isRecord(buildTxBody)
     ? firstString(isRecord(buildTxBody.data) ? buildTxBody.data.xdr : undefined, buildTxBody.xdr)
@@ -313,21 +331,15 @@ export async function submitContractTransaction({
 
   onPhase?.("submitting");
 
-  const submitRes = await fetch(`${BACKEND_URL}/api/jobs/submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ signedXdr }),
-  });
-
-  if (!submitRes.ok) {
-    const message = await parseErrorResponse(
-      submitRes,
-      "Your transaction could not be submitted. Please try again."
-    );
-    throw new Error(message);
-  }
-
-  const result: unknown = await submitRes.json();
+  const result = await apiPost(
+    "/api/jobs/submit",
+    { signedXdr },
+    SubmitTransactionResponseSchema,
+    {
+      envelope: "optional",
+      fallbackMessage: "Your transaction could not be submitted. Please try again.",
+    }
+  );
   const txHash = extractSubmitTxHash(result);
 
   if (!txHash) {

@@ -7,6 +7,9 @@
  * `docs/client-error-reporting.md` for what is and isn't collected.
  */
 
+import { apiPost } from "@/app/lib/api";
+import { z } from "zod";
+
 export type ClientErrorSource = "api" | "tx" | "render" | "unhandled";
 
 export interface ClientErrorReport {
@@ -31,11 +34,6 @@ let sentInWindow = 0;
 
 function isEnabled(): boolean {
   return process.env.NEXT_PUBLIC_CLIENT_ERROR_REPORTING === "true";
-}
-
-function endpoint(): string {
-  const base = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001";
-  return `${base}/api/client-errors`;
 }
 
 /** Truncate addresses, redact XDR blobs and cap the length. */
@@ -72,11 +70,10 @@ export function reportClientError(report: ClientErrorReport): void {
   };
 
   try {
-    void fetch(endpoint(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+    void apiPost("/api/client-errors", body, z.unknown(), {
+      envelope: "optional",
       keepalive: true,
+      report: false,
     }).catch(() => {});
   } catch {
     // Never let reporting break the app.

@@ -46,6 +46,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   return {
     ok: status >= 200 && status < 300,
     status,
+    headers: new Headers({ "Content-Type": "application/json" }),
     json: async () => body,
   } as Response;
 }
@@ -223,7 +224,7 @@ describe("resolution_vote_form data bindings (Issue #453)", () => {
       "Dispute #disp-777 · Job job-88"
     );
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/disputes/disp-777/resolution",
+      expect.stringContaining("/api/disputes/disp-777/resolution"),
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
     expect(screen.getByTestId("resolution-vote-amount")).toHaveTextContent("3,250 XLM");
@@ -247,7 +248,10 @@ describe("resolution_vote_form data bindings (Issue #453)", () => {
     );
 
     await screen.findByTestId("resolution-vote-form");
-    expect(fetchMock).toHaveBeenCalledWith("/custom/resolution", expect.anything());
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/custom/resolution"),
+      expect.anything()
+    );
   });
 
   it("submits the API-provided split for the selected option", async () => {

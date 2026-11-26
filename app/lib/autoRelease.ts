@@ -1,5 +1,14 @@
-import { BACKEND_URL } from "@/app/lib/transactions";
-import { AutoReleaseResponseSchema, validateResponse } from "@/app/lib/api_schemas";
+import { z } from "zod";
+import { apiGet } from "@/app/lib/api";
+import { AutoReleaseResponseDataSchema } from "@/app/lib/api_schemas";
+
+const BatchDeadlinesSchema = z
+  .object({
+    deadlines: z
+      .record(z.string(), z.union([z.number(), z.string(), z.null()]))
+      .optional(),
+  })
+  .passthrough();
 
 /**
  * Auto-release timing for a single milestone, normalized to an absolute
@@ -44,31 +53,23 @@ export async function fetchAllAutoReleaseDeadlines(
 
   // Try the batch endpoint first (one request for all milestones).
   try {
-    const res = await fetch(`${BACKEND_URL}/api/jobs/${encodeURIComponent(jobId)}/deadlines`, {
-      signal: options?.signal,
-    });
+    const body = await apiGet(
+      `/api/jobs/${encodeURIComponent(jobId)}/deadlines`,
+      BatchDeadlinesSchema,
+      { signal: options?.signal }
+    );
+    const rawDeadlines = body.deadlines ?? {};
+    const result: Record<number, number | null> = {};
 
-    if (res.ok) {
-      interface BatchResponse {
-        success?: boolean;
-        data?: { deadlines?: Record<string, number | string | null> };
-        error?: string;
+    for (const index of milestoneIndexes) {
+      const raw = rawDeadlines[String(index)];
+      if (raw === null || raw === undefined) {
+        result[index] = null;
+      } else {
+        result[index] = toEpochMs(raw);
       }
-      const body = (await res.json()) as BatchResponse;
-      const rawDeadlines = body.data?.deadlines ?? {};
-      const result: Record<number, number | null> = {};
-
-      for (const index of milestoneIndexes) {
-        const raw = rawDeadlines[String(index)];
-        if (raw === null || raw === undefined) {
-          result[index] = null;
-        } else {
-          result[index] = toEpochMs(raw as number | string);
-        }
-      }
-
-      return result;
     }
+    return result;
   } catch {
     // Fall through to individual fetches on network or parse error.
     if (options?.signal?.aborted) return {};
@@ -100,19 +101,12 @@ export async function fetchAutoReleaseInfo(
   options?: { signal?: AbortSignal; now?: () => number }
 ): Promise<AutoReleaseInfo> {
   const now = options?.now ?? Date.now;
-  const endpoint = `/api/jobs/${jobId}/milestones/${milestoneIndex}/auto-release`;
   try {
-    const res = await fetch(
-      `${BACKEND_URL}/api/jobs/${encodeURIComponent(jobId)}/milestones/${milestoneIndex}/auto-release`,
+    const data = await apiGet(
+      `/api/jobs/${encodeURIComponent(jobId)}/milestones/${milestoneIndex}/auto-release`,
+      AutoReleaseResponseDataSchema,
       { signal: options?.signal }
     );
-    if (!res.ok) {
-      return { deadlineMs: null, eligible: false };
-    }
-
-    const rawBody: unknown = await res.json();
-    const body = validateResponse(AutoReleaseResponseSchema, rawBody, endpoint);
-    const data = body.data ?? {};
 
     let deadlineMs: number | null = null;
     if (data.deadline !== undefined) {
