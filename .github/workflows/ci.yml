@@ -66,8 +66,8 @@ jobs:
       - name: Bundle size budget
         run: node scripts/bundle-size.mjs
 
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
 
       - name: Smoke test static export
         timeout-minutes: 3
