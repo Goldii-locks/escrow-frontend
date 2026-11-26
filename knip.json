@@ -1,0 +1,24 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": ["app/**/page.tsx", "app/**/layout.tsx", "app/**/route.ts"],
+  "project": ["app/**/*.{ts,tsx}", "types/**/*.{ts,tsx}"],
+  "ignoreDependencies": ["@storybook/blocks", "@storybook/react", "@storybook/test", "tailwindcss"],
+  "ignoreIssues": {
+    "app/lib/generated_tokens.ts": ["exports"],
+    "app/lib/config.ts": ["exports"],
+    "app/(app)/create/validation.ts": ["exports"],
+    "app/lib/dispute_history_timeline.ts": ["exports"],
+    "app/lib/arbitration_escrow_details_grid.ts": ["exports"],
+    "app/lib/network.ts": ["exports"],
+    "app/components/WalletSelectorModal.tsx": ["exports"],
+    "app/lib/resolution_vote_form.ts": ["exports"],
+    "app/lib/wallet_selector_modal.ts": ["exports"],
+    "app/hooks/useArbiterPanelViewport.ts": ["exports"],
+    "app/hooks/useDisputeViewport.ts": ["exports"],
+    "app/lib/safe_storage.ts": ["exports"],
+    "app/lib/errors.ts": ["exports"],
+    "app/lib/ledgerTime.ts": ["exports"],
+    "app/lib/arbiter_action_panel.ts": ["exports"]
+  },
+  "ignoreExportsUsedInFile": true
+}

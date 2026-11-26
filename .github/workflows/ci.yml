@@ -6,14 +6,17 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: npm
@@ -42,6 +45,13 @@ jobs:
       - name: Lint
         run: npm run lint -- --max-warnings=0
 
+      # Fails when a new file becomes unreachable from a route/layout/API
+      # entry, a new export is unused, or a dependency becomes unused (#809).
+      # Current findings are allowlisted in knip.json; shrink that list as the
+      # dead-code issues land.
+      - name: Unreachable files and unused exports (knip)
+        run: npx knip --include files,exports,dependencies
+
       - name: Type check
         run: npx tsc --noEmit
 
@@ -54,7 +64,7 @@ jobs:
 
       - name: Upload coverage report
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: coverage-report
           path: coverage/

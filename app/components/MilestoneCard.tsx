@@ -11,6 +11,7 @@ import { formatBaseUnits, parseDecimalToBaseUnits } from "@/app/lib/amounts";
 import { getClaimEligibility, CLAIM_UNKNOWN_DEADLINE_NOTE } from "@/app/lib/claimEligibility";
 import { canApprove, canMarkDelivered, canResolveDispute } from "@/app/lib/milestone_actions";
 import ReleaseConfirmModal from "@/app/components/ReleaseConfirmModal";
+import { useLedgerNow } from "@/app/hooks/useLedgerNow";
 import { formatFeeBps, getArbiterResolutionBreakdown } from "@/app/lib/arbiter_fee";
 
 interface Milestone {
@@ -282,12 +283,13 @@ export default function MilestoneCard({
 
   // Claim eligibility comes from on-chain job data; the backend deadline only
   // refines it, and an unknown deadline still shows the button.
+  const ledgerNow = useLedgerNow();
   const claimEligibility = getClaimEligibility({
     deliveredAt: milestone?.deliveredAt,
     autoReleaseSeconds: milestone?.autoReleaseSeconds,
     extensionSeconds: milestone?.extensionSeconds,
     backendDeadlineMs: autoReleaseDeadline,
-    now: mountedAt,
+    now: ledgerNow,
   });
 
   const warningThresholdMs = resolveDeadlineWarningThresholdMs(
