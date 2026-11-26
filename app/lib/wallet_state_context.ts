@@ -3,7 +3,7 @@
  * (`app/context/WalletContext.tsx`): multi-signature transaction assembly,
  * boxed console warning / transaction-debug tracking, and a loader-overlay
  * listener pair. Mirrors the conventions already established by
- * `app/lib/network_sync_checker.ts` and `app/lib/ledger_usb_bridge.ts`.
+ * `app/lib/ledger_usb_bridge.ts`.
  */
 
 import { TransactionBuilder } from "@stellar/stellar-sdk";
