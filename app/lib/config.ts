@@ -36,6 +36,13 @@ export { CONTRACT_ID, FACTORY_CONTRACT_ID, NETWORK_PASSPHRASE };
 export const API_REQUEST_TIMEOUT_MS = 15_000;
 
 /**
+ * Timeout for `POST /api/jobs/submit` (#825). Longer than the default because
+ * the backend waits for its own submission confirmation before answering, so
+ * a healthy request can legitimately take tens of seconds.
+ */
+export const SUBMIT_REQUEST_TIMEOUT_MS = 45_000;
+
+/**
  * Creates a Soroban RPC client on demand.
  *
  * Deliberately a function rather than a module-level `const`: constructing a

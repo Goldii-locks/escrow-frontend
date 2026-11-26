@@ -72,6 +72,24 @@ export class WalletRejectedError extends Error {
 }
 
 /**
+ * Thrown when a backend fetch (build-tx or submit) exceeds its timeout (#825).
+ * `retryable` is always true: the user can safely retry either phase.
+ */
+export class TxRequestTimeoutError extends Error {
+  readonly retryable = true;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "TxRequestTimeoutError";
+  }
+}
+
+/** Returns true when `err` is a {@link TxRequestTimeoutError}. */
+export function isTxRequestTimeoutError(err: unknown): err is TxRequestTimeoutError {
+  return err instanceof TxRequestTimeoutError;
+}
+
+/**
  * Thrown before signing when the transaction `build-tx` returned isn't the
  * call the user requested (#889). `reason` says which check failed; it is for
  * error reports, not for display.
@@ -266,6 +284,11 @@ export function formatTxError(err: unknown, walletId?: string): string {
 
   // Already reported, with its reason, where it was raised.
   if (err instanceof PreparedTransactionMismatchError) {
+    return err.message;
+  }
+
+  // Build-tx or submit timeout — message already user-friendly; pass through.
+  if (err instanceof TxRequestTimeoutError) {
     return err.message;
   }
 
