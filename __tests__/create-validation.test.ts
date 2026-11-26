@@ -31,14 +31,11 @@ describe("validateAccountAddress", () => {
     expect(validateAccountAddress(TOKEN)).toBe("");
   });
 
-  it.each(["GABC", "g" + "a".repeat(55), ACCOUNT + "A", BAD_CHECKSUM])(
-    "rejects %s",
-    (value) => {
-      expect(validateAccountAddress(value)).toBe(
-        "Invalid Stellar public key or contract address format"
-      );
-    }
-  );
+  it.each(["GABC", "g" + "a".repeat(55), ACCOUNT + "A", BAD_CHECKSUM])("rejects %s", (value) => {
+    expect(validateAccountAddress(value)).toBe(
+      "Invalid Stellar public key or contract address format"
+    );
+  });
 
   it("rejects a C… address with a bad checksum (#834)", () => {
     const badContractChecksum = TOKEN.slice(0, -1) + (TOKEN.endsWith("A") ? "B" : "A");
@@ -279,9 +276,10 @@ describe("checkSubmission", () => {
 
   it("blocks an unlisted token immediately when factory is configured (#833)", () => {
     const token = { ...valid.token, listed: false };
-    expect(
-      checkSubmission({ ...valid, token, factoryConfigured: true })
-    ).toMatchObject({ ok: false, message: "This token isn't accepted for new escrows." });
+    expect(checkSubmission({ ...valid, token, factoryConfigured: true })).toMatchObject({
+      ok: false,
+      message: "This token isn't accepted for new escrows.",
+    });
   });
 
   it("does not reach the SEP-41/confirm checks when factory is configured", () => {
@@ -292,9 +290,10 @@ describe("checkSubmission", () => {
       validation: { valid: true, symbol: "T", decimals: 7 },
       confirmed: true,
     };
-    expect(
-      checkSubmission({ ...valid, token, factoryConfigured: true })
-    ).toMatchObject({ ok: false, message: "This token isn't accepted for new escrows." });
+    expect(checkSubmission({ ...valid, token, factoryConfigured: true })).toMatchObject({
+      ok: false,
+      message: "This token isn't accepted for new escrows.",
+    });
   });
 
   it("marks missing and malformed addresses on their fields", () => {

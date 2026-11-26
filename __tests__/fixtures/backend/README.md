@@ -9,7 +9,7 @@ Sources in `Goldii-locks/escrow-backend`:
 
 | Fixture                                | Source                                                                                                             |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `by-wallet-success.json`               | `router.get("/by-wallet/:address")` → `sendSuccess(res, getJobsByWallet(...))` (`JobSummary` rows)               |
+| `by-wallet-success.json`               | `router.get("/by-wallet/:address")` → `sendSuccess(res, getJobsByWallet(...))` (`JobSummary` rows)                 |
 | `build-tx-success.json`                | `router.post("/build-tx")` → `res.json({ success: true, xdr })`                                                    |
 | `build-tx-error.json`                  | `sendError(res, 500, "Internal server error")`                                                                     |
 | `build-tx-validation-error.json`       | `validateWithFields` middleware (`details` + `fields`)                                                             |

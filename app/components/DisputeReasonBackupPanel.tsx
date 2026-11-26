@@ -60,8 +60,8 @@ export default function DisputeReasonBackupPanel({
       <div className="w-full max-w-lg rounded-lg border border-white/10 bg-surface p-6">
         <h2 className="mb-2 text-lg font-semibold text-primary">Save your dispute reason</h2>
         <p className="mb-4 text-sm text-secondary">
-          The contract only stores a hash of your reason, not the text. Nobody — including you
-          after a reload — will be able to see the original text unless you save it now.
+          The contract only stores a hash of your reason, not the text. Nobody — including you after
+          a reload — will be able to see the original text unless you save it now.
         </p>
 
         <pre

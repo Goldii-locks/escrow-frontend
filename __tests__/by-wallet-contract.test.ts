@@ -95,9 +95,7 @@ describe("by-wallet response contract", () => {
     // ...and the envelope still validates (jobs is z.array(z.unknown())), so
     // the drift surfaces in parsePageResponse (reported, row skipped) rather
     // than blanking the whole list. The contract test's job is to catch it.
-    const parsed = parsePageResponse(
-      validateResponse(JobListResponseSchema, drifted, ENDPOINT)
-    );
+    const parsed = parsePageResponse(validateResponse(JobListResponseSchema, drifted, ENDPOINT));
     expect(parsed.jobs).toHaveLength(0);
     expect(parsed.total).toBe(1);
   });
