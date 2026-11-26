@@ -95,9 +95,9 @@ describe("CreateJob form — layout", () => {
       expect(deadline.value).toBe("7");
     });
 
-    it("renders Freelancer Address input with placeholder 'G...'", () => {
+    it("renders Freelancer Address input with placeholder 'G... or C...'", () => {
       render(<CreateJob />);
-      expect(screen.getAllByPlaceholderText("G...", { exact: false })[0]).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("G... or C...")).toBeInTheDocument();
     });
 
     it("renders the Token Contract Address field as a select (token whitelist dropdown)", () => {

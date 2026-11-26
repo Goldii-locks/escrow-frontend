@@ -27,12 +27,25 @@ describe("validateAccountAddress", () => {
     expect(validateAccountAddress(ACCOUNT)).toBe("");
   });
 
-  it.each(["GABC", TOKEN, "g" + "a".repeat(55), ACCOUNT + "A", BAD_CHECKSUM])(
+  it("accepts a well-formed C… contract address (#834)", () => {
+    expect(validateAccountAddress(TOKEN)).toBe("");
+  });
+
+  it.each(["GABC", "g" + "a".repeat(55), ACCOUNT + "A", BAD_CHECKSUM])(
     "rejects %s",
     (value) => {
-      expect(validateAccountAddress(value)).toBe("Invalid Stellar public key format");
+      expect(validateAccountAddress(value)).toBe(
+        "Invalid Stellar public key or contract address format"
+      );
     }
   );
+
+  it("rejects a C… address with a bad checksum (#834)", () => {
+    const badContractChecksum = TOKEN.slice(0, -1) + (TOKEN.endsWith("A") ? "B" : "A");
+    expect(validateAccountAddress(badContractChecksum)).toBe(
+      "Invalid Stellar public key or contract address format"
+    );
+  });
 });
 
 describe("validateTokenAddress", () => {

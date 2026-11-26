@@ -46,7 +46,7 @@ export default function Details({ form }: { form: CreateJobForm }) {
             onChange={(e) => d.changeFreelancer(e.target.value)}
             onBlur={(e) => d.blurFreelancer(e.target.value)}
             onFocus={onFocus}
-            placeholder="G..."
+            placeholder="G... or C..."
             required
             disabled={loading}
           />

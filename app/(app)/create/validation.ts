@@ -16,11 +16,17 @@ export const MAX_DEADLINE_DAYS = 365;
 export type Milestone = { amount: string };
 
 /**
- * Error for the freelancer field, or "" when it's empty or valid. Uses the
- * StrKey checksum (#579), so a mistyped character is caught before signing.
+ * Error for the freelancer field, or "" when it's empty or valid. Accepts
+ * both Ed25519 account keys (G…) and contract addresses (C…) so that smart
+ * wallets, multisig contracts, and passkey wallets can receive payment as the
+ * freelancer — the escrow contract treats the field as a Soroban Address and
+ * require_auth works for contract accounts (#834). Uses the StrKey checksum
+ * (#579), so a mistyped character is caught before signing.
  */
 export function validateAccountAddress(value: string): string {
-  return value && !StrKey.isValidEd25519PublicKey(value) ? "Invalid Stellar public key format" : "";
+  return value && !(StrKey.isValidEd25519PublicKey(value) || StrKey.isValidContract(value))
+    ? "Invalid Stellar public key or contract address format"
+    : "";
 }
 
 /** Error for the arbiter field: an account (G…) or a contract (C…) address. */
