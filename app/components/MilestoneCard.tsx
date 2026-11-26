@@ -7,7 +7,7 @@ import TxStatusBanner from "@/app/components/TxStatusBanner";
 import ButtonSpinner from "@/app/components/ButtonSpinner";
 import DisputeRaiseModal from "@/app/components/DisputeRaiseModal";
 import ArbiterActionPanel from "@/app/components/ArbiterActionPanel";
-import { formatBaseUnits } from "@/app/lib/amounts";
+import { formatBaseUnits, parseDecimalToBaseUnits } from "@/app/lib/amounts";
 import { getClaimEligibility, CLAIM_UNKNOWN_DEADLINE_NOTE } from "@/app/lib/claimEligibility";
 import { canApprove, canMarkDelivered, canResolveDispute } from "@/app/lib/milestone_actions";
 import ReleaseConfirmModal from "@/app/components/ReleaseConfirmModal";
@@ -24,6 +24,12 @@ interface Milestone {
   autoReleaseSeconds?: number | null;
   /** Total deadline extension in seconds. */
   extensionSeconds?: number | null;
+  /** Whether this milestone is funded (per-milestone funding only). */
+  funded?: boolean | null;
+  /** SHA-256 of the freelancer's deliverable, when one was attached (#823). */
+  deliverableHash?: string | null;
+  /** Whether the displayed deliverable hash matches the content on file. */
+  deliverableHashMatch?: boolean | null;
 }
 
 /**
@@ -113,6 +119,31 @@ interface Props {
   acceptancePending?: boolean;
   /** Explanation shown while `acceptancePending` blocks delivery/dispute. */
   acceptanceMessage?: string | null;
+  /**
+   * The job's funding mode ("Upfront" | "PerMilestone"). When "PerMilestone"
+   * and the milestone is Pending and unfunded, a per-milestone "Fund" button
+   * is shown instead of the job-level button (#822).
+   */
+  fundingMode?: string | null;
+  /** Fund this milestone (per-milestone funding only). */
+  onFundMilestone?: (index: number) => void;
+  /** Whether a per-milestone fund is in flight for this milestone. */
+  isFundMilestonePending?: boolean;
+  /**
+   * SHA-256 of the freelancer's deliverable for this milestone (#823). When
+   * present, shown beneath the status with a match indicator.
+   */
+  deliverableHash?: string | null;
+  /** Whether the stored deliverable content matches `deliverableHash`. */
+  deliverableHashMatch?: boolean | null;
+  /**
+   * Evidence submission state for a Disputed milestone (#820).
+   * `remainingSlots` counts how many of the on-chain evidence entries are
+   * still free; `submitted` counts what this party has already attached.
+   */
+  evidenceState?: { remainingSlots: number; submitted: number } | null;
+  /** Open the evidence-attach flow for this disputed milestone. */
+  onAddEvidence?: (index: number) => void;
 }
 
 const statusColor: Record<string, string> = {
@@ -164,7 +195,7 @@ function getReleasePercent(releasedAmount: string | undefined, totalAmount: stri
 }
 
 /**
- * Compute the unreleased balance (in stroops) for a milestone.
+ * Compute the unreleased balance (in base units) for a milestone.
  * Returns null if the total or released amount isn't a valid integer string.
  */
 function unreleasedBalance(milestone: Milestone): bigint | null {
@@ -209,6 +240,13 @@ export default function MilestoneCard({
   onSelectChange,
   acceptancePending = false,
   acceptanceMessage = null,
+  fundingMode = null,
+  onFundMilestone,
+  isFundMilestonePending = false,
+  deliverableHash = null,
+  deliverableHashMatch = null,
+  evidenceState = null,
+  onAddEvidence,
   ...unusedProps
 }: Props) {
   void unusedProps;
@@ -267,6 +305,13 @@ export default function MilestoneCard({
         autoReleaseDeadline - mountedAt > 0 &&
         autoReleaseDeadline - mountedAt <= warningThresholdMs));
 
+  /**
+   * Smallest positive amount expressible for the token's decimals, used as
+   * the input's step (e.g. 0.0000001 for a 7-decimal token).
+   * Issue #824: the partial-release input accepts decimal token amounts.
+   */
+  const amountStep = amountDecimals > 0 ? `0.${"0".repeat(amountDecimals - 1)}1` : "1";
+
   /** Client-side validation + submission handler for partial release. */
   function handlePartialReleaseSubmit() {
     if (!milestone) return;
@@ -278,11 +323,15 @@ export default function MilestoneCard({
       return;
     }
 
+    // Issue #824: accept decimal token amounts and convert them to base
+    // units so onPartialRelease receives the i128 value the contract needs.
     let parsed: bigint;
     try {
-      parsed = BigInt(trimmed);
-    } catch {
-      setPartialAmtError("Amount must be a whole number of stroops.");
+      parsed = parseDecimalToBaseUnits(trimmed, amountDecimals);
+    } catch (err) {
+      setPartialAmtError(
+        err instanceof Error ? err.message : `Enter a valid amount in ${amountSymbol}.`
+      );
       return;
     }
 
@@ -293,15 +342,19 @@ export default function MilestoneCard({
 
     const remaining = unreleasedBalance(milestone);
     if (remaining !== null && parsed > remaining) {
+      // Issue #824: show the remaining balance in token units, not stroops.
       setPartialAmtError(
-        `Amount exceeds the unreleased balance of ${remaining.toString()} stroops.`
+        `Amount exceeds the remaining balance of ${formatBaseUnits(remaining.toString(), {
+          decimals: amountDecimals,
+        })} ${amountSymbol}.`
       );
       return;
     }
 
     // Stage the partial release for confirmation instead of submitting
-    // straight to the contract.
-    setPendingRelease({ kind: "partial", index: milestone.index, amount: trimmed });
+    // straight to the contract. The staged amount is the base-unit integer
+    // string; the confirmation modal formats it in token units.
+    setPendingRelease({ kind: "partial", index: milestone.index, amount: parsed.toString() });
     setIsReleaseConfirmOpen(true);
   }
 
@@ -482,9 +535,11 @@ export default function MilestoneCard({
                 style={{ width: `${releasePercent}%` }}
               />
             </div>
-            {/* Released amount vs total in stroops */}
+            {/* Released amount vs total, in token units (Issue #824) */}
             <p className="text-xs text-text-muted font-mono">
-              <span className="text-partial">{milestone.releasedAmount}</span>
+              <span className="text-partial">
+                {formatBaseUnits(milestone.releasedAmount ?? "0", { decimals: amountDecimals })}
+              </span>
               {" / "}
               {displayAmount} {amountSymbol}
             </p>
@@ -555,6 +610,22 @@ export default function MilestoneCard({
             </button>
           )}
 
+          {isClient &&
+            fundingMode === "PerMilestone" &&
+            milestone.status === "Pending" &&
+            !milestone.funded && (
+              <button
+                onClick={() => onFundMilestone?.(milestone.index)}
+                disabled={!onFundMilestone || isFundMilestonePending || escrowLocked}
+                aria-disabled={!onFundMilestone || isFundMilestonePending || escrowLocked}
+                title={escrowLocked ? lockTooltip : undefined}
+                aria-label={`Fund ${milestoneLabel}`}
+                className={`${baseBtn} bg-amber-600 hover:bg-amber-500 text-white font-medium hover:bg-amber-500/90 active:scale-[0.97] focus-visible:ring-amber-soft disabled:hover:bg-amber-600 disabled:active:scale-100`}
+              >
+                {isFundMilestonePending ? "Funding…" : "Fund"}
+              </button>
+            )}
+
           {canApprove(milestone, isClient) && (
             <button
               onClick={() => {
@@ -569,6 +640,30 @@ export default function MilestoneCard({
             >
               Approve
             </button>
+          )}
+
+          {deliverableHash && (
+            <div
+              className="w-full mt-2 pt-2 border-t border-border-subtle flex flex-col gap-1 text-xs"
+              data-testid="milestone-deliverable"
+            >
+              <span className="text-text-muted">Deliverable</span>
+              <span
+                className={`font-mono break-all text-text-primary ${
+                  deliverableHashMatch === false ? "text-danger-soft" : "text-success-soft"
+                }`}
+                data-testid="milestone-deliverable-hash"
+              >
+                {deliverableHash}
+              </span>
+              {deliverableHashMatch === null ? (
+                <span className="text-text-muted">hash on record</span>
+              ) : deliverableHashMatch === true ? (
+                <span className="text-success-soft">content matches hash</span>
+              ) : (
+                <span className="text-danger-soft">hash mismatch</span>
+              )}
+            </div>
           )}
 
           {isFreelancer &&
@@ -606,6 +701,27 @@ export default function MilestoneCard({
               Dispute
             </button>
           )}
+
+          {(isClient || isFreelancer) && milestone.status === "Disputed" && onAddEvidence && (
+            <button
+              onClick={() => onAddEvidence(milestone.index)}
+              disabled={escrowLocked || (evidenceState?.remainingSlots ?? 0) <= 0}
+              aria-disabled={escrowLocked || (evidenceState?.remainingSlots ?? 0) <= 0}
+              title={
+                escrowLocked
+                  ? lockTooltip
+                  : (evidenceState?.remainingSlots ?? 0) <= 0
+                    ? "No evidence slots remain"
+                    : undefined
+              }
+              aria-label={`Add evidence to ${milestoneLabel} dispute`}
+              className={`${baseBtn} bg-warning-soft text-surface-page font-medium hover:bg-warning-soft/80 active:scale-[0.97] focus-visible:ring-warning-soft disabled:hover:bg-warning-soft disabled:active:scale-100`}
+            >
+              {evidenceState && evidenceState.remainingSlots <= 0
+                ? "Evidence full"
+                : "Add evidence"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -616,6 +732,20 @@ export default function MilestoneCard({
           className="w-full text-xs text-warning-soft"
         >
           {acceptanceMessage}
+        </p>
+      )}
+
+      {milestone.status === "Disputed" && evidenceState && (
+        <p
+          className="w-full text-xs text-text-muted"
+          data-testid="milestone-evidence-slots"
+          aria-label={`Evidence slots: ${evidenceState.submitted} submitted, ${evidenceState.remainingSlots} remaining`}
+        >
+          Dispute evidence: <span className="font-mono">{evidenceState.submitted} submitted</span> ·{" "}
+          <span className="font-mono">
+            {evidenceState.remainingSlots} slot{evidenceState.remainingSlots === 1 ? "" : "s"}{" "}
+            remaining
+          </span>
         </p>
       )}
 
@@ -674,15 +804,22 @@ export default function MilestoneCard({
           className="w-full mt-1 pt-3 border-t border-border-subtle flex flex-col gap-2"
           data-testid="partial-release-section"
         >
-          {/* Remaining balance hint */}
+          {/* Remaining balance hint, in token units (Issue #824: no stroops) */}
           {milestone.releasedAmount && (
             <p className="text-xs text-text-muted">
-              Released so far: <span className="font-mono">{milestone.releasedAmount} stroops</span>
+              Released so far:{" "}
+              <span className="font-mono">
+                {formatBaseUnits(milestone.releasedAmount, { decimals: amountDecimals })}{" "}
+                {amountSymbol}
+              </span>
               {unreleasedBalance(milestone) !== null && (
                 <>
                   {" · "}Remaining:{" "}
                   <span className="font-mono">
-                    {unreleasedBalance(milestone)!.toString()} stroops
+                    {formatBaseUnits(unreleasedBalance(milestone)!.toString(), {
+                      decimals: amountDecimals,
+                    })}{" "}
+                    {amountSymbol}
                   </span>
                 </>
               )}
@@ -695,15 +832,16 @@ export default function MilestoneCard({
                 htmlFor={`partial-amount-${milestone.index}`}
                 className="text-xs text-text-muted sr-only"
               >
-                Release amount in stroops for {milestoneLabel}
+                {/* Issue #824: reference the token symbol, not stroops */}
+                Release amount in {amountSymbol} for {milestoneLabel}
               </label>
               <input
                 id={`partial-amount-${milestone.index}`}
                 type="number"
-                inputMode="numeric"
-                min="1"
-                step="1"
-                placeholder="Amount in stroops"
+                inputMode="decimal"
+                min="0"
+                step={amountStep}
+                placeholder={`Amount in ${amountSymbol}`}
                 value={partialAmount}
                 onChange={(e) => {
                   setPartialAmount(e.target.value);

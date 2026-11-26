@@ -1,12 +1,22 @@
-import { BACKEND_URL, CONTRACT_ID, createRpcServer, FACTORY_CONTRACT_ID } from "@/app/lib/config";
+import {
+  API_REQUEST_TIMEOUT_MS,
+  BACKEND_URL,
+  CONTRACT_ID,
+  createRpcServer,
+  FACTORY_CONTRACT_ID,
+  SUBMIT_REQUEST_TIMEOUT_MS,
+} from "@/app/lib/config";
 import {
   formatTxError,
   PreparedTransactionMismatchError,
+  TxRequestTimeoutError,
   WalletRejectedError,
 } from "@/app/lib/errors";
 import { reportClientError } from "@/app/lib/errorReporter";
 import { verifyPreparedTransaction } from "@/app/lib/tx_verification";
 import type { WalletSimulationResult } from "@/app/lib/wallet_session";
+import { NETWORK_PASSPHRASE } from "@/app/lib/network_config";
+import { Transaction } from "@stellar/stellar-sdk";
 
 /**
  * `BACKEND_URL`, `CONTRACT_ID` and `FACTORY_CONTRACT_ID` are deployment
@@ -116,6 +126,75 @@ export function getPhaseLabel(phase: TxPhase): string {
 export function isTxPending(phase: TxPhase): boolean {
   return (
     phase === "building" || phase === "signing" || phase === "submitting" || phase === "confirming"
+  );
+}
+
+// =============================================================================
+// Request timeouts (#825)
+// =============================================================================
+//
+// `AbortSignal.timeout` is not driven by vitest's fake timers, so the timeout
+// is built from an explicit `AbortController` + `setTimeout`. The controller's
+// `timedOut` flag distinguishes "the request took too long" (raise a
+// retryable TxRequestTimeoutError) from a genuine network failure, which
+// keeps its own message.
+
+/** Handle returned by {@link createRequestTimeout}. */
+export interface RequestTimeout {
+  signal: AbortSignal;
+  /** True once the configured timeout elapsed (as opposed to a fetch error). */
+  readonly timedOut: boolean;
+  /** Clears the underlying timer once the request has settled. */
+  clear(): void;
+}
+
+/**
+ * Creates an `AbortSignal` that aborts after `timeoutMs`, driven by a plain
+ * `setTimeout` so tests can advance it with fake timers.
+ */
+export function createRequestTimeout(timeoutMs: number): RequestTimeout {
+  const controller = new AbortController();
+  const state = { timedOut: false };
+  const timer = setTimeout(() => {
+    state.timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  return {
+    signal: controller.signal,
+    get timedOut() {
+      return state.timedOut;
+    },
+    clear() {
+      clearTimeout(timer);
+    },
+  };
+}
+
+/**
+ * Computes the hash of a signed transaction envelope locally, so a submit
+ * timeout (#825) can still tell the user which transaction to look up.
+ * Returns null when the XDR can't be decoded; the caller degrades gracefully.
+ */
+export function computeSignedTxHash(signedXdr: string): string | null {
+  try {
+    const bytes = new Transaction(signedXdr, NETWORK_PASSPHRASE).hash();
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return null;
+  }
+}
+
+/** Builds the submit-phase timeout error, including the local tx hash when available. */
+function buildSubmitTimeoutError(signedXdr: string): TxRequestTimeoutError {
+  const hash = computeSignedTxHash(signedXdr);
+  if (hash) {
+    return new TxRequestTimeoutError(
+      `We couldn't confirm whether your transaction was submitted. Your signed transaction's hash (computed locally) is ${hash} — check it on a Stellar explorer to see whether it went through before retrying.`
+    );
+  }
+  return new TxRequestTimeoutError(
+    "We couldn't confirm whether your transaction was submitted. Please check a Stellar explorer with your recent transactions before retrying."
   );
 }
 
@@ -338,16 +417,30 @@ export async function submitContractTransaction({
 }): Promise<string> {
   onPhase?.("building");
 
-  const buildTxRes = await fetch(`${BACKEND_URL}/api/jobs/build-tx`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contractId,
-      method,
-      args,
-      sourceAddress,
-    }),
-  });
+  // The build must not hang forever (#825): a stuck backend would leave the
+  // action in "Preparing..." with no way to retry without a reload.
+  const buildTimeout = createRequestTimeout(API_REQUEST_TIMEOUT_MS);
+  let buildTxRes: Response;
+  try {
+    buildTxRes = await fetch(`${BACKEND_URL}/api/jobs/build-tx`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contractId,
+        method,
+        args,
+        sourceAddress,
+      }),
+      signal: buildTimeout.signal,
+    });
+  } catch (err) {
+    if (buildTimeout.timedOut) {
+      throw new TxRequestTimeoutError("Preparing the transaction timed out. Please try again.");
+    }
+    throw err;
+  } finally {
+    buildTimeout.clear();
+  }
 
   if (!buildTxRes.ok) {
     const message = await parseErrorResponse(
@@ -409,11 +502,27 @@ export async function submitContractTransaction({
 
   onPhase?.("submitting");
 
-  const submitRes = await fetch(`${BACKEND_URL}/api/jobs/submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ signedXdr }),
-  });
+  // Longer bound than build-tx (#825): the backend waits for on-chain
+  // confirmation before answering. If it still doesn't answer, the signed
+  // transaction may already be out, so the error carries the locally
+  // computed hash for the user to check.
+  const submitTimeout = createRequestTimeout(SUBMIT_REQUEST_TIMEOUT_MS);
+  let submitRes: Response;
+  try {
+    submitRes = await fetch(`${BACKEND_URL}/api/jobs/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ signedXdr }),
+      signal: submitTimeout.signal,
+    });
+  } catch (err) {
+    if (submitTimeout.timedOut) {
+      throw buildSubmitTimeoutError(signedXdr);
+    }
+    throw err;
+  } finally {
+    submitTimeout.clear();
+  }
 
   if (!submitRes.ok) {
     const message = await parseErrorResponse(

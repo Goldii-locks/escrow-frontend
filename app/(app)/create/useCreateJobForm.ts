@@ -22,7 +22,6 @@ import {
   checkSubmission,
   hasTokenIssue,
   type Milestone,
-  nonBlank,
   summarizeMilestones,
   validateAccountAddress,
   validateArbiterAddress,
@@ -64,8 +63,6 @@ export function useCreateJobForm() {
   const [tokenError, setTokenError] = useState("");
   const [autoReleaseDays, setAutoReleaseDays] = useState("7");
   const [deadlineError, setDeadlineError] = useState<string | null>(null);
-  const [acceptedAssets, setAcceptedAssets] = useState<string[]>([]);
-  const [requirements, setRequirements] = useState<string[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([{ amount: "" }]);
 
   const [loading, setLoading] = useState(false);
@@ -104,8 +101,6 @@ export function useCreateJobForm() {
     setArbiter(draft.arbiter);
     setToken(draft.token);
     setAutoReleaseDays(draft.autoReleaseDays);
-    setAcceptedAssets(draft.acceptedAssets);
-    setRequirements(draft.requirements);
     setMilestones(draft.milestones);
   };
 
@@ -129,24 +124,13 @@ export function useCreateJobForm() {
         arbiter,
         token,
         autoReleaseDays,
-        acceptedAssets,
-        requirements,
+        acceptedAssets: [],
+        requirements: [],
         milestones,
       });
     }, CREATE_JOB_DRAFT_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [
-    address,
-    draftAddress,
-    txHash,
-    freelancer,
-    arbiter,
-    token,
-    autoReleaseDays,
-    acceptedAssets,
-    requirements,
-    milestones,
-  ]);
+  }, [address, draftAddress, txHash, freelancer, arbiter, token, autoReleaseDays, milestones]);
 
   const discardDraft = () => {
     if (address) clearCreateJobDraft(address);
@@ -179,8 +163,6 @@ export function useCreateJobForm() {
     if (deadlineError) setDeadlineError(null);
   };
 
-  const assets = listActions<string>(setAcceptedAssets, "");
-  const reqs = listActions<string>(setRequirements, "");
   const milestoneList = listActions<Milestone>(setMilestones, { amount: "" });
   const addMilestone = () => {
     if (isMilestoneCapReached(milestones.length)) return;
@@ -311,14 +293,6 @@ export function useCreateJobForm() {
       blurDeadline: () => setDeadlineError(validateDeadline(autoReleaseDays)),
     },
     scope: {
-      acceptedAssets,
-      addAcceptedAsset: assets.add,
-      removeAcceptedAsset: assets.remove,
-      updateAcceptedAsset: assets.update,
-      requirements,
-      addRequirement: reqs.add,
-      removeRequirement: reqs.remove,
-      updateRequirement: reqs.update,
       milestones: milestoneSummary.milestones,
       milestoneCount: milestones.length,
       hasNoMilestones,
@@ -328,8 +302,6 @@ export function useCreateJobForm() {
       updateMilestone: (index: number, amount: string) => milestoneList.update(index, { amount }),
     },
     review: {
-      assetCount: nonBlank(acceptedAssets).length,
-      requirementCount: nonBlank(requirements).length,
       milestoneCount: milestoneSummary.milestones.length,
       autoReleaseDays,
       arbiter,

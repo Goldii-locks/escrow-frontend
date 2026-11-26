@@ -27,8 +27,8 @@ const FULL_DRAFT: CreateJobDraft = {
   arbiter: "GARBITER000000000000000000000000000000000000000000000001",
   token: "CTOKEN00000000000000000000000000000000000000000000000001",
   autoReleaseDays: "14",
-  acceptedAssets: ["USDC", "XLM"],
-  requirements: ["Deliver on time"],
+  acceptedAssets: [],
+  requirements: [],
   milestones: [{ amount: "100" }, { amount: "200" }],
 };
 
@@ -74,6 +74,20 @@ describe("create_job_draft — round-trip", () => {
     saveCreateJobDraft(ADDR_A, draft);
     expect(loadCreateJobDraft(ADDR_A)).toEqual(draft);
   });
+
+  it("loads a legacy draft that stored non-empty acceptedAssets/requirements, normalising them to []", () => {
+    // Simulate a draft written by an older version of the app.
+    rawSet(KEY_A, {
+      ...FULL_DRAFT,
+      acceptedAssets: ["USDC", "XLM"],
+      requirements: ["Deliver on time"],
+    });
+    const loaded = loadCreateJobDraft(ADDR_A);
+    expect(loaded).not.toBeNull();
+    expect(loaded?.acceptedAssets).toEqual([]);
+    expect(loaded?.requirements).toEqual([]);
+    expect(loaded?.milestones).toEqual(FULL_DRAFT.milestones);
+  });
 });
 
 describe("create_job_draft — shape validation", () => {
@@ -94,21 +108,6 @@ describe("create_job_draft — shape validation", () => {
 
   it("returns null when autoReleaseDays is not a string", () => {
     rawSet(KEY_A, { ...FULL_DRAFT, autoReleaseDays: 7 });
-    expect(loadCreateJobDraft(ADDR_A)).toBeNull();
-  });
-
-  it("returns null when acceptedAssets is not an array", () => {
-    rawSet(KEY_A, { ...FULL_DRAFT, acceptedAssets: "USDC" });
-    expect(loadCreateJobDraft(ADDR_A)).toBeNull();
-  });
-
-  it("returns null when acceptedAssets contains a non-string", () => {
-    rawSet(KEY_A, { ...FULL_DRAFT, acceptedAssets: [1, 2] });
-    expect(loadCreateJobDraft(ADDR_A)).toBeNull();
-  });
-
-  it("returns null when requirements is not an array", () => {
-    rawSet(KEY_A, { ...FULL_DRAFT, requirements: {} });
     expect(loadCreateJobDraft(ADDR_A)).toBeNull();
   });
 

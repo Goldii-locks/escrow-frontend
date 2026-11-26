@@ -58,6 +58,13 @@ export const MilestoneSchema = z.object({
   amount: z.string(),
   status: z.string(),
   releasedAmount: z.string().optional(),
+  deliveredAt: z.number().int().nonnegative().nullish(),
+  autoReleaseSeconds: z.number().int().nonnegative().nullish(),
+  extensionSeconds: z.number().int().nonnegative().nullish(),
+  /** Whether this milestone has been funded (only meaningful for per-milestone funding). */
+  funded: z.boolean().default(false).optional(),
+  /** On-chain due timestamp (epoch seconds or ms) for reclaim-overdue eligibility. */
+  dueAt: z.union([z.number(), z.string()]).nullish().optional(),
 });
 
 export type Milestone = z.infer<typeof MilestoneSchema>;
@@ -74,6 +81,7 @@ export const JobSchema = z.object({
   admin: optionalStellarAddress,
   funded: z.boolean().default(false),
   milestones: z.array(MilestoneSchema).nullish(),
+  autoReleaseSeconds: z.number().int().nonnegative().nullish(),
   token: z.string().optional(),
   tokenSymbol: z.string().optional(),
   tokenDecimals: z.number().finite().optional(),
@@ -94,6 +102,15 @@ export const JobSchema = z.object({
     .boolean()
     .nullish()
     .transform((v) => v ?? undefined),
+  /** How the escrow is funded: "Upfront" (job-level) or "PerMilestone". */
+  fundingMode: z
+    .union([z.literal("Upfront"), z.literal("PerMilestone")])
+    .nullish()
+    .transform((v) => v ?? undefined),
+  /** Funding timestamp (epoch ms) for withdraw_unaccepted eligibility. */
+  fundedAt: z.union([z.number(), z.string()]).nullish().optional(),
+  /** Number of milestones accepted (released) so far. */
+  acceptedCount: z.number().int().nonnegative().nullish().optional(),
   // By-wallet summary fields shown on the dashboard rows (#638). The backend
   // may send null for unknown values, which is treated as absent.
   role: z
@@ -283,16 +300,10 @@ export type EscrowStateResponse = z.infer<typeof EscrowStateResponseSchema>;
 // ---------------------------------------------------------------------------
 
 export const AutoReleaseResponseSchema = z.object({
-  success: z.boolean().optional(),
-  data: z
-    .object({
-      deadline: z.union([z.number(), z.string()]).optional(),
-      autoReleaseAt: z.union([z.number(), z.string()]).optional(),
-      secondsRemaining: z.number().optional(),
-      eligible: z.boolean().optional(),
-    })
-    .optional(),
-  error: z.string().optional(),
+  success: z.literal(true),
+  data: z.object({
+    secondsRemaining: z.number().int().nonnegative(),
+  }),
 });
 
 export type AutoReleaseResponse = z.infer<typeof AutoReleaseResponseSchema>;

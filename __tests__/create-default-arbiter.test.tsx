@@ -1,8 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CreateJob from "@/app/(app)/create/page";
+import { getDefaultArbiter } from "@/app/lib/default_arbiter";
 
 const DEFAULT_ARBITER = "GBCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIZCA";
+const DEFAULT_ARBITER_CONTRACT = "CADQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQP5KR";
 const mockSubmit = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
@@ -43,6 +45,43 @@ async function fillRequiredFields() {
 function submittedArbiter() {
   return mockSubmit.mock.calls[0][0].args[2].value;
 }
+
+describe("getDefaultArbiter — StrKey validation (#835)", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("returns null when unset", () => {
+    vi.stubEnv("NEXT_PUBLIC_DEFAULT_ARBITER", "");
+    expect(getDefaultArbiter()).toBeNull();
+  });
+
+  it("accepts a valid G… address", () => {
+    vi.stubEnv("NEXT_PUBLIC_DEFAULT_ARBITER", DEFAULT_ARBITER);
+    expect(getDefaultArbiter()).toBe(DEFAULT_ARBITER);
+  });
+
+  it("accepts a valid C… contract address (#835)", () => {
+    vi.stubEnv("NEXT_PUBLIC_DEFAULT_ARBITER", DEFAULT_ARBITER_CONTRACT);
+    expect(getDefaultArbiter()).toBe(DEFAULT_ARBITER_CONTRACT);
+  });
+
+  it("returns null for a G… address with a bad checksum", () => {
+    const bad = DEFAULT_ARBITER.slice(0, -1) + (DEFAULT_ARBITER.endsWith("A") ? "B" : "A");
+    vi.stubEnv("NEXT_PUBLIC_DEFAULT_ARBITER", bad);
+    expect(getDefaultArbiter()).toBeNull();
+  });
+
+  it("returns null for a C… address with a bad checksum", () => {
+    const bad =
+      DEFAULT_ARBITER_CONTRACT.slice(0, -1) + (DEFAULT_ARBITER_CONTRACT.endsWith("A") ? "B" : "A");
+    vi.stubEnv("NEXT_PUBLIC_DEFAULT_ARBITER", bad);
+    expect(getDefaultArbiter()).toBeNull();
+  });
+
+  it("returns null for a syntactically invalid value", () => {
+    vi.stubEnv("NEXT_PUBLIC_DEFAULT_ARBITER", "not-an-address");
+    expect(getDefaultArbiter()).toBeNull();
+  });
+});
 
 describe("Create form arbiter selector (Issue #658)", () => {
   beforeEach(() => {

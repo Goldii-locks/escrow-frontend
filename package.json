@@ -26,7 +26,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/gen-og-image.mjs && next build",
     "postbuild": "node scripts/gen-csp-hashes.mjs",
     "start": "next start",
     "lint": "eslint",

@@ -410,7 +410,24 @@ export default function Home() {
           </div>
           <p className="landing-section-aside">
             Escrow only matters when a deal sours. Here is exactly what the contract does then,
-            including the parts that require trusting us.
+            including the parts that require trusting us.{" "}
+            <a
+              href={CONTRACT_REPO + "/blob/main/SPEC.md"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline opacity-70 hover:opacity-100"
+            >
+              SPEC.md
+            </a>{" "}
+            &middot;{" "}
+            <a
+              href={CONTRACT_REPO + "/blob/main/THREAT_MODEL.md"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline opacity-70 hover:opacity-100"
+            >
+              THREAT_MODEL.md
+            </a>
           </p>
         </div>
 
@@ -430,33 +447,49 @@ export default function Home() {
             <p>
               Either side can raise a dispute. Resolution can split a milestone between both
               parties, so a half-finished job doesn&apos;t have to end in a total loss for someone.
+              If the arbiter never rules, a 30-day dispute timeout lets either party escalate to the
+              platform resolver, so a disappearing arbiter cannot freeze funds indefinitely.
             </p>
           </div>
 
           <div className="landing-card">
             <h3>The work needs more time.</h3>
             <p>
-              The client can extend a milestone&apos;s deadline with their signature alone, and can
-              do so repeatedly. Every extension is recorded on-chain, but the provider&apos;s
-              consent is not required today.
+              Extending a milestone&apos;s due date requires both the client&apos;s and the
+              freelancer&apos;s signature. Neither side can unilaterally push the deadline; both
+              must agree before the extension is recorded on-chain.
+            </p>
+          </div>
+
+          <div className="landing-card">
+            <h3>Revisions and limits.</h3>
+            <p>
+              The contract allows up to three revision rounds per milestone. After the revision cap
+              is reached, the client must either approve, dispute, or let auto-release run. This
+              bounds the cycle so work cannot be revised indefinitely without resolution.
             </p>
           </div>
 
           <div className="landing-card landing-card-flag">
             <h3>Who can touch the funds.</h3>
             <p>
-              Milestone never custodies your money. The contract does. But an admin key exists and
-              can pause the contract or force a release or refund. We&apos;d rather say so plainly
+              Milestone never custodies your money. The contract does. But delegated admin roles
+              exist: an <em>Operator</em> can pause the contract; a <em>Resolver</em> can force a
+              release or refund, but only after a dispute or a mutual cancel is already on-chain; an{" "}
+              <em>Upgrader</em> can deploy a new contract version. We&apos;d rather say so plainly
               than let you find it in the source.
             </p>
           </div>
 
           <div className="landing-card">
-            <h3>Why that key is bounded.</h3>
+            <h3>Why those roles are bounded.</h3>
             <p>
-              Admin transfers are proposed and executed in separate steps, and every action emits an
-              event you can audit on the ledger. Admin overrides and contract upgrades are currently
-              authorized by the admin key alone, not by a multisig.
+              The Resolver can only act on milestones that are already in a disputed or
+              mutually-cancelled state — it cannot unilaterally redirect funds from a live escrow.
+              Every admin action emits an event you can audit on the ledger. If a payout transfer
+              fails (for example, the recipient&apos;s account is not yet funded), the amount is
+              credited internally and can be claimed by the recipient later; it is never silently
+              lost.
             </p>
           </div>
 
@@ -471,6 +504,18 @@ export default function Home() {
             </p>
           </div>
         </div>
+
+        <p className="mt-6 text-xs text-text-disabled text-center">
+          Last reviewed against contract v0.1 (pre-mainnet, testnet only) &middot;{" "}
+          <a
+            href={CONTRACT_REPO}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-text-muted"
+          >
+            source on GitHub
+          </a>
+        </p>
       </section>
 
       {/* ------------------------------------------------------------ CTA */}
