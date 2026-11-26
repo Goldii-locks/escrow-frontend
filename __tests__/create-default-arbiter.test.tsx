@@ -4,7 +4,7 @@ import CreateJob from "@/app/(app)/create/page";
 import { getDefaultArbiter } from "@/app/lib/default_arbiter";
 
 const DEFAULT_ARBITER = "GBCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIZCA";
-const DEFAULT_ARBITER_CONTRACT = "CBCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIRCEIFNO";
+const DEFAULT_ARBITER_CONTRACT = "CADQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQOBYHA4DQP5KR";
 const mockSubmit = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
@@ -72,8 +72,7 @@ describe("getDefaultArbiter — StrKey validation (#835)", () => {
 
   it("returns null for a C… address with a bad checksum", () => {
     const bad =
-      DEFAULT_ARBITER_CONTRACT.slice(0, -1) +
-      (DEFAULT_ARBITER_CONTRACT.endsWith("A") ? "B" : "A");
+      DEFAULT_ARBITER_CONTRACT.slice(0, -1) + (DEFAULT_ARBITER_CONTRACT.endsWith("A") ? "B" : "A");
     vi.stubEnv("NEXT_PUBLIC_DEFAULT_ARBITER", bad);
     expect(getDefaultArbiter()).toBeNull();
   });

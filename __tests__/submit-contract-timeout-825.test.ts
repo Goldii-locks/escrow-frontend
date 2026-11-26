@@ -10,6 +10,13 @@ import { formatTxError, TxRequestTimeoutError } from "@/app/lib/errors";
 // tx-verification.test.ts (#889).
 vi.mock("@/app/lib/tx_verification", () => ({ verifyPreparedTransaction: vi.fn() }));
 
+// The submit flow confirms the outcome on-chain (#570); answer SUCCESS
+// instead of hitting a real RPC endpoint.
+vi.mock("@/app/lib/config", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/app/lib/config")>()),
+  createRpcServer: async () => ({ getTransaction: async () => ({ status: "SUCCESS" }) }),
+}));
+
 // Mock the SDK so computing the signed transaction's hash (#825) is
 // deterministic without a real envelope. The hoisted `mockHash` holds the
 // bytes `Transaction(...).hash()` returns; `fail: true` makes the constructor
