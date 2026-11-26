@@ -3,8 +3,7 @@
  * export (#477).
  *
  * Formats the emergency freeze readouts and the freeze/unfreeze transition log
- * as a spreadsheet download, entirely client-side, with no server call. Mirrors
- * `admin_fee_configuration_export.ts`.
+ * as a spreadsheet download, entirely client-side, with no server call.
  *
  * The transition log is the tabulated view: one row per freeze transition, with
  * the current state exported alongside it so the file is self-describing when
@@ -12,6 +11,9 @@
  */
 
 import type { ContractPauseState, ContractPauseTransition } from "@/app/lib/contract_pause_switch";
+import { downloadCsv, toCsv } from "./shared/csv";
+
+export { escapeCsvCell as escapeContractPauseCsvCell } from "./shared/csv";
 
 /** One row of the freeze history spreadsheet. */
 export interface ContractPauseExportRow {
@@ -28,20 +30,6 @@ export interface ContractPauseExportRow {
 }
 
 export const CONTRACT_PAUSE_EXPORT_HEADERS = ["Transition ID", "At", "By", "To", "Reason"];
-
-/**
- * Escape one CSV cell (RFC 4180) and neutralise spreadsheet formula injection.
- *
- * A leading `=`, `+`, `-`, `@`, tab or carriage return is prefixed with `'`
- * so Excel and Sheets treat the cell as text rather than evaluating it — the
- * freeze reason is operator-supplied free text, so this is the one field that
- * can actually carry a payload.
- */
-export function escapeContractPauseCsvCell(value: string | number | undefined | null): string {
-  let cell = value === undefined || value === null ? "" : String(value);
-  if (/^[=+\-@\t\r]/.test(cell)) cell = `'${cell}`;
-  return /[",\r\n]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell;
-}
 
 /** Project a transition onto an export row. */
 export function toContractPauseExportRow(
@@ -65,13 +53,16 @@ export function toContractPauseExportRows(
   return transitions.map(toContractPauseExportRow);
 }
 
+function contractPauseCsvRows(rows: ContractPauseExportRow[]): string[][] {
+  return [
+    CONTRACT_PAUSE_EXPORT_HEADERS,
+    ...rows.map(({ id, at, by, to, reason }) => [id, at, by, to, reason]),
+  ];
+}
+
 /** Format freeze history rows as CSV text (CRLF rows, header included). */
 export function buildContractPauseCsv(rows: ContractPauseExportRow[]): string {
-  const header = CONTRACT_PAUSE_EXPORT_HEADERS.map(escapeContractPauseCsvCell).join(",");
-  const body = rows.map((r) =>
-    [r.id, r.at, r.by, r.to, r.reason].map(escapeContractPauseCsvCell).join(",")
-  );
-  return [header, ...body].join("\r\n");
+  return toCsv(contractPauseCsvRows(rows));
 }
 
 /** Timestamped filename, e.g. `contract-pause-history-2026-09-28.csv`. */
@@ -91,17 +82,7 @@ export function handleContractPauseExport(
   filename: string = contractPauseExportFilename()
 ): boolean {
   if (rows.length === 0) return false;
-  const blob = new Blob([`\uFEFF${buildContractPauseCsv(rows)}`], {
-    type: "text/csv;charset=utf-8;",
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  downloadCsv(filename, contractPauseCsvRows(rows));
   return true;
 }
 

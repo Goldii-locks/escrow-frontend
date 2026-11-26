@@ -10,6 +10,9 @@ import type { ToastType } from "@/app/context/ToastContext";
  */
 
 import type { TxPhase } from "@/app/lib/transactions";
+import { downloadCsv, toCsv } from "./shared/csv";
+
+export { escapeCsvCell } from "./shared/csv";
 
 // =============================================================
 // Input sanitization (#432)
@@ -276,17 +279,13 @@ export function whitelistExportSuccessToast(count: number): WhitelistToast {
 
 const CSV_HEADER = ["#", "Token Address"];
 
-/** Escape one CSV cell (RFC 4180) and neutralise spreadsheet formula injection. */
-export function escapeCsvCell(value: string | number): string {
-  let cell = String(value);
-  if (/^[=+\-@\t\r]/.test(cell)) cell = `'${cell}`;
-  return /[",\r\n]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell;
+function whitelistCsvRows(tokens: string[]): (string | number)[][] {
+  return [CSV_HEADER, ...tokens.map((token, i) => [i + 1, token])];
 }
 
 /** Format the whitelist as CSV text (CRLF rows, header included). */
 export function buildWhitelistCsv(tokens: string[]): string {
-  const rows = tokens.map((token, i) => [i + 1, token]);
-  return [CSV_HEADER, ...rows].map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
+  return toCsv(whitelistCsvRows(tokens));
 }
 
 /** Timestamped filename, e.g. `whitelisted-tokens-2026-09-25.csv`. */
@@ -299,15 +298,5 @@ export function downloadWhitelistCsv(
   tokens: string[],
   filename: string = whitelistExportFilename()
 ): void {
-  const blob = new Blob([`﻿${buildWhitelistCsv(tokens)}`], {
-    type: "text/csv;charset=utf-8;",
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  downloadCsv(filename, whitelistCsvRows(tokens));
 }
