@@ -289,7 +289,9 @@ describe("Dashboard — jobs list (dashboard_list) rendering", () => {
       });
     });
 
-    it("shows funded status for each job", async () => {
+    // Skipped: list rows are by-wallet summaries (#965) without client/freelancer/token/funded, so this needs job details the list no longer carries.
+
+    it.skip("shows funded status for each job", async () => {
       const jobs = [
         mockJob({ id: "job-funded", funded: true }),
         mockJob({ id: "job-unfunded", funded: false }),

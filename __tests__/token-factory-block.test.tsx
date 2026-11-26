@@ -9,9 +9,12 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ── mock FACTORY_CONTRACT_ID as non-empty before importing anything ───────────
-const FACTORY = "CFACTORY000000000000000000000000000000000000000000000001";
+const { FACTORY } = vi.hoisted(() => ({
+  FACTORY: "CFACTORY000000000000000000000000000000000000000000000001",
+}));
 
-vi.mock("@/app/lib/transactions", () => ({
+vi.mock("@/app/lib/transactions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/app/lib/transactions")>()),
   CONTRACT_ID: FACTORY,
   FACTORY_CONTRACT_ID: FACTORY,
 }));
@@ -99,7 +102,7 @@ describe("Create Job factory token hard-block (#833)", () => {
     await waitFor(() => {
       expect(screen.getByTestId("token-not-accepted")).toBeInTheDocument();
     });
-    expect(screen.getByText(/This token isn't accepted for new escrows/i)).toBeInTheDocument();
+    expect(screen.getByText(/This token isn.t accepted for new escrows/i)).toBeInTheDocument();
 
     // No confirm checkbox — the user must not be able to proceed.
     expect(screen.queryByTestId("token-confirm-checkbox")).not.toBeInTheDocument();

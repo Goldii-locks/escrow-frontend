@@ -15,7 +15,7 @@ const { FACTORY } = vi.hoisted(() => ({
 
 vi.mock("@/app/lib/transactions", () => ({
   CONTRACT_ID: FACTORY,
-  FACTORY_CONTRACT_ID: FACTORY,
+  FACTORY_CONTRACT_ID: "",
 }));
 
 const mockFetchWhitelistedTokens = vi.fn();
