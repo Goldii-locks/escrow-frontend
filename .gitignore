@@ -83,3 +83,6 @@ e2e/.nginx.generated.conf
 /test-results/
 /playwright-report/
 
+
+**/__snapshots__/
+**/*.snap

@@ -19,6 +19,7 @@ import { submitCreateJob } from "./submit";
 import { useTokenCheck } from "./useTokenCheck";
 import {
   checkSubmission,
+  EMPTY_MILESTONE,
   hasTokenIssue,
   type Milestone,
   nonBlank,
@@ -26,6 +27,8 @@ import {
   validateAccountAddress,
   validateArbiterAddress,
   validateDeadline,
+  validateDueDate,
+  validateDueDatesSequence,
   validateTokenAddress,
 } from "./validation";
 
@@ -62,7 +65,12 @@ export function useCreateJobForm() {
   const [deadlineError, setDeadlineError] = useState<string | null>(null);
   const [acceptedAssets, setAcceptedAssets] = useState<string[]>([]);
   const [requirements, setRequirements] = useState<string[]>([]);
-  const [milestones, setMilestones] = useState<Milestone[]>([{ amount: "" }]);
+  const [milestones, setMilestones] = useState<Milestone[]>([EMPTY_MILESTONE]);
+
+  // Advanced settings (#815)
+  const [fundingMode, setFundingMode] = useState<"Upfront" | "PerMilestone">("Upfront");
+  const [disputeTimeoutDays, setDisputeTimeoutDays] = useState("30");
+  const [arbiterFeeBps, setArbiterFeeBps] = useState("0");
 
   const [loading, setLoading] = useState(false);
   const [phase, setPhase] = useState<TxPhase>("idle");
@@ -88,6 +96,9 @@ export function useCreateJobForm() {
     setAcceptedAssets(draft.acceptedAssets);
     setRequirements(draft.requirements);
     setMilestones(draft.milestones);
+    if (draft.fundingMode) setFundingMode(draft.fundingMode);
+    if (draft.disputeTimeoutDays !== undefined) setDisputeTimeoutDays(draft.disputeTimeoutDays);
+    if (draft.arbiterFeeBps !== undefined) setArbiterFeeBps(draft.arbiterFeeBps);
   };
 
   useEffect(() => {
@@ -113,6 +124,9 @@ export function useCreateJobForm() {
         acceptedAssets,
         requirements,
         milestones,
+        fundingMode,
+        disputeTimeoutDays,
+        arbiterFeeBps,
       });
     }, CREATE_JOB_DRAFT_DEBOUNCE_MS);
     return () => clearTimeout(timer);
@@ -158,9 +172,19 @@ export function useCreateJobForm() {
     if (deadlineError) setDeadlineError(null);
   };
 
+  const updateMilestoneText = (index: number, field: "title" | "description" | "dueDate", value: string) => {
+    setMilestones((list) =>
+      list.map((m, i) => (i === index ? { ...m, [field]: value } : m))
+    );
+  };
+
+  const changeFundingMode = (mode: "Upfront" | "PerMilestone") => setFundingMode(mode);
+  const changeDisputeTimeoutDays = (value: string) => setDisputeTimeoutDays(value);
+  const changeArbiterFeeBps = (value: string) => setArbiterFeeBps(value);
+
   const assets = listActions<string>(setAcceptedAssets, "");
   const reqs = listActions<string>(setRequirements, "");
-  const milestoneList = listActions<Milestone>(setMilestones, { amount: "" });
+  const milestoneList = listActions<Milestone>(setMilestones, EMPTY_MILESTONE);
   const addMilestone = () => {
     if (isMilestoneCapReached(milestones.length)) return;
     milestoneList.add();
@@ -198,6 +222,23 @@ export function useCreateJobForm() {
       setError(check.message);
       return;
     }
+
+    // Validate milestone due dates (#816): each must be in the future and the
+    // sequence must be non-decreasing across milestones.
+    const dueDates = milestoneSummary.milestones.map((m) => m.dueDate);
+    const dueDateError = validateDueDatesSequence(dueDates);
+    if (dueDateError) {
+      setError(dueDateError);
+      return;
+    }
+    const individualDueDateError = dueDates
+      .map((d) => validateDueDate(d))
+      .find((e) => e !== null);
+    if (individualDueDateError) {
+      setError(individualDueDateError);
+      return;
+    }
+
     setFreelancerError("");
     setArbiterError("");
 
@@ -215,6 +256,9 @@ export function useCreateJobForm() {
           token,
           autoReleaseDays,
           milestones: milestoneSummary.milestones,
+          fundingMode,
+          disputeTimeoutDays,
+          arbiterFeeBps,
         },
         { signTransaction, onPhase: setPhase, setSimulationResult }
       );
@@ -277,16 +321,28 @@ export function useCreateJobForm() {
       hasPartialMilestones,
       addMilestone,
       removeMilestone: milestoneList.remove,
-      updateMilestone: (index: number, amount: string) => milestoneList.update(index, { amount }),
+      updateMilestone: (index: number, amount: string) => milestoneList.update(index, { ...EMPTY_MILESTONE, amount }),
+      updateMilestoneText,
     },
     review: {
       assetCount: nonBlank(acceptedAssets).length,
       requirementCount: nonBlank(requirements).length,
       milestoneCount: milestoneSummary.milestones.length,
       autoReleaseDays,
+      fundingMode,
+      disputeTimeoutDays,
+      arbiterFeeBps,
       arbiter,
       agreed,
       setAgreed,
+    },
+    advanced: {
+      fundingMode,
+      disputeTimeoutDays,
+      arbiterFeeBps,
+      changeFundingMode,
+      changeDisputeTimeoutDays,
+      changeArbiterFeeBps,
     },
     hasValidationErrors,
     isSubmitDisabled,
