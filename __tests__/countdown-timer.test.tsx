@@ -3,6 +3,12 @@ import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import CountdownTimer, { formatRemaining } from "@/app/components/CountdownTimer";
 
+// The timer reads ledger-gated time (#846); these tests drive it with fake wall-clock time.
+vi.mock("@/app/lib/ledgerTime", () => ({
+  gatedNowMs: () => Date.now(),
+  syncLedgerOffset: vi.fn(async () => undefined),
+}));
+
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;

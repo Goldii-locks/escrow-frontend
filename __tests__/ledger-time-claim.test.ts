@@ -18,6 +18,8 @@ describe("claim eligibility uses ledger time", () => {
     const e = getClaimEligibility({ backendDeadlineMs: deadlineMs, now: gatedNowMs(browserNow) });
     expect(e.show).toBe(false);
     const later = browserNow + 60_000 + LEDGER_TIME_MARGIN_MS;
-    expect(getClaimEligibility({ backendDeadlineMs: deadlineMs, now: gatedNowMs(later) }).show).toBe(true);
+    expect(
+      getClaimEligibility({ backendDeadlineMs: deadlineMs, now: gatedNowMs(later) }).show
+    ).toBe(true);
   });
 });
