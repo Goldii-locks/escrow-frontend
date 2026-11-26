@@ -87,8 +87,8 @@ const FULL_DRAFT: CreateJobDraft = {
   arbiter: ARBITER,
   token: "CTOKEN00000000000000000000000000000000000000000000000001",
   autoReleaseDays: "14",
-  acceptedAssets: ["USDC"],
-  requirements: ["Deliver on time"],
+  acceptedAssets: [],
+  requirements: [],
   milestones: [{ amount: "100" }],
 };
 
@@ -289,21 +289,6 @@ describe("useCreateJobForm — scope (milestones / assets / requirements)", () =
       result.current.scope.updateMilestone(0, "500");
     });
     expect(result.current.scope.milestones[0].amount).toBe("500");
-  });
-
-  it("addAcceptedAsset then removeAcceptedAsset round-trips", () => {
-    const { result } = renderHook(() => useCreateJobForm());
-    act(() => {
-      result.current.scope.addAcceptedAsset();
-    });
-    act(() => {
-      result.current.scope.updateAcceptedAsset(0, "USDC");
-    });
-    expect(result.current.scope.acceptedAssets).toContain("USDC");
-    act(() => {
-      result.current.scope.removeAcceptedAsset(0);
-    });
-    expect(result.current.scope.acceptedAssets).toHaveLength(0);
   });
 });
 

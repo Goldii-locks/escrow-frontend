@@ -9,8 +9,6 @@ export default function Review({ form }: { form: CreateJobForm }) {
   const { loading, setActiveSection } = form;
   const r = form.review;
   const counts = [
-    { label: "Accepted assets", value: r.assetCount },
-    { label: "Requirements", value: r.requirementCount },
     { label: "Milestones", value: r.milestoneCount },
   ];
 
