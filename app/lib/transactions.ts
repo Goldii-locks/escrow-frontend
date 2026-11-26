@@ -18,13 +18,7 @@ export { BACKEND_URL, CONTRACT_ID, FACTORY_CONTRACT_ID };
 export type ContractArg = { type: string; value: unknown };
 
 export type TxPhase =
-  | "idle"
-  | "building"
-  | "signing"
-  | "submitting"
-  | "confirming"
-  | "success"
-  | "error";
+  "idle" | "building" | "signing" | "submitting" | "confirming" | "success" | "error";
 
 /** How long {@link waitForTransactionConfirmation} polls before giving up (#570). */
 const CONFIRMATION_POLL_TIMEOUT_MS = 30_000;
@@ -121,10 +115,7 @@ export function getPhaseLabel(phase: TxPhase): string {
 
 export function isTxPending(phase: TxPhase): boolean {
   return (
-    phase === "building" ||
-    phase === "signing" ||
-    phase === "submitting" ||
-    phase === "confirming"
+    phase === "building" || phase === "signing" || phase === "submitting" || phase === "confirming"
   );
 }
 
