@@ -210,7 +210,7 @@ export function useCreateJobForm() {
     hasNoMilestones ||
     hasPartialMilestones ||
     hasValidationErrors ||
-    hasTokenIssue(tokenCheck.status) ||
+    hasTokenIssue(tokenCheck.status, tokenCheck.factoryConfigured) ||
     !agreed;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -221,7 +221,7 @@ export function useCreateJobForm() {
       return;
     }
 
-    const { listed, status } = tokenCheck;
+    const { listed, status, factoryConfigured } = tokenCheck;
     const check = checkSubmission({
       client: address,
       freelancer,
@@ -230,6 +230,7 @@ export function useCreateJobForm() {
       autoReleaseDays,
       milestones: milestoneSummary,
       token: { ...status, listed },
+      factoryConfigured,
     });
     if (!check.ok) {
       if (check.deadlineError) setDeadlineError(check.deadlineError);

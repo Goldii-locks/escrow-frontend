@@ -3,6 +3,7 @@
 import { tokenLabel } from "@/app/lib/whitelist";
 import type { CreateJobForm } from "../useCreateJobForm";
 import { inputClassName } from "../ui";
+import { TOKEN_CONTRACT_PATTERN } from "../validation";
 
 /**
  * Token selector — the text input and whitelist select share the same state
@@ -19,7 +20,8 @@ import { inputClassName } from "../ui";
 export default function TokenField({ form }: { form: CreateJobForm }) {
   const { loading, setActiveSection } = form;
   const { token, changeToken, blurToken, selectToken, tokenCheck } = form.details;
-  const { whitelist, whitelistLoading, whitelistError, status, setConfirmed } = tokenCheck;
+  const { whitelist, whitelistLoading, whitelistError, status, setConfirmed, factoryConfigured } =
+    tokenCheck;
   const { validating, validation, whitelisted, confirmed } = status;
   const onFocus = () => setActiveSection("details");
 
@@ -94,13 +96,27 @@ export default function TokenField({ form }: { form: CreateJobForm }) {
       )}
 
       {/*
-       * Token validation and non-whitelist warning (issue #668). When the
-       * entered address isn't on the loaded whitelist, show a prominent
-       * warning and require explicit confirmation. The contract is validated
-       * as a SEP-41 token via symbol() and decimals() simulation so the user
-       * can verify it.
+       * Token validation and non-whitelist handling. When the factory is
+       * configured (issue #833) any token not on the factory's list is
+       * hard-blocked with a clear error. Without a factory the original
+       * SEP-41 confirmation path applies (issue #668).
        */}
-      {validating && (
+      {TOKEN_CONTRACT_PATTERN.test(token) && !whitelisted && factoryConfigured && (
+        <div
+          className="mt-2 rounded-lg border border-danger-soft/40 bg-danger/10 p-3"
+          data-testid="token-not-accepted"
+          role="alert"
+        >
+          <p className="text-sm font-medium text-danger-soft">
+            This token isn&rsquo;t accepted for new escrows
+          </p>
+          <p className="mt-1 text-xs text-text-muted">
+            Only tokens from the factory&rsquo;s allowed list can be used. To request a new token,
+            contact the platform admin.
+          </p>
+        </div>
+      )}
+      {!factoryConfigured && validating && (
         <p
           className="mt-2 text-sm text-text-muted"
           data-testid="token-validating"
@@ -110,7 +126,7 @@ export default function TokenField({ form }: { form: CreateJobForm }) {
           Validating token contract…
         </p>
       )}
-      {!validating && validation?.valid && !whitelisted && (
+      {!factoryConfigured && !validating && validation?.valid && !whitelisted && (
         <div
           className="mt-2 rounded-lg border border-warning-soft/40 bg-warning/10 p-3"
           data-testid="token-non-whitelist-warning"
@@ -138,7 +154,7 @@ export default function TokenField({ form }: { form: CreateJobForm }) {
           </label>
         </div>
       )}
-      {!validating && validation && !validation.valid && !whitelisted && (
+      {!factoryConfigured && !validating && validation && !validation.valid && !whitelisted && (
         <div
           className="mt-2 rounded-lg border border-danger-soft/40 bg-danger/10 p-3"
           data-testid="token-validation-error"

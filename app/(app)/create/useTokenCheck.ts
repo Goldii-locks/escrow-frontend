@@ -9,10 +9,18 @@ import { TOKEN_CONTRACT_PATTERN, type TokenStatus } from "./validation";
 const TOKEN_VALIDATION_DEBOUNCE_MS = 500;
 
 /**
+ * True when the deployment routes new escrows through a factory contract.
+ * The factory only accepts tokens from its own allowed list, so non-listed
+ * tokens must be hard-blocked rather than confirmed (#833).
+ */
+const factoryConfigured = !!FACTORY_CONTRACT_ID;
+
+/**
  * Loads the accepted-token whitelist (the escrow factory's allowed tokens when
- * one is configured) and, for a well-formed token that isn't
- * on it, validates the contract as SEP-41 and tracks the user's explicit
- * confirmation (#668).
+ * one is configured) and, for a well-formed token that isn't on it:
+ * - when the factory is configured: the token is blocked outright (#833).
+ * - when no factory is configured: validates as SEP-41 and tracks the user's
+ *   explicit confirmation (#668).
  */
 export function useTokenCheck(token: string) {
   const [whitelist, setWhitelist] = useState<WhitelistToken[]>([]);
@@ -50,7 +58,9 @@ export function useTokenCheck(token: string) {
 
   const listed = whitelist.some((option) => option.address === token);
   const whitelisted = !whitelistLoading && !whitelistError && whitelist.length > 0 && listed;
-  const needsValidation = TOKEN_CONTRACT_PATTERN.test(token) && !listed;
+  // When the factory is configured, non-listed tokens are hard-blocked and
+  // there is nothing to validate — skip the SEP-41 round-trip entirely.
+  const needsValidation = !factoryConfigured && TOKEN_CONTRACT_PATTERN.test(token) && !listed;
   const validation = tokenCheck?.token === token ? tokenCheck.result : null;
   const validating = needsValidation && validation === null;
   const confirmed = confirmedToken === token;
@@ -84,6 +94,8 @@ export function useTokenCheck(token: string) {
     whitelistError,
     /** The token appears in the whitelist, whatever its load state. */
     listed,
+    /** True when new escrows must go through the factory's allowed-token list. */
+    factoryConfigured,
     status,
     setConfirmed: (value: boolean) => setConfirmedToken(value ? token : null),
   };

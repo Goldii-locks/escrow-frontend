@@ -141,17 +141,22 @@ export interface TokenStatus {
 }
 
 /**
- * A well-formed token that isn't whitelisted blocks submission until it has
- * passed SEP-41 validation and been confirmed (#668).
+ * A well-formed token that isn't whitelisted blocks submission.
+ *
+ * When a factory is configured the factory's allowed-token list is
+ * authoritative: any unlisted token is an unconditional hard block because
+ * `create_escrow` will return `TokenNotAllowed` (#833).
+ *
+ * Without a factory the original SEP-41 confirmation path applies (#668):
+ * the token must have passed validation and the user must have confirmed it.
  */
-export function hasTokenIssue({
-  token,
-  whitelisted,
-  validating,
-  validation,
-  confirmed,
-}: TokenStatus): boolean {
+export function hasTokenIssue(
+  { token, whitelisted, validating, validation, confirmed }: TokenStatus,
+  factoryConfigured = false
+): boolean {
   if (!token || !TOKEN_CONTRACT_PATTERN.test(token) || whitelisted) return false;
+  // With a factory, any token not on the factory's list is blocked outright.
+  if (factoryConfigured) return true;
   if (validating) return true;
   if (validation && !validation.valid) return true;
   return !!validation?.valid && !confirmed;
@@ -168,6 +173,8 @@ export interface SubmissionInput {
     /** The token appears in the whitelist at all (regardless of load state). */
     listed: boolean;
   };
+  /** True when new escrows must go through the factory's allowed-token list (#833). */
+  factoryConfigured: boolean;
 }
 
 export type SubmissionCheck =
@@ -212,6 +219,13 @@ export function checkSubmission(input: SubmissionInput): SubmissionCheck {
     return { ok: false, message: "Select an accepted token before creating a job." };
   }
   if (!token.listed) {
+    if (input.factoryConfigured) {
+      // The factory will reject this token; block outright (#833).
+      return {
+        ok: false,
+        message: "This token isn't accepted for new escrows.",
+      };
+    }
     if (token.validating) {
       return { ok: false, message: "Token validation is still in progress. Please wait." };
     }
