@@ -359,9 +359,7 @@ export function createStellarEnvelopeParser(
   networkPassphrase: string
 ): (baseXdr: string) => WalletMultiSigEnvelopeParsed {
   if (typeof networkPassphrase !== "string" || networkPassphrase.trim().length === 0) {
-    throw new Error(
-      "createStellarEnvelopeParser requires a non-empty network passphrase."
-    );
+    throw new Error("createStellarEnvelopeParser requires a non-empty network passphrase.");
   }
   const passphrase = networkPassphrase;
   return (baseXdr: string): WalletMultiSigEnvelopeParsed => {

@@ -9,12 +9,7 @@
 const LOG_PREFIX = "[wallet_state_context]";
 
 export type WalletTxPhase =
-  | "idle"
-  | "connecting"
-  | "signing"
-  | "disconnecting"
-  | "success"
-  | "error";
+  "idle" | "connecting" | "signing" | "disconnecting" | "success" | "error";
 
 export interface WalletTxTrackEntry {
   txId: string;

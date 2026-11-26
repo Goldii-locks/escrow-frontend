@@ -8,9 +8,7 @@ import { StepPanel } from "../ui";
 export default function Review({ form }: { form: CreateJobForm }) {
   const { loading, setActiveSection } = form;
   const r = form.review;
-  const counts = [
-    { label: "Milestones", value: r.milestoneCount },
-  ];
+  const counts = [{ label: "Milestones", value: r.milestoneCount }];
 
   return (
     <StepPanel

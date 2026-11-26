@@ -32,6 +32,10 @@ import {
 } from "@/app/lib/batchAutoRelease";
 import EscrowLockBanner from "@/app/components/EscrowLockBanner";
 import { getEscrowLockState } from "@/app/lib/escrow_lock_state";
+import DeliverableAttachModal from "@/app/components/DeliverableAttachModal";
+import AddEvidenceModal from "@/app/components/AddEvidenceModal";
+import RefundPanel from "@/app/components/RefundPanel";
+import RefundConfirmModal from "@/app/components/RefundConfirmModal";
 import {
   JobListResponseSchema,
   JobDetailResponseSchema,
@@ -53,6 +57,7 @@ import {
 import { hashDisputeReason } from "@/app/lib/dispute_reason";
 import DisputeReasonBackupPanel from "@/app/components/DisputeReasonBackupPanel";
 import { canFund } from "@/app/lib/milestone_actions";
+import { storeDeliverable, type DeliverablePayload } from "@/app/lib/deliverable_store";
 import { fetchArbiterFeeBps } from "@/app/lib/arbiter_fee";
 import {
   MAX_BATCH_APPROVALS,
@@ -136,6 +141,19 @@ export default function Dashboard() {
   const [disputeReasonBackup, setDisputeReasonBackup] = useState<{
     reason: string;
     hash: string;
+  } | null>(null);
+  /** #823: deliverable attach flow for "Mark delivered". */
+  const [deliverableModalOpen, setDeliverableModalOpen] = useState(false);
+  const [deliverableMilestoneIndex, setDeliverableMilestoneIndex] = useState<number | null>(null);
+  /** #820: evidence attach flow for a disputed milestone. */
+  const [evidenceModalOpen, setEvidenceModalOpen] = useState(false);
+  const [evidenceMilestoneIndex, setEvidenceMilestoneIndex] = useState<number | null>(null);
+  /** #821: refund confirm flow. */
+  const [refundConfirmOpen, setRefundConfirmOpen] = useState(false);
+  const [refundAction, setRefundAction] = useState<{
+    kind: "withdraw_unaccepted" | "reclaim_overdue";
+    index: number | null;
+    amountStroops: string;
   } | null>(null);
   /** Delivered milestones selected for batch approval, keyed by job (#899). */
   const [batchSelection, setBatchSelection] = useState<{ jobId: string | null; indices: number[] }>(
@@ -880,13 +898,39 @@ export default function Dashboard() {
     ]);
   };
 
-  const handleMarkDelivered = async (i: number) => {
-    if (!address || !expandedJobId) return;
+  const handleMarkDelivered = (i: number) => {
+    setDeliverableMilestoneIndex(i);
+    setDeliverableModalOpen(true);
+  };
 
-    await executeTx(actionKey(expandedJobId, "deliver", i), "mark_delivered", [
+  const handleMarkDeliveredConfirm = async (hash: string, payload: DeliverablePayload) => {
+    if (!address || deliverableMilestoneIndex === null || !expandedJobId) return;
+
+    // Store the content off-chain (best-effort; never blocks the on-chain call).
+    void storeDeliverable(expandedJobId, deliverableMilestoneIndex, payload);
+
+    const args: { type: string; value: unknown }[] = [
       { type: "address", value: address },
-      { type: "u32", value: i.toString() },
-    ]);
+      { type: "u32", value: deliverableMilestoneIndex.toString() },
+    ];
+
+    if (hash && hash.length === 64) {
+      args.push({ type: "bytes", value: hash });
+      await executeTx(
+        actionKey(expandedJobId, "deliver_with_hash", deliverableMilestoneIndex),
+        "mark_delivered_with_hash",
+        args
+      );
+    } else {
+      await executeTx(
+        actionKey(expandedJobId, "deliver", deliverableMilestoneIndex),
+        "mark_delivered",
+        args
+      );
+    }
+
+    setDeliverableModalOpen(false);
+    setDeliverableMilestoneIndex(null);
   };
 
   const handleFund = async () => {
@@ -937,6 +981,16 @@ export default function Dashboard() {
         },
       }));
     }
+  };
+
+  /** #822: fund a single milestone (per-milestone funding only). */
+  const handleFundMilestone = async (i: number) => {
+    if (!address || !expandedJobId) return;
+
+    await executeTx(actionKey(expandedJobId, "fund_milestone", i), "fund_milestone", [
+      { type: "address", value: address },
+      { type: "u32", value: i.toString() },
+    ]);
   };
 
   const handleApprove = async (i: number) => {
@@ -1018,6 +1072,87 @@ export default function Dashboard() {
       { type: "bool", value: releaseToFreelancer },
     ]);
   };
+
+  /** #820: attach evidence to a disputed milestone. */
+  const handleAddEvidence = (i: number) => {
+    setEvidenceMilestoneIndex(i);
+    setEvidenceModalOpen(true);
+  };
+
+  const handleEvidenceSubmit = async (
+    hash: string,
+    payload: {
+      title: string;
+      description?: string | null;
+      fileBase64?: string | null;
+      fileType?: string | null;
+      fileName?: string | null;
+    }
+  ) => {
+    if (!address || evidenceMilestoneIndex === null || !expandedJobId) return;
+
+    // Store the content off-chain (best-effort).
+    void storeDeliverable(expandedJobId, evidenceMilestoneIndex, {
+      hash,
+      ...payload,
+    });
+
+    await executeTx(
+      actionKey(expandedJobId, "submit_evidence", evidenceMilestoneIndex),
+      "submit_evidence",
+      [
+        { type: "address", value: address },
+        { type: "u32", value: evidenceMilestoneIndex.toString() },
+        { type: "bytes", value: hash },
+      ]
+    );
+
+    setEvidenceModalOpen(false);
+    setEvidenceMilestoneIndex(null);
+  };
+
+  /** #821: open the refund confirm modal for a client refund action. */
+  const openRefundConfirm = (
+    kind: "withdraw_unaccepted" | "reclaim_overdue",
+    index: number | null,
+    amountStroops: string
+  ) => {
+    setRefundAction({ kind, index, amountStroops });
+    setRefundConfirmOpen(true);
+  };
+
+  const handleRefundConfirm = async () => {
+    if (!address || !expandedJobId || !refundAction) return;
+
+    const { kind, index } = refundAction;
+
+    if (kind === "withdraw_unaccepted") {
+      await executeTx(actionKey(expandedJobId, "withdraw_unaccepted"), "withdraw_unaccepted", [
+        { type: "address", value: address },
+      ]);
+    } else if (kind === "reclaim_overdue" && index != null) {
+      await executeTx(actionKey(expandedJobId, "reclaim_overdue", index), "reclaim_overdue", [
+        { type: "address", value: address },
+        { type: "u32", value: index.toString() },
+      ]);
+    }
+
+    setRefundConfirmOpen(false);
+    setRefundAction(null);
+  };
+
+  /** Resolve the action-state key for the currently open refund, if any. */
+  const refundActionKey = useMemo(() => {
+    if (!expandedJobId || !refundAction) return null;
+    if (refundAction.kind === "withdraw_unaccepted") {
+      return actionKey(expandedJobId, "withdraw_unaccepted");
+    }
+    if (refundAction.kind === "reclaim_overdue" && refundAction.index != null) {
+      return actionKey(expandedJobId, "reclaim_overdue", refundAction.index);
+    }
+    return null;
+  }, [expandedJobId, refundAction]);
+  const isRefundPending = refundActionKey != null ? isPending(refundActionKey) : false;
 
   const paginationButtons = useMemo(() => {
     const pages: number[] = [];
@@ -1371,30 +1506,31 @@ export default function Dashboard() {
                                     </p>
                                   </div>
                                 </div>
+                                {canFund(expandedJob, isClient) &&
+                                  expandedJob.fundingMode !== "PerMilestone" && (
+                                    <div className="bg-amber-950/40 border border-amber-600/50 rounded-lg p-3 sm:p-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                      <div>
+                                        <p className="text-amber-300 font-semibold text-sm">
+                                          Escrow Unfunded
+                                        </p>
 
-                                {canFund(expandedJob, isClient) && (
-                                  <div className="bg-amber-950/40 border border-amber-600/50 rounded-lg p-3 sm:p-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                    <div>
-                                      <p className="text-amber-300 font-semibold text-sm">
-                                        Escrow Unfunded
-                                      </p>
-                                      <p className="text-amber-200/80 text-xs mt-0.5">
-                                        Deposit the escrow tokens so the freelancer can begin
-                                        delivery.
-                                      </p>
+                                        <p className="text-amber-200/80 text-xs mt-0.5">
+                                          Deposit the escrow tokens so the freelancer can begin
+                                          delivery.
+                                        </p>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={handleFund}
+                                        disabled={isPending(actionKey(expandedJob.id, "fund"))}
+                                        className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-semibold transition"
+                                      >
+                                        {isPending(actionKey(expandedJob.id, "fund"))
+                                          ? "Funding..."
+                                          : "Fund escrow"}
+                                      </button>
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={handleFund}
-                                      disabled={isPending(actionKey(expandedJob.id, "fund"))}
-                                      className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-semibold transition"
-                                    >
-                                      {isPending(actionKey(expandedJob.id, "fund"))
-                                        ? "Funding..."
-                                        : "Fund escrow"}
-                                    </button>
-                                  </div>
-                                )}
+                                  )}
                                 <JobAcceptancePanel
                                   acceptance={acceptanceForExpandedJob}
                                   loading={!(expandedJob.id in jobAcceptance)}
@@ -1523,6 +1659,12 @@ export default function Dashboard() {
                                           onMarkDelivered={handleMarkDelivered}
                                           onApprove={handleApprove}
                                           onDispute={handleDispute}
+                                          onFundMilestone={handleFundMilestone}
+                                          onAddEvidence={handleAddEvidence}
+                                          fundingMode={expandedJob.fundingMode ?? null}
+                                          isFundMilestonePending={isPending(
+                                            actionKey(expandedJobId, "fund_milestone", m.index)
+                                          )}
                                           escrowLocked={escrowLock.actionsDisabled}
                                           lockTooltip={escrowLock.tooltip}
                                           arbiterFeeBps={
@@ -1688,6 +1830,86 @@ export default function Dashboard() {
           reason={disputeReasonBackup.reason}
           hash={disputeReasonBackup.hash}
           onDismiss={() => setDisputeReasonBackup(null)}
+        />
+      )}
+
+      {/* #821: Client refund panel (withdraw unaccepted / reclaim overdue). */}
+      {isClient && expandedJob && (
+        <RefundPanel
+          job={expandedJob}
+          address={address}
+          isClient={isClient}
+          onRefund={openRefundConfirm}
+          isRefundPending={
+            expandedJobId && refundActionKey != null ? isPending(refundActionKey) : false
+          }
+          refundError={
+            expandedJobId && refundActionKey != null ? getState(refundActionKey)?.error : undefined
+          }
+        />
+      )}
+
+      {/* #823: Deliverable attach modal for "Mark delivered". */}
+      {deliverableMilestoneIndex !== null && (
+        <DeliverableAttachModal
+          isOpen={deliverableModalOpen}
+          onClose={() => {
+            setDeliverableModalOpen(false);
+            setDeliverableMilestoneIndex(null);
+          }}
+          onConfirm={handleMarkDeliveredConfirm}
+          milestoneIndex={deliverableMilestoneIndex}
+          isConfirming={
+            expandedJobId
+              ? isPending(actionKey(expandedJobId, "deliver_with_hash", deliverableMilestoneIndex))
+              : false
+          }
+          errorMessage={
+            expandedJobId
+              ? getState(actionKey(expandedJobId, "deliver_with_hash", deliverableMilestoneIndex))
+                  ?.error
+              : undefined
+          }
+        />
+      )}
+
+      {/* #820: Add evidence modal for a disputed milestone. */}
+      {evidenceMilestoneIndex !== null && (
+        <AddEvidenceModal
+          isOpen={evidenceModalOpen}
+          onClose={() => {
+            setEvidenceModalOpen(false);
+            setEvidenceMilestoneIndex(null);
+          }}
+          onConfirm={handleEvidenceSubmit}
+          milestoneIndex={evidenceMilestoneIndex}
+          isConfirming={
+            expandedJobId
+              ? isPending(actionKey(expandedJobId, "submit_evidence", evidenceMilestoneIndex))
+              : false
+          }
+          errorMessage={
+            expandedJobId
+              ? getState(actionKey(expandedJobId, "submit_evidence", evidenceMilestoneIndex))?.error
+              : undefined
+          }
+        />
+      )}
+
+      {/* #821: Refund confirm modal. */}
+      {refundConfirmOpen && refundAction && expandedJob && (
+        <RefundConfirmModal
+          isOpen={refundConfirmOpen}
+          onClose={() => {
+            setRefundConfirmOpen(false);
+            setRefundAction(null);
+          }}
+          onConfirm={handleRefundConfirm}
+          action={refundAction.kind}
+          amountStroops={refundAction.amountStroops}
+          decimals={expandedJob.tokenDecimals ?? 7}
+          symbol={expandedJob.tokenSymbol ?? "XLM"}
+          isConfirming={isRefundPending}
         />
       )}
     </div>
