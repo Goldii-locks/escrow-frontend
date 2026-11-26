@@ -22,6 +22,6 @@ export CSP_CONNECT_ORIGINS
 
 envsubst '$CSP_CONNECT_ORIGINS' \
   < /etc/nginx/templates/csp-origins.conf.template \
-  > /etc/nginx/conf.d/csp-origins.conf
+  > /etc/nginx/csp-origins.conf
 
 exec "$@"

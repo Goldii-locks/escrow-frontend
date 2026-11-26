@@ -4,7 +4,7 @@ The Content-Security-Policy is emitted by nginx from two generated includes:
 
 - `/etc/nginx/csp-hashes.conf` — SHA-256 hashes of inline scripts, generated at build time by
   `scripts/gen-csp-hashes.mjs`.
-- `/etc/nginx/conf.d/csp-origins.conf` — the `connect-src` allowlist, rendered at container start by
+- `/etc/nginx/csp-origins.conf` — the `connect-src` allowlist, rendered at container start by
   `scripts/nginx-entrypoint.sh` from `nginx/templates/csp-origins.conf.template`.
 
 ## Network URLs

@@ -113,7 +113,7 @@ COPY --from=build /app/nginx/csp-hashes.conf /etc/nginx/csp-hashes.conf
 # entrypoint regenerates csp-origins.conf at container start from the network
 # URLs above; the committed copy is the testnet fallback.
 COPY nginx/security_headers.conf /etc/nginx/security_headers.conf
-COPY nginx/csp-origins.conf /etc/nginx/conf.d/csp-origins.conf
+COPY nginx/csp-origins.conf /etc/nginx/csp-origins.conf
 COPY nginx/templates/csp-origins.conf.template /etc/nginx/templates/csp-origins.conf.template
 COPY scripts/nginx-entrypoint.sh /usr/local/bin/nginx-entrypoint.sh
 RUN chmod +x /usr/local/bin/nginx-entrypoint.sh
