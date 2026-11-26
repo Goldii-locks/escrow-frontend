@@ -208,6 +208,7 @@ export default function JobActivityTimeline({
         <ol className="space-y-2 border-l border-gray-800 pl-3">
           {events.map((event) => {
             const actor = eventActor(event);
+            const txUrl = event.tx_hash ? getStellarExpertTxUrl(event.tx_hash) : null;
             return (
               <li
                 key={event.id ?? `${event.ledger_sequence}-${event.event_type}`}
@@ -222,9 +223,9 @@ export default function JobActivityTimeline({
                       by {shortAddress(actor)}
                     </span>
                   )}
-                  {event.tx_hash && (
+                  {txUrl && (
                     <a
-                      href={getStellarExpertTxUrl(event.tx_hash)}
+                      href={txUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-indigo-400 hover:underline"

@@ -62,7 +62,7 @@ const meta = {
   args: {
     onBellClick: () => console.log("[bellClick] clicked"),
     onMarkAllAsRead: () => console.log("[markAllAsRead] clicked"),
-    onNotificationClick: (notif) => console.log("[notificationClick]", notif),
+    onNotificationClick: (notif: unknown) => console.log("[notificationClick]", notif),
     onClearAll: () => console.log("[clearAll] clicked"),
   },
 } satisfies Meta<typeof NotificationBell>;
