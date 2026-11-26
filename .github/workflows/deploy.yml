@@ -98,6 +98,7 @@ jobs:
           push: true
           platforms: linux/arm64
           build-args: |
+            NEXT_PUBLIC_SITE_URL=${{ vars.NEXT_PUBLIC_SITE_URL }}
             NEXT_PUBLIC_BACKEND_URL=${{ vars.PUBLIC_ORIGIN }}
             NEXT_PUBLIC_CONTRACT_ID=${{ steps.contract.outputs.id }}
             NEXT_PUBLIC_FACTORY_CONTRACT_ID=${{ vars.FACTORY_CONTRACT_ID }}

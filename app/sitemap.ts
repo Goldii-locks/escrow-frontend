@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { SITE_URL } from "./lib/site-url";
 
 // `output: export` requires metadata route handlers to be fully static.
 export const dynamic = "force-static";
@@ -14,8 +15,7 @@ export const dynamic = "force-static";
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
-      url: "https://milestonepay.app",
-      lastModified: new Date(),
+      url: new URL("/", SITE_URL).href,
       changeFrequency: "weekly",
       priority: 1,
     },

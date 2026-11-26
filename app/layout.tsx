@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SITE_URL } from "./lib/site-url";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "./context/ToastContext";
@@ -15,6 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: SITE_URL,
   title: {
     default: "Milestone Escrow",
     template: "%s · Milestone Escrow",

@@ -19,6 +19,7 @@ COPY . .
 # NEXT_PUBLIC_* are inlined into the bundle at build time. They cannot be
 # changed by setting env vars on the running container — one image per
 # environment, and a contract redeploy means a rebuild, not a restart.
+ARG NEXT_PUBLIC_SITE_URL
 ARG NEXT_PUBLIC_BACKEND_URL
 ARG NEXT_PUBLIC_CONTRACT_ID
 # escrow-factory instance new escrows are created through. Optional: without
@@ -29,7 +30,8 @@ ARG NEXT_PUBLIC_FACTORY_CONTRACT_ID
 ARG NEXT_PUBLIC_SOROBAN_RPC_URL
 ARG NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE
 
-ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL \
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
+    NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL \
     NEXT_PUBLIC_CONTRACT_ID=$NEXT_PUBLIC_CONTRACT_ID \
     NEXT_PUBLIC_FACTORY_CONTRACT_ID=$NEXT_PUBLIC_FACTORY_CONTRACT_ID \
     NEXT_PUBLIC_SOROBAN_RPC_URL=$NEXT_PUBLIC_SOROBAN_RPC_URL \
