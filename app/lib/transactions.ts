@@ -1,4 +1,4 @@
-import { BACKEND_URL, CONTRACT_ID, FACTORY_CONTRACT_ID } from "@/app/lib/config";
+import { BACKEND_URL, CONTRACT_ID, createRpcServer, FACTORY_CONTRACT_ID } from "@/app/lib/config";
 import {
   formatTxError,
   PreparedTransactionMismatchError,
@@ -17,7 +17,18 @@ export { BACKEND_URL, CONTRACT_ID, FACTORY_CONTRACT_ID };
 
 export type ContractArg = { type: string; value: unknown };
 
-export type TxPhase = "idle" | "building" | "signing" | "submitting" | "success" | "error";
+export type TxPhase =
+  | "idle"
+  | "building"
+  | "signing"
+  | "submitting"
+  | "confirming"
+  | "success"
+  | "error";
+
+/** How long {@link waitForTransactionConfirmation} polls before giving up (#570). */
+const CONFIRMATION_POLL_TIMEOUT_MS = 30_000;
+const CONFIRMATION_POLL_INTERVAL_MS = 1_500;
 
 /** Default bound used by {@link signTxWithTimeout}. */
 export const DEFAULT_SIGNING_TIMEOUT_MS = 60_000;
@@ -101,13 +112,20 @@ export function getPhaseLabel(phase: TxPhase): string {
       return "Sign in wallet...";
     case "submitting":
       return "Submitting...";
+    case "confirming":
+      return "Confirming on-chain...";
     default:
       return "";
   }
 }
 
 export function isTxPending(phase: TxPhase): boolean {
-  return phase === "building" || phase === "signing" || phase === "submitting";
+  return (
+    phase === "building" ||
+    phase === "signing" ||
+    phase === "submitting" ||
+    phase === "confirming"
+  );
 }
 
 // =============================================================================
@@ -158,6 +176,93 @@ export function extractSubmitTxHash(body: unknown): string {
       body.transactionHash
     ) ?? ""
   );
+}
+
+/**
+ * Extracts `sendTransaction`'s own status (`PENDING`, `DUPLICATE`, `ERROR`,
+ * `TRY_AGAIN_LATER`, ...) from a `/api/jobs/submit` success body, from either
+ * the `data` envelope or a flat top-level copy. A 200 response only means the
+ * backend queued the transaction with the network — this status (and, later,
+ * `getTransaction`) is what actually says whether it was accepted (#570).
+ */
+export function extractSubmitStatus(body: unknown): string | null {
+  if (!isRecord(body)) return null;
+
+  const data = isRecord(body.data) ? body.data : undefined;
+
+  return firstString(data?.status, body.status);
+}
+
+/** `sendTransaction` statuses that mean the network never queued the transaction. */
+const SUBMIT_FAILURE_STATUSES = new Set(["ERROR", "TRY_AGAIN_LATER"]);
+
+/**
+ * Polls `getTransaction` until the network reports the submitted transaction
+ * as applied (`SUCCESS`) or rejected (`FAILED`), or until `timeoutMs` elapses.
+ *
+ * A 200 from `/api/jobs/submit` only acknowledges that `sendTransaction`
+ * queued the transaction (`PENDING`); it can still fail once applied, e.g. on
+ * a resource fee shortfall, an auth failure, or a contract error (#570). This
+ * is the step that turns that queued status into a real outcome.
+ */
+async function waitForTransactionConfirmation(
+  txHash: string,
+  { timeoutMs = CONFIRMATION_POLL_TIMEOUT_MS }: { timeoutMs?: number } = {}
+): Promise<void> {
+  const [server, { Api }] = await Promise.all([
+    createRpcServer(),
+    import("@stellar/stellar-sdk/rpc"),
+  ]);
+
+  const deadline = Date.now() + timeoutMs;
+
+  while (true) {
+    const response = await server.getTransaction(txHash);
+
+    if (response.status === Api.GetTransactionStatus.SUCCESS) {
+      return;
+    }
+
+    if (response.status === Api.GetTransactionStatus.FAILED) {
+      const code = extractFailedResultCode(response);
+      throw new Error(
+        code
+          ? `Your transaction was rejected by the network (${code}).`
+          : "Your transaction was rejected by the network."
+      );
+    }
+
+    // Still NOT_FOUND (not yet ingested) — keep polling until the deadline.
+    if (Date.now() >= deadline) {
+      throw new Error(
+        "We could not confirm your transaction in time. It may still succeed; check the explorer before retrying."
+      );
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, CONFIRMATION_POLL_INTERVAL_MS));
+  }
+}
+
+/**
+ * Best-effort extraction of the ledger-level `TransactionResultCode` name
+ * (e.g. `"txFAILED"`, `"txINSUFFICIENT_FEE"`, `"txBAD_AUTH"`) from a FAILED
+ * `getTransaction` response's `resultXdr` union, so the error we surface
+ * names *why* the network rejected it rather than just that it did. Not the
+ * Soroban contract's own error code — that lives in diagnostic events, which
+ * `getTransaction` doesn't return — so this stays a coarser, but reliably
+ * decodable, signal. Guarded since XDR union shapes vary across SDK minor
+ * versions and this is best-effort, not load-bearing.
+ */
+function extractFailedResultCode(response: { resultXdr?: unknown }): string | null {
+  try {
+    const result = response.resultXdr as {
+      result?: () => { switch?: () => { name?: string } };
+    };
+    const name = result?.result?.()?.switch?.()?.name;
+    return typeof name === "string" ? name : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -335,6 +440,18 @@ export async function submitContractTransaction({
       "Your transaction was submitted but the backend did not return a transaction hash."
     );
   }
+
+  // A 200 here is only sendTransaction's acknowledgement that the network
+  // *queued* the transaction (PENDING) — ERROR / TRY_AGAIN_LATER mean it
+  // never queued at all, and even PENDING can still fail once applied, so
+  // neither is a real success yet (#570).
+  const submitStatus = extractSubmitStatus(result);
+  if (submitStatus && SUBMIT_FAILURE_STATUSES.has(submitStatus.toUpperCase())) {
+    throw new Error("Your transaction could not be submitted. Please try again.");
+  }
+
+  onPhase?.("confirming");
+  await waitForTransactionConfirmation(txHash);
 
   return txHash;
 }
