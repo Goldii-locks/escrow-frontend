@@ -15,7 +15,9 @@
     "app/lib/wallet_selector_modal.ts": ["exports"],
     "app/hooks/useArbiterPanelViewport.ts": ["exports"],
     "app/hooks/useDisputeViewport.ts": ["exports"],
-    "app/lib/safe_storage.ts": ["exports"]
+    "app/lib/safe_storage.ts": ["exports"],
+    "app/lib/errors.ts": ["exports"],
+    "app/lib/ledgerTime.ts": ["exports"]
   },
   "ignoreExportsUsedInFile": true
 }
