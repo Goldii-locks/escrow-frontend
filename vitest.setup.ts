@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { expect, vi } from "vitest";
-import { wrapFetch } from "./__tests__/helpers/job_details_fetch";
+import { wrapFetch } from "./test-support/job_details_fetch";
 import type { AxeResults } from "axe-core";
 
 // Asserts an axe-core run found no violations (#677). Kept local instead of
