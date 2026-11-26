@@ -22,6 +22,13 @@ import { WalletSignatureTimeoutError } from "@/app/lib/wallet_state_context";
 // transaction is covered in tx-verification.test.ts (#889).
 vi.mock("@/app/lib/tx_verification", () => ({ verifyPreparedTransaction: vi.fn() }));
 
+// The submit flow now confirms the outcome on-chain (#570); answer SUCCESS
+// instead of hitting a real RPC endpoint.
+vi.mock("@/app/lib/config", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/app/lib/config")>()),
+  createRpcServer: async () => ({ getTransaction: async () => ({ status: "SUCCESS" }) }),
+}));
+
 /**
  * Builds a minimal `Response`-alike. The production code only touches `ok`
  * and `json()`, so a plain object is enough and keeps the fixtures (plain
@@ -109,7 +116,7 @@ describe("submitContractTransaction against real backend response shapes (#686)"
       });
 
       expect(txHash).toBe(submitSuccess.data.hash);
-      expect(phases).toEqual(["building", "signing", "submitting"]);
+      expect(phases).toEqual(["building", "signing", "submitting", "confirming"]);
     });
 
     it("posts the documented build-tx request body then the signed XDR", async () => {
