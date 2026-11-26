@@ -58,6 +58,9 @@ export const MilestoneSchema = z.object({
   amount: z.string(),
   status: z.string(),
   releasedAmount: z.string().optional(),
+  deliveredAt: z.number().int().nonnegative().nullish(),
+  autoReleaseSeconds: z.number().int().nonnegative().nullish(),
+  extensionSeconds: z.number().int().nonnegative().nullish(),
 });
 
 export type Milestone = z.infer<typeof MilestoneSchema>;
@@ -74,6 +77,7 @@ export const JobSchema = z.object({
   admin: optionalStellarAddress,
   funded: z.boolean().default(false),
   milestones: z.array(MilestoneSchema).nullish(),
+  autoReleaseSeconds: z.number().int().nonnegative().nullish(),
   token: z.string().optional(),
   tokenSymbol: z.string().optional(),
   tokenDecimals: z.number().finite().optional(),

@@ -26,7 +26,10 @@ import {
   mergeAcceptance,
   type JobAcceptance,
 } from "@/app/lib/job_acceptance";
-import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
+import {
+  fetchAllAutoReleaseDeadlines,
+  getJobAutoReleaseDeadlines,
+} from "@/app/lib/batchAutoRelease";
 import EscrowLockBanner from "@/app/components/EscrowLockBanner";
 import { getEscrowLockState } from "@/app/lib/escrow_lock_state";
 import {
@@ -94,6 +97,7 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  const [needsActionVersion, setNeedsActionVersion] = useState(0);
   const [jobLabels, setJobLabels] = useState<Record<string, string>>({});
   const [jobDetails, setJobDetails] = useState<Record<string, Job>>({});
   const [detailsLoading, setDetailsLoading] = useState<Record<string, boolean>>({});
@@ -613,8 +617,7 @@ export default function Dashboard() {
   // Reload "Needs your action" when the poll or an action changes any job.
   const needsActionRefreshKey = [
     jobs.map((job) => `${job.id}:${job.latestLedger ?? ""}:${job.releasedCount ?? ""}`).join(","),
-    expandedJobId ?? "",
-    timelineRefreshKey,
+    needsActionVersion,
   ].join("|");
 
   /** Opens the job and milestone a "Needs your action" row points at (#888). */
@@ -627,9 +630,8 @@ export default function Dashboard() {
       setJobDetails((current) => (current[job.id] ? current : { ...current, [job.id]: job }));
       setExpandedJobId(job.id);
       setFocusTarget({ jobId: job.id, milestoneIndex, nonce: Date.now() });
-      void fetchJobDetails(job.id, true);
     },
-    [jobs, fetchJobDetails]
+    [jobs]
   );
 
   /** Expanding or collapsing a row by hand drops any panel pin and highlight. */
@@ -710,33 +712,23 @@ export default function Dashboard() {
     };
   }, [expandedJobId, expandedJobHasDispute, arbiterFeeBps]);
 
-  const [autoReleaseDeadlines, setAutoReleaseDeadlines] = useState<Record<number, number | null>>(
-    {}
-  );
+  const [deadlineSnapshot, setDeadlineSnapshot] = useState<{
+    job: Job;
+    deadlines: Record<number, number | null>;
+  } | null>(null);
+  const autoReleaseDeadlines =
+    deadlineSnapshot && deadlineSnapshot.job === expandedJob
+      ? deadlineSnapshot.deadlines
+      : expandedJob
+        ? getJobAutoReleaseDeadlines(expandedJob)
+        : {};
 
   useEffect(() => {
+    if (!expandedJob) return;
     const controller = new AbortController();
-    const jobId = expandedJob?.id;
-    const deliveredIndexes = (Array.isArray(expandedJob?.milestones) ? expandedJob.milestones : [])
-      .filter((m) => m.status === "Delivered")
-      .map((m) => m.index);
-
-    (async () => {
-      if (!jobId || deliveredIndexes.length === 0) {
-        await Promise.resolve();
-        if (!controller.signal.aborted) setAutoReleaseDeadlines({});
-        return;
-      }
-
-      // Issue #671: fetch ALL milestone deadlines in one request instead of
-      // one request per delivered milestone (N+1 problem).
-      const deadlines = await fetchAllAutoReleaseDeadlines(jobId, deliveredIndexes, {
-        signal: controller.signal,
-      });
-      if (!controller.signal.aborted) {
-        setAutoReleaseDeadlines(deadlines);
-      }
-    })();
+    void fetchAllAutoReleaseDeadlines(expandedJob, controller.signal).then((deadlines) => {
+      if (!controller.signal.aborted) setDeadlineSnapshot({ job: expandedJob, deadlines });
+    });
 
     return () => controller.abort();
   }, [expandedJob]);
@@ -791,6 +783,7 @@ export default function Dashboard() {
         if (expandedJobId) {
           await fetchJobDetails(expandedJobId, true);
         }
+        setNeedsActionVersion((version) => version + 1);
       }
 
       return txHash;
