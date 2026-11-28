@@ -21,6 +21,7 @@ Production deploys to milestonepay.app are recorded under dated headings.
 
 ### Fixed
 
+- Keyboard and screen-reader users can jump to the main content on the landing and app pages (#968)
 - The job activity timeline refreshes after an action and when the dashboard poll sees new activity (#892)
 
 ### Removed

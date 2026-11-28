@@ -239,6 +239,8 @@ export default function AdminPage() {
     <div className="min-h-screen bg-surface-page text-text-primary">
       <Navbar />
       <main
+        id="main-content"
+        tabIndex={-1}
         className={`mx-auto px-6 py-12 ${
           address && isAdminUser && !adminCheckLoading ? "max-w-5xl" : "max-w-xl"
         }`}
