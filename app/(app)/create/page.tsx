@@ -30,7 +30,7 @@ export default function CreateJob() {
     >
       <Navbar />
 
-      <main className="flex-1 overflow-y-auto flex flex-col" id="main-content">
+      <main className="flex-1 overflow-y-auto flex flex-col" id="main-content" tabIndex={-1}>
         <div className="max-w-xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-12 flex-1">
           <h1 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4 text-text-primary">
             Create New Job

@@ -9,6 +9,7 @@ Production deploys to milestonepay.app are recorded under dated headings.
 
 ### Added
 
+- Mobile browser theme colors and a branded home-screen shortcut for the dashboard (#970)
 - Recover stray tokens from an escrow with "Recover excess funds" (#898)
 - Approve several delivered milestones in one transaction (#899)
 - Arbiter fee and payout shown before a dispute is resolved (#900)
@@ -20,6 +21,7 @@ Production deploys to milestonepay.app are recorded under dated headings.
 
 ### Fixed
 
+- Keyboard and screen-reader users can jump to the main content on the landing and app pages (#968)
 - The job activity timeline refreshes after an action and when the dashboard poll sees new activity (#892)
 
 ### Removed

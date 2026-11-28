@@ -3,6 +3,7 @@ import WalletLoaderOverlay from "../components/WalletLoaderOverlay";
 import GasEstimationWarningBanner from "../components/GasEstimationWarningBanner";
 import SignatureTimeoutAlert from "../components/SignatureTimeoutAlert";
 import TestnetOnboardingPanel from "../components/TestnetOnboardingPanel";
+import SkipToMainContent from "../components/SkipToMainContent";
 
 // Wallet providers and overlays live here, not in the root layout, so the
 // landing page doesn't ship the wallet stack in its first-load JS.
@@ -13,6 +14,7 @@ export default function AppLayout({
 }>) {
   return (
     <WalletProvider>
+      <SkipToMainContent />
       <GasEstimationWarningBanner className="mx-4 mt-4" />
       <TestnetOnboardingPanel />
       <SignatureTimeoutAlert />

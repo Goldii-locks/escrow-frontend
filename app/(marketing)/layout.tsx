@@ -1,5 +1,6 @@
 import { IBM_Plex_Mono, Instrument_Serif, Inter } from "next/font/google";
 import "../landing.css";
+import SkipToMainContent from "../components/SkipToMainContent";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -29,6 +30,7 @@ export default function MarketingLayout({
 }>) {
   return (
     <div className={`${inter.variable} ${instrumentSerif.variable} ${ibmPlexMono.variable}`}>
+      <SkipToMainContent />
       {children}
     </div>
   );

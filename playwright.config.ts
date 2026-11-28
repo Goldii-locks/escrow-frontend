@@ -10,7 +10,12 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:8080",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "firefox", use: { ...devices["Desktop Firefox"] } },
+    { name: "webkit", use: { ...devices["Desktop Safari"] } },
+    { name: "mobile-webkit", use: { ...devices["iPhone 14"] } },
+  ],
   webServer: {
     command: "./e2e/serve.sh && tail -f /dev/null",
     url: "http://127.0.0.1:8080/healthz",
