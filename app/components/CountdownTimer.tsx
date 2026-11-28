@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { gatedNowMs, syncLedgerOffset } from "@/app/lib/ledgerTime";
 
 interface Props {
   /** Absolute auto-release deadline, in epoch milliseconds. */
@@ -86,7 +87,10 @@ export default function CountdownTimer({
   intervalMs = SECOND,
   className = "",
 }: Props) {
-  const [now, setNow] = useState<number>(() => Date.now());
+  const [now, setNow] = useState<number>(() => gatedNowMs());
+  useEffect(() => {
+    void syncLedgerOffset();
+  }, []);
   const elapsedFired = useRef(false);
   const warningFired = useRef(false);
 
@@ -110,7 +114,7 @@ export default function CountdownTimer({
     // recomputes `remaining` without needing an immediate setState here.
     // `isTicking` is a dependency so the interval is cleared as soon as the
     // countdown reaches zero, instead of re-rendering every second forever.
-    const id = setInterval(() => setNow(Date.now()), intervalMs);
+    const id = setInterval(() => setNow(gatedNowMs()), intervalMs);
     return () => clearInterval(id);
   }, [deadline, intervalMs, isTicking]);
 

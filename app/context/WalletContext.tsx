@@ -75,9 +75,6 @@ function readActiveAddressSilently(walletId: string | null): string | undefined 
   return freighterActiveAddress.getActiveAddress()?.address ?? undefined;
 }
 
-const LEGACY_STORAGE_KEY = "milesto_wallet_connected";
-const STORAGE_KEY = LEGACY_STORAGE_KEY;
-
 export const SUPPORTED_WALLETS = [
   { id: "freighter", label: "Freighter" },
   { id: "albedo", label: "Albedo" },
@@ -175,31 +172,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     ? checkSimulationFeeWarning(simulationResult)
     : null;
 
-  const checkNetwork = useCallback(async () => {
+  const checkNetwork = useCallback(async (): Promise<string | null> => {
     try {
-      let walletPassphrase: string;
-
-      if (selectedWalletId === "freighter") {
-        const activeAddr = freighterActiveAddress.getActiveAddress();
-        walletPassphrase = activeAddr?.network ?? "";
-
-        if (!walletPassphrase) {
-          const result = await StellarWalletsKit.getNetwork();
-          walletPassphrase = result.networkPassphrase;
-        }
-      } else {
-        const result = await StellarWalletsKit.getNetwork();
-        walletPassphrase = result.networkPassphrase;
-      }
+      const { networkPassphrase: walletPassphrase } = await StellarWalletsKit.getNetwork();
 
       const walletLabel = SUPPORTED_WALLETS.find((w) => w.id === selectedWalletId)?.label;
       setNetworkMismatchMessage(assertWalletNetwork(walletPassphrase, walletLabel));
+      return walletPassphrase;
     } catch (e) {
       logWalletWarning("NETWORK CHECK FAILED", "Failed to check network", {
         err: e,
         phase: "error",
       });
       setNetworkMismatchMessage(null);
+      return null;
     }
   }, [selectedWalletId]);
 
@@ -264,9 +250,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     initialRehydrationDone.current = true;
 
     const persisted = walletStateStore.getActiveState();
-    const hadLegacyFlag = localStorage.getItem(LEGACY_STORAGE_KEY) === "true";
-
-    if (!persisted && !hadLegacyFlag) return;
+    if (!persisted) return;
 
     const walletId = persisted?.selectedWalletId ?? selectedWalletId;
 
@@ -291,7 +275,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
               });
             }
 
-            localStorage.removeItem(LEGACY_STORAGE_KEY);
             return;
           }
         } catch (e) {
@@ -303,7 +286,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
         if (!active) return;
         walletStateStore.clear();
-        localStorage.removeItem(LEGACY_STORAGE_KEY);
         setAddress(null);
         return;
       }
@@ -323,18 +305,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
                 connectedAt: Date.now(),
               });
             }
-
-            localStorage.removeItem(LEGACY_STORAGE_KEY);
           } else {
             walletStateStore.clear();
-            localStorage.removeItem(LEGACY_STORAGE_KEY);
             setAddress(null);
           }
         })
         .catch(() => {
           if (!active) return;
           walletStateStore.clear();
-          localStorage.removeItem(LEGACY_STORAGE_KEY);
           setAddress(null);
         });
     };
@@ -437,12 +415,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           if (result.address) {
             setAddress(result.address);
             walletTracker.track("connect", "success", "Wallet connected");
-            await checkNetwork();
-            localStorage.setItem(STORAGE_KEY, "true");
+            const walletNetwork = await checkNetwork();
+            walletStateStore.setActiveState({
+              address: result.address,
+              selectedWalletId: walletId,
+              networkPassphrase: NETWORK_PASSPHRASE,
+              connectedAt: Date.now(),
+            });
             if (walletId === "freighter") {
               freighterActiveAddress.setActiveAddress({
                 address: result.address,
-                network: NETWORK_PASSPHRASE,
+                network: walletNetwork ?? "",
                 connectedAt: Date.now(),
               });
             }
@@ -467,7 +450,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }
     });
     walletStateStore.clear();
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
     freighterActiveAddress.clear();
     clearAllWalletSessionStorage();
     setNetworkMismatchMessage(null);

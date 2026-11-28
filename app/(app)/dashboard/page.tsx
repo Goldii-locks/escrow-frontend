@@ -18,9 +18,24 @@ import { getArbiterJobEmptyState } from "@/app/lib/arbiter_action_panel";
 import { useActionStates } from "@/app/hooks/useActionStates";
 import { BACKEND_URL, runContractAction, submitContractTransaction } from "@/app/lib/transactions";
 import { fetchJobStateFromContract, isIndexerStale } from "@/app/lib/contract_job_state";
-import { fetchAllAutoReleaseDeadlines } from "@/app/lib/autoRelease";
+import JobAcceptancePanel from "@/app/components/JobAcceptancePanel";
+import {
+  acceptanceBlockedMessage,
+  fetchJobAcceptance,
+  isJobAccepted,
+  mergeAcceptance,
+  type JobAcceptance,
+} from "@/app/lib/job_acceptance";
+import {
+  fetchAllAutoReleaseDeadlines,
+  getJobAutoReleaseDeadlines,
+} from "@/app/lib/batchAutoRelease";
 import EscrowLockBanner from "@/app/components/EscrowLockBanner";
 import { getEscrowLockState } from "@/app/lib/escrow_lock_state";
+import DeliverableAttachModal from "@/app/components/DeliverableAttachModal";
+import AddEvidenceModal from "@/app/components/AddEvidenceModal";
+import RefundPanel from "@/app/components/RefundPanel";
+import RefundConfirmModal from "@/app/components/RefundConfirmModal";
 import {
   JobListResponseSchema,
   JobDetailResponseSchema,
@@ -40,7 +55,9 @@ import {
   shortAddress,
 } from "@/app/lib/job_list_summary";
 import { hashDisputeReason } from "@/app/lib/dispute_reason";
+import DisputeReasonBackupPanel from "@/app/components/DisputeReasonBackupPanel";
 import { canFund } from "@/app/lib/milestone_actions";
+import { storeDeliverable, type DeliverablePayload } from "@/app/lib/deliverable_store";
 import { fetchArbiterFeeBps } from "@/app/lib/arbiter_fee";
 import {
   MAX_BATCH_APPROVALS,
@@ -52,6 +69,19 @@ import {
   validateBatchSelection,
 } from "@/app/lib/batch_approval";
 import { buildSweepExcessArgs } from "@/app/lib/sweep_excess";
+
+/** Parsed job-list page returned by fetchJobs / fetchJobsData. */
+type JobsPage = ReturnType<typeof parsePageResponse>;
+
+/**
+ * Snapshot of the list-summary fields that change once the indexer sees a
+ * transaction (latest ledger, released count, funded flag). Issue #826: the
+ * updating poll compares this before/after each refetch to decide whether
+ * the indexer has actually caught up.
+ */
+function jobUpdateFingerprint(job: Job): string {
+  return `${job.latestLedger ?? ""}:${job.releasedCount ?? ""}:${job.funded ? 1 : 0}`;
+}
 
 /** Action key for the batch `approve_milestones` transaction (#899). */
 const BATCH_APPROVE_KEY = "approve-batch";
@@ -85,12 +115,18 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  const [needsActionVersion, setNeedsActionVersion] = useState(0);
   const [jobLabels, setJobLabels] = useState<Record<string, string>>({});
   const [jobDetails, setJobDetails] = useState<Record<string, Job>>({});
   const [detailsLoading, setDetailsLoading] = useState<Record<string, boolean>>({});
   const [detailsError, setDetailsError] = useState<Record<string, string>>({});
   /** Jobs whose milestone data came from the contract directly (#895). */
   const [contractFallbackIds, setContractFallbackIds] = useState<Set<string>>(new Set());
+  /**
+   * Job acceptance per contract (#802), rebuilt from the indexed
+   * `acceptjob` / `acceptarb` events. `null` = could not be read.
+   */
+  const [jobAcceptance, setJobAcceptance] = useState<Record<string, JobAcceptance | null>>({});
   const [page, setPage] = useState(1);
   const [limit] = useState(5);
   const [total, setTotal] = useState(0);
@@ -99,6 +135,26 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [disputeModalOpen, setDisputeModalOpen] = useState(false);
   const [disputeMilestoneIndex, setDisputeMilestoneIndex] = useState<number | null>(null);
+  // #804: the contract only ever sees the reason's hash. This is the one
+  // chance the user gets to save the text itself, right after it's hashed
+  // and submitted.
+  const [disputeReasonBackup, setDisputeReasonBackup] = useState<{
+    reason: string;
+    hash: string;
+  } | null>(null);
+  /** #823: deliverable attach flow for "Mark delivered". */
+  const [deliverableModalOpen, setDeliverableModalOpen] = useState(false);
+  const [deliverableMilestoneIndex, setDeliverableMilestoneIndex] = useState<number | null>(null);
+  /** #820: evidence attach flow for a disputed milestone. */
+  const [evidenceModalOpen, setEvidenceModalOpen] = useState(false);
+  const [evidenceMilestoneIndex, setEvidenceMilestoneIndex] = useState<number | null>(null);
+  /** #821: refund confirm flow. */
+  const [refundConfirmOpen, setRefundConfirmOpen] = useState(false);
+  const [refundAction, setRefundAction] = useState<{
+    kind: "withdraw_unaccepted" | "reclaim_overdue";
+    index: number | null;
+    amountStroops: string;
+  } | null>(null);
   /** Delivered milestones selected for batch approval, keyed by job (#899). */
   const [batchSelection, setBatchSelection] = useState<{ jobId: string | null; indices: number[] }>(
     { jobId: null, indices: [] }
@@ -177,13 +233,13 @@ export default function Dashboard() {
     return [pinnedJob, ...filteredJobs];
   }, [filteredJobs, pinnedJob]);
 
-  const fetchJobs = useCallback(async () => {
-    if (!address) {
-      setFetchLoading(false);
-      setJobs([]);
-      setExpandedJobId(null);
-      return;
-    }
+  /**
+   * Issue #826: core data-fetching function that returns the parsed page so
+   * callers (including startUpdatingPoll) can inspect the result without
+   * depending on React state settling.
+   */
+  const fetchJobsData = useCallback(async (): Promise<JobsPage | null> => {
+    if (!address) return null;
 
     // Abort any in-flight request and issue a fresh one.
     jobsAbortRef.current?.abort();
@@ -193,8 +249,6 @@ export default function Dashboard() {
     // Capture the sequence number for this request.
     jobsRequestIdRef.current += 1;
     const requestId = jobsRequestIdRef.current;
-
-    setFetchLoading(true);
 
     try {
       const params = new URLSearchParams({
@@ -216,18 +270,18 @@ export default function Dashboard() {
       );
 
       // Drop stale responses (a newer request already completed).
-      if (requestId !== jobsRequestIdRef.current) return;
+      if (requestId !== jobsRequestIdRef.current) return null;
 
       reportApiResponse(res, "/api/jobs/by-wallet/:address");
       if (res.status === 429) {
         setError("You're doing that too fast. Please wait a moment and try again.");
         setJobs([]);
-        return;
+        return null;
       }
       const rawData: unknown = await res.json();
 
       // Drop stale responses again after the body read.
-      if (requestId !== jobsRequestIdRef.current) return;
+      if (requestId !== jobsRequestIdRef.current) return null;
 
       const endpoint = `/api/jobs/by-wallet/${address}`;
       const data = validateResponse(JobListResponseSchema, rawData, endpoint);
@@ -237,7 +291,7 @@ export default function Dashboard() {
         setJobs([]);
         setTotal(0);
         setExpandedJobId(null);
-        return;
+        return null;
       }
 
       // Clear error only on a successful fetch so the Retry button stays
@@ -275,20 +329,40 @@ export default function Dashboard() {
         if (previous && previous === pinnedJobIdRef.current) return previous;
         return parsed.jobs[0].id;
       });
+
+      return parsed;
     } catch (err: unknown) {
       // Ignore aborted-request errors — they're intentional.
-      if (err instanceof Error && err.name === "AbortError") return;
+      if (err instanceof Error && err.name === "AbortError") return null;
       setError(err instanceof Error ? err.message : "Failed to connect to backend");
       setJobs([]);
       setTotal(0);
       setExpandedJobId(null);
+      return null;
+    }
+  }, [address, page, limit, roleFilter]);
+
+  /** fetchJobs wraps fetchJobsData (#826) and also returns the parsed page. */
+  const fetchJobs = useCallback(async (): Promise<JobsPage | null> => {
+    if (!address) {
+      setFetchLoading(false);
+      setJobs([]);
+      setExpandedJobId(null);
+      return null;
+    }
+
+    setFetchLoading(true);
+    // fetchJobsData assigns this request the next sequence number.
+    const expectedRequestId = jobsRequestIdRef.current + 1;
+    try {
+      return await fetchJobsData();
     } finally {
       // Only clear the loading flag if this response is still current.
-      if (requestId === jobsRequestIdRef.current) {
+      if (expectedRequestId === jobsRequestIdRef.current) {
         setFetchLoading(false);
       }
     }
-  }, [address, page, limit, roleFilter]);
+  }, [address, fetchJobsData]);
 
   const fetchJobDetails = useCallback(
     async (jobId: string, force = false) => {
@@ -394,14 +468,21 @@ export default function Dashboard() {
   );
 
   /**
-   * Issue #670: mark a job row as "Updating…" then re-poll the job list with
-   * exponential backoff until either the fetch succeeds (indexer caught up)
-   * or 2 minutes have elapsed.
+   * Issue #670/#826: mark a job row as "Updating…" then re-poll the job list
+   * with exponential backoff until either the job's update fingerprint
+   * (latestLedger / releasedCount / funded) has changed from the
+   * pre-action snapshot or 2 minutes have elapsed.
    *
    * Backoff sequence: 2 s → 4 s → 8 s → 15 s → 15 s → … (cap at 15 s).
+   *
+   * @param jobId - The job to watch.
+   * @param preActionFingerprint - Snapshot of the job state taken right
+   *   before (or immediately after) the successful transaction. The poll
+   *   continues until the refetched list shows a different fingerprint for
+   *   this job, meaning the indexer has caught up.
    */
   const startUpdatingPoll = useCallback(
-    (jobId: string) => {
+    (jobId: string, preActionFingerprint: string) => {
       // Cancel any in-flight poll for this job.
       updatingPollerRefs.current.get(jobId)?.();
 
@@ -440,8 +521,16 @@ export default function Dashboard() {
         timerId = setTimeout(async () => {
           if (cancelled) return;
           try {
-            await fetchJobs();
-            stop();
+            // Issue #826: compare the refetched job fingerprint to the
+            // pre-action snapshot; stop only when it changes (or deadline).
+            const result = await fetchJobsData();
+            const updatedJob = result?.jobs.find((j) => j.id === jobId);
+            const newFingerprint = updatedJob ? jobUpdateFingerprint(updatedJob) : null;
+            if (newFingerprint !== null && newFingerprint !== preActionFingerprint) {
+              stop();
+            } else {
+              scheduleNext();
+            }
           } catch {
             scheduleNext();
           }
@@ -451,7 +540,7 @@ export default function Dashboard() {
       scheduleNext();
       updatingPollerRefs.current.set(jobId, stop);
     },
-    [fetchJobs]
+    [fetchJobsData]
   );
 
   useEffect(() => {
@@ -481,6 +570,40 @@ export default function Dashboard() {
       active = false;
     };
   }, [expandedJobId, fetchJobDetails]);
+
+  /**
+   * Indexed ledger of the expanded job. Acceptance events move it, so this is
+   * also the signal to re-read the acceptance state after either party acts.
+   */
+  const expandedJobLatestLedger = expandedJobId
+    ? (jobs.find((job) => job.id === expandedJobId)?.latestLedger ?? null)
+    : null;
+
+  useEffect(() => {
+    if (!expandedJobId) return;
+    const jobId = expandedJobId;
+    const controller = new AbortController();
+
+    fetchJobAcceptance(jobId, { signal: controller.signal })
+      .then((acceptance) => {
+        if (controller.signal.aborted) return;
+        setJobAcceptance((current) => ({
+          ...current,
+          [jobId]: mergeAcceptance(current[jobId], acceptance),
+        }));
+      })
+      .catch((err: unknown) => {
+        if (err instanceof Error && err.name === "AbortError") return;
+        // Keep any bit already read: acceptance never reverses, and a
+        // transient read failure must not resurface the accept CTA.
+        setJobAcceptance((current) => ({
+          ...current,
+          [jobId]: mergeAcceptance(current[jobId], null),
+        }));
+      });
+
+    return () => controller.abort();
+  }, [expandedJobId, expandedJobLatestLedger]);
 
   useEffect(() => {
     if (!address) return;
@@ -543,6 +666,8 @@ export default function Dashboard() {
 
   const expandedJob = expandedJobId ? (jobDetails[expandedJobId] ?? null) : null;
   const milestoneList = Array.isArray(expandedJob?.milestones) ? expandedJob.milestones : [];
+  /** Acceptance for the open job; `null` until read or when unreadable (#802). */
+  const acceptanceForExpandedJob = expandedJob ? (jobAcceptance[expandedJob.id] ?? null) : null;
 
   // Refetch the activity timeline whenever the job changes: a new ledger in
   // the list summary, or a new funded/milestone state from the detail (#892).
@@ -556,8 +681,7 @@ export default function Dashboard() {
   // Reload "Needs your action" when the poll or an action changes any job.
   const needsActionRefreshKey = [
     jobs.map((job) => `${job.id}:${job.latestLedger ?? ""}:${job.releasedCount ?? ""}`).join(","),
-    expandedJobId ?? "",
-    timelineRefreshKey,
+    needsActionVersion,
   ].join("|");
 
   /** Opens the job and milestone a "Needs your action" row points at (#888). */
@@ -570,9 +694,8 @@ export default function Dashboard() {
       setJobDetails((current) => (current[job.id] ? current : { ...current, [job.id]: job }));
       setExpandedJobId(job.id);
       setFocusTarget({ jobId: job.id, milestoneIndex, nonce: Date.now() });
-      void fetchJobDetails(job.id, true);
     },
-    [jobs, fetchJobDetails]
+    [jobs]
   );
 
   /** Expanding or collapsing a row by hand drops any panel pin and highlight. */
@@ -653,33 +776,23 @@ export default function Dashboard() {
     };
   }, [expandedJobId, expandedJobHasDispute, arbiterFeeBps]);
 
-  const [autoReleaseDeadlines, setAutoReleaseDeadlines] = useState<Record<number, number | null>>(
-    {}
-  );
+  const [deadlineSnapshot, setDeadlineSnapshot] = useState<{
+    job: Job;
+    deadlines: Record<number, number | null>;
+  } | null>(null);
+  const autoReleaseDeadlines =
+    deadlineSnapshot && deadlineSnapshot.job === expandedJob
+      ? deadlineSnapshot.deadlines
+      : expandedJob
+        ? getJobAutoReleaseDeadlines(expandedJob)
+        : {};
 
   useEffect(() => {
+    if (!expandedJob) return;
     const controller = new AbortController();
-    const jobId = expandedJob?.id;
-    const deliveredIndexes = (Array.isArray(expandedJob?.milestones) ? expandedJob.milestones : [])
-      .filter((m) => m.status === "Delivered")
-      .map((m) => m.index);
-
-    (async () => {
-      if (!jobId || deliveredIndexes.length === 0) {
-        await Promise.resolve();
-        if (!controller.signal.aborted) setAutoReleaseDeadlines({});
-        return;
-      }
-
-      // Issue #671: fetch ALL milestone deadlines in one request instead of
-      // one request per delivered milestone (N+1 problem).
-      const deadlines = await fetchAllAutoReleaseDeadlines(jobId, deliveredIndexes, {
-        signal: controller.signal,
-      });
-      if (!controller.signal.aborted) {
-        setAutoReleaseDeadlines(deadlines);
-      }
-    })();
+    void fetchAllAutoReleaseDeadlines(expandedJob, controller.signal).then((deadlines) => {
+      if (!controller.signal.aborted) setDeadlineSnapshot({ job: expandedJob, deadlines });
+    });
 
     return () => controller.abort();
   }, [expandedJob]);
@@ -690,6 +803,13 @@ export default function Dashboard() {
       // Every action targets the expanded job's own contract: each escrow
       // created through the factory is a separate contract.
       const contractId = expandedJobId;
+
+      // Issue #826: snapshot the job's list state before the action so the
+      // updating poll can tell when the indexer has caught up.
+      const preActionJob = jobs.find((j) => j.id === contractId);
+      const preActionFingerprint = preActionJob
+        ? jobUpdateFingerprint(preActionJob)
+        : "no-pre-action-snapshot";
 
       // Stage the action so the global signature-timeout alert can rebuild
       // and re-sign it with a fresh XDR (#676).
@@ -711,9 +831,11 @@ export default function Dashboard() {
 
       if (txHash !== null) {
         // Issue #670: immediately mark the row as "Updating…" so the user
-        // knows the action succeeded while the indexer catches up.
+        // knows the action succeeded while the indexer catches up. Issue
+        // #826: pass the pre-action fingerprint so the poll only clears the
+        // badge once the job state actually changed.
         if (expandedJobId) {
-          startUpdatingPoll(expandedJobId);
+          startUpdatingPoll(expandedJobId, preActionFingerprint);
         }
 
         // Issue #895: confirm the new state directly from the contract first,
@@ -734,6 +856,7 @@ export default function Dashboard() {
         if (expandedJobId) {
           await fetchJobDetails(expandedJobId, true);
         }
+        setNeedsActionVersion((version) => version + 1);
       }
 
       return txHash;
@@ -748,6 +871,7 @@ export default function Dashboard() {
       setTxHash,
       fetchJobs,
       expandedJobId,
+      jobs,
       fetchJobDetails,
       startUpdatingPoll,
       setJobDetails,
@@ -774,13 +898,39 @@ export default function Dashboard() {
     ]);
   };
 
-  const handleMarkDelivered = async (i: number) => {
-    if (!address || !expandedJobId) return;
+  const handleMarkDelivered = (i: number) => {
+    setDeliverableMilestoneIndex(i);
+    setDeliverableModalOpen(true);
+  };
 
-    await executeTx(actionKey(expandedJobId, "deliver", i), "mark_delivered", [
+  const handleMarkDeliveredConfirm = async (hash: string, payload: DeliverablePayload) => {
+    if (!address || deliverableMilestoneIndex === null || !expandedJobId) return;
+
+    // Store the content off-chain (best-effort; never blocks the on-chain call).
+    void storeDeliverable(expandedJobId, deliverableMilestoneIndex, payload);
+
+    const args: { type: string; value: unknown }[] = [
       { type: "address", value: address },
-      { type: "u32", value: i.toString() },
-    ]);
+      { type: "u32", value: deliverableMilestoneIndex.toString() },
+    ];
+
+    if (hash && hash.length === 64) {
+      args.push({ type: "bytes", value: hash });
+      await executeTx(
+        actionKey(expandedJobId, "deliver_with_hash", deliverableMilestoneIndex),
+        "mark_delivered_with_hash",
+        args
+      );
+    } else {
+      await executeTx(
+        actionKey(expandedJobId, "deliver", deliverableMilestoneIndex),
+        "mark_delivered",
+        args
+      );
+    }
+
+    setDeliverableModalOpen(false);
+    setDeliverableMilestoneIndex(null);
   };
 
   const handleFund = async () => {
@@ -788,6 +938,58 @@ export default function Dashboard() {
 
     await executeTx(actionKey(expandedJob.id, "fund"), "fund", [
       { type: "address", value: address },
+    ]);
+  };
+
+  /** Freelancer accepts the job so `mark_delivered` becomes available (#802). */
+  const handleAcceptJob = async () => {
+    if (!address || !expandedJobId) return;
+    const jobId = expandedJobId;
+
+    const txHash = await executeTx(actionKey(jobId, "accept-job"), "accept_job", [
+      { type: "address", value: address },
+    ]);
+
+    if (txHash !== null) {
+      // Acceptance never moves backwards on-chain: show it immediately while
+      // the indexer catches up with the new event.
+      setJobAcceptance((current) => ({
+        ...current,
+        [jobId]: {
+          freelancerAccepted: true,
+          arbiterAccepted: current[jobId]?.arbiterAccepted ?? false,
+        },
+      }));
+    }
+  };
+
+  /** Arbiter accepts the job so delivery and disputes become available (#802). */
+  const handleAcceptArbiter = async () => {
+    if (!address || !expandedJobId) return;
+    const jobId = expandedJobId;
+
+    const txHash = await executeTx(actionKey(jobId, "accept-arbiter"), "accept_arbiter", [
+      { type: "address", value: address },
+    ]);
+
+    if (txHash !== null) {
+      setJobAcceptance((current) => ({
+        ...current,
+        [jobId]: {
+          freelancerAccepted: current[jobId]?.freelancerAccepted ?? false,
+          arbiterAccepted: true,
+        },
+      }));
+    }
+  };
+
+  /** #822: fund a single milestone (per-milestone funding only). */
+  const handleFundMilestone = async (i: number) => {
+    if (!address || !expandedJobId) return;
+
+    await executeTx(actionKey(expandedJobId, "fund_milestone", i), "fund_milestone", [
+      { type: "address", value: address },
+      { type: "u32", value: i.toString() },
     ]);
   };
 
@@ -821,6 +1023,11 @@ export default function Dashboard() {
   };
 
   const handleDispute = (i: number) => {
+    // Issue #828: clear any error left by a previous failed attempt so a
+    // re-opened modal doesn't show a stale failure before submitting.
+    if (expandedJobId) {
+      setActionError(actionKey(expandedJobId, "dispute", i), null);
+    }
     setDisputeMilestoneIndex(i);
     setDisputeModalOpen(true);
   };
@@ -829,14 +1036,31 @@ export default function Dashboard() {
     if (!address || disputeMilestoneIndex === null || !expandedJobId) return;
 
     // The contract takes a 32-byte hash of the reason, not the text (#590).
-    await executeTx(actionKey(expandedJobId, "dispute", disputeMilestoneIndex), "raise_dispute", [
-      { type: "address", value: address },
-      { type: "u32", value: disputeMilestoneIndex.toString() },
-      { type: "bytes", value: await hashDisputeReason(reason) },
-    ]);
+    const hash = await hashDisputeReason(reason);
+    const txHash = await executeTx(
+      actionKey(expandedJobId, "dispute", disputeMilestoneIndex),
+      "raise_dispute",
+      [
+        { type: "address", value: address },
+        { type: "u32", value: disputeMilestoneIndex.toString() },
+        { type: "bytes", value: hash },
+      ]
+    );
+
+    // Issue #828: executeTx returns null on failure (wallet rejection,
+    // simulation error, backend error) and never rejects — the error lives
+    // in the action state. Keep the modal open so the typed reason survives
+    // and the submissionError prop stays visible; close only on success.
+    if (txHash === null) return;
 
     setDisputeModalOpen(false);
     setDisputeMilestoneIndex(null);
+
+    // #804: the text never goes anywhere else, on-chain or off — this is
+    // the only chance to hand it back to the user.
+    if (txHash !== null) {
+      setDisputeReasonBackup({ reason, hash });
+    }
   };
 
   const handleResolveDispute = async (index: number, releaseToFreelancer: boolean) => {
@@ -848,6 +1072,87 @@ export default function Dashboard() {
       { type: "bool", value: releaseToFreelancer },
     ]);
   };
+
+  /** #820: attach evidence to a disputed milestone. */
+  const handleAddEvidence = (i: number) => {
+    setEvidenceMilestoneIndex(i);
+    setEvidenceModalOpen(true);
+  };
+
+  const handleEvidenceSubmit = async (
+    hash: string,
+    payload: {
+      title: string;
+      description?: string | null;
+      fileBase64?: string | null;
+      fileType?: string | null;
+      fileName?: string | null;
+    }
+  ) => {
+    if (!address || evidenceMilestoneIndex === null || !expandedJobId) return;
+
+    // Store the content off-chain (best-effort).
+    void storeDeliverable(expandedJobId, evidenceMilestoneIndex, {
+      hash,
+      ...payload,
+    });
+
+    await executeTx(
+      actionKey(expandedJobId, "submit_evidence", evidenceMilestoneIndex),
+      "submit_evidence",
+      [
+        { type: "address", value: address },
+        { type: "u32", value: evidenceMilestoneIndex.toString() },
+        { type: "bytes", value: hash },
+      ]
+    );
+
+    setEvidenceModalOpen(false);
+    setEvidenceMilestoneIndex(null);
+  };
+
+  /** #821: open the refund confirm modal for a client refund action. */
+  const openRefundConfirm = (
+    kind: "withdraw_unaccepted" | "reclaim_overdue",
+    index: number | null,
+    amountStroops: string
+  ) => {
+    setRefundAction({ kind, index, amountStroops });
+    setRefundConfirmOpen(true);
+  };
+
+  const handleRefundConfirm = async () => {
+    if (!address || !expandedJobId || !refundAction) return;
+
+    const { kind, index } = refundAction;
+
+    if (kind === "withdraw_unaccepted") {
+      await executeTx(actionKey(expandedJobId, "withdraw_unaccepted"), "withdraw_unaccepted", [
+        { type: "address", value: address },
+      ]);
+    } else if (kind === "reclaim_overdue" && index != null) {
+      await executeTx(actionKey(expandedJobId, "reclaim_overdue", index), "reclaim_overdue", [
+        { type: "address", value: address },
+        { type: "u32", value: index.toString() },
+      ]);
+    }
+
+    setRefundConfirmOpen(false);
+    setRefundAction(null);
+  };
+
+  /** Resolve the action-state key for the currently open refund, if any. */
+  const refundActionKey = useMemo(() => {
+    if (!expandedJobId || !refundAction) return null;
+    if (refundAction.kind === "withdraw_unaccepted") {
+      return actionKey(expandedJobId, "withdraw_unaccepted");
+    }
+    if (refundAction.kind === "reclaim_overdue" && refundAction.index != null) {
+      return actionKey(expandedJobId, "reclaim_overdue", refundAction.index);
+    }
+    return null;
+  }, [expandedJobId, refundAction]);
+  const isRefundPending = refundActionKey != null ? isPending(refundActionKey) : false;
 
   const paginationButtons = useMemo(() => {
     const pages: number[] = [];
@@ -870,7 +1175,11 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-surface-page text-text-primary">
       <Navbar />
-      <main className="w-full max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-12">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="w-full max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-12"
+      >
         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4 sm:mb-6">Job Dashboard</h1>
 
         {!address ? (
@@ -1201,30 +1510,51 @@ export default function Dashboard() {
                                     </p>
                                   </div>
                                 </div>
+                                {canFund(expandedJob, isClient) &&
+                                  expandedJob.fundingMode !== "PerMilestone" && (
+                                    <div className="bg-amber-950/40 border border-amber-600/50 rounded-lg p-3 sm:p-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                      <div>
+                                        <p className="text-amber-300 font-semibold text-sm">
+                                          Escrow Unfunded
+                                        </p>
 
-                                {canFund(expandedJob, isClient) && (
-                                  <div className="bg-amber-950/40 border border-amber-600/50 rounded-lg p-3 sm:p-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                    <div>
-                                      <p className="text-amber-300 font-semibold text-sm">
-                                        Escrow Unfunded
-                                      </p>
-                                      <p className="text-amber-200/80 text-xs mt-0.5">
-                                        Deposit the escrow tokens so the freelancer can begin
-                                        delivery.
-                                      </p>
+                                        <p className="text-amber-200/80 text-xs mt-0.5">
+                                          Deposit the escrow tokens so the freelancer can begin
+                                          delivery.
+                                        </p>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={handleFund}
+                                        disabled={isPending(actionKey(expandedJob.id, "fund"))}
+                                        className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-semibold transition"
+                                      >
+                                        {isPending(actionKey(expandedJob.id, "fund"))
+                                          ? "Funding..."
+                                          : "Fund escrow"}
+                                      </button>
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={handleFund}
-                                      disabled={isPending(actionKey(expandedJob.id, "fund"))}
-                                      className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-semibold transition"
-                                    >
-                                      {isPending(actionKey(expandedJob.id, "fund"))
-                                        ? "Funding..."
-                                        : "Fund escrow"}
-                                    </button>
-                                  </div>
-                                )}
+                                  )}
+                                <JobAcceptancePanel
+                                  acceptance={acceptanceForExpandedJob}
+                                  loading={!(expandedJob.id in jobAcceptance)}
+                                  isFreelancer={isFreelancer}
+                                  isArbiter={isArbiter}
+                                  onAcceptJob={handleAcceptJob}
+                                  onAcceptArbiter={handleAcceptArbiter}
+                                  isAcceptJobPending={isPending(
+                                    actionKey(expandedJob.id, "accept-job")
+                                  )}
+                                  isAcceptArbiterPending={isPending(
+                                    actionKey(expandedJob.id, "accept-arbiter")
+                                  )}
+                                  acceptJobError={
+                                    getState(actionKey(expandedJob.id, "accept-job")).error
+                                  }
+                                  acceptArbiterError={
+                                    getState(actionKey(expandedJob.id, "accept-arbiter")).error
+                                  }
+                                />
                                 {contractFallbackIds.has(job.id) && (
                                   <p
                                     data-testid="contract-fallback-banner"
@@ -1333,6 +1663,12 @@ export default function Dashboard() {
                                           onMarkDelivered={handleMarkDelivered}
                                           onApprove={handleApprove}
                                           onDispute={handleDispute}
+                                          onFundMilestone={handleFundMilestone}
+                                          onAddEvidence={handleAddEvidence}
+                                          fundingMode={expandedJob.fundingMode ?? null}
+                                          isFundMilestonePending={isPending(
+                                            actionKey(expandedJobId, "fund_milestone", m.index)
+                                          )}
                                           escrowLocked={escrowLock.actionsDisabled}
                                           lockTooltip={escrowLock.tooltip}
                                           arbiterFeeBps={
@@ -1346,6 +1682,13 @@ export default function Dashboard() {
                                           selectable={offerBatchApproval}
                                           selected={selectedForBatch.includes(m.index)}
                                           onSelectChange={handleBatchSelectChange}
+                                          acceptancePending={
+                                            acceptanceForExpandedJob !== null &&
+                                            !isJobAccepted(acceptanceForExpandedJob)
+                                          }
+                                          acceptanceMessage={acceptanceBlockedMessage(
+                                            acceptanceForExpandedJob
+                                          )}
                                         />
                                       </div>
                                     ))
@@ -1483,6 +1826,94 @@ export default function Dashboard() {
               ? getState(actionKey(expandedJobId, "dispute", disputeMilestoneIndex))?.error
               : undefined
           }
+        />
+      )}
+
+      {disputeReasonBackup && (
+        <DisputeReasonBackupPanel
+          reason={disputeReasonBackup.reason}
+          hash={disputeReasonBackup.hash}
+          onDismiss={() => setDisputeReasonBackup(null)}
+        />
+      )}
+
+      {/* #821: Client refund panel (withdraw unaccepted / reclaim overdue). */}
+      {isClient && expandedJob && (
+        <RefundPanel
+          job={expandedJob}
+          address={address}
+          isClient={isClient}
+          onRefund={openRefundConfirm}
+          isRefundPending={
+            expandedJobId && refundActionKey != null ? isPending(refundActionKey) : false
+          }
+          refundError={
+            expandedJobId && refundActionKey != null ? getState(refundActionKey)?.error : undefined
+          }
+        />
+      )}
+
+      {/* #823: Deliverable attach modal for "Mark delivered". */}
+      {deliverableMilestoneIndex !== null && (
+        <DeliverableAttachModal
+          isOpen={deliverableModalOpen}
+          onClose={() => {
+            setDeliverableModalOpen(false);
+            setDeliverableMilestoneIndex(null);
+          }}
+          onConfirm={handleMarkDeliveredConfirm}
+          milestoneIndex={deliverableMilestoneIndex}
+          isConfirming={
+            expandedJobId
+              ? isPending(actionKey(expandedJobId, "deliver_with_hash", deliverableMilestoneIndex))
+              : false
+          }
+          errorMessage={
+            expandedJobId
+              ? getState(actionKey(expandedJobId, "deliver_with_hash", deliverableMilestoneIndex))
+                  ?.error
+              : undefined
+          }
+        />
+      )}
+
+      {/* #820: Add evidence modal for a disputed milestone. */}
+      {evidenceMilestoneIndex !== null && (
+        <AddEvidenceModal
+          isOpen={evidenceModalOpen}
+          onClose={() => {
+            setEvidenceModalOpen(false);
+            setEvidenceMilestoneIndex(null);
+          }}
+          onConfirm={handleEvidenceSubmit}
+          milestoneIndex={evidenceMilestoneIndex}
+          isConfirming={
+            expandedJobId
+              ? isPending(actionKey(expandedJobId, "submit_evidence", evidenceMilestoneIndex))
+              : false
+          }
+          errorMessage={
+            expandedJobId
+              ? getState(actionKey(expandedJobId, "submit_evidence", evidenceMilestoneIndex))?.error
+              : undefined
+          }
+        />
+      )}
+
+      {/* #821: Refund confirm modal. */}
+      {refundConfirmOpen && refundAction && expandedJob && (
+        <RefundConfirmModal
+          isOpen={refundConfirmOpen}
+          onClose={() => {
+            setRefundConfirmOpen(false);
+            setRefundAction(null);
+          }}
+          onConfirm={handleRefundConfirm}
+          action={refundAction.kind}
+          amountStroops={refundAction.amountStroops}
+          decimals={expandedJob.tokenDecimals ?? 7}
+          symbol={expandedJob.tokenSymbol ?? "XLM"}
+          isConfirming={isRefundPending}
         />
       )}
     </div>

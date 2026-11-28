@@ -1,12 +1,22 @@
-import { BACKEND_URL, CONTRACT_ID, FACTORY_CONTRACT_ID } from "@/app/lib/config";
+import {
+  API_REQUEST_TIMEOUT_MS,
+  BACKEND_URL,
+  CONTRACT_ID,
+  createRpcServer,
+  FACTORY_CONTRACT_ID,
+  SUBMIT_REQUEST_TIMEOUT_MS,
+} from "@/app/lib/config";
 import {
   formatTxError,
   PreparedTransactionMismatchError,
+  TxRequestTimeoutError,
   WalletRejectedError,
 } from "@/app/lib/errors";
 import { reportClientError } from "@/app/lib/errorReporter";
 import { verifyPreparedTransaction } from "@/app/lib/tx_verification";
 import type { WalletSimulationResult } from "@/app/lib/wallet_session";
+import { NETWORK_PASSPHRASE } from "@/app/lib/network_config";
+import { Transaction } from "@stellar/stellar-sdk";
 
 /**
  * `BACKEND_URL`, `CONTRACT_ID` and `FACTORY_CONTRACT_ID` are deployment
@@ -17,7 +27,12 @@ export { BACKEND_URL, CONTRACT_ID, FACTORY_CONTRACT_ID };
 
 export type ContractArg = { type: string; value: unknown };
 
-export type TxPhase = "idle" | "building" | "signing" | "submitting" | "success" | "error";
+export type TxPhase =
+  "idle" | "building" | "signing" | "submitting" | "confirming" | "success" | "error";
+
+/** How long {@link waitForTransactionConfirmation} polls before giving up (#570). */
+const CONFIRMATION_POLL_TIMEOUT_MS = 30_000;
+const CONFIRMATION_POLL_INTERVAL_MS = 1_500;
 
 /** Default bound used by {@link signTxWithTimeout}. */
 export const DEFAULT_SIGNING_TIMEOUT_MS = 60_000;
@@ -101,13 +116,86 @@ export function getPhaseLabel(phase: TxPhase): string {
       return "Sign in wallet...";
     case "submitting":
       return "Submitting...";
+    case "confirming":
+      return "Confirming on-chain...";
     default:
       return "";
   }
 }
 
 export function isTxPending(phase: TxPhase): boolean {
-  return phase === "building" || phase === "signing" || phase === "submitting";
+  return (
+    phase === "building" || phase === "signing" || phase === "submitting" || phase === "confirming"
+  );
+}
+
+// =============================================================================
+// Request timeouts (#825)
+// =============================================================================
+//
+// `AbortSignal.timeout` is not driven by vitest's fake timers, so the timeout
+// is built from an explicit `AbortController` + `setTimeout`. The controller's
+// `timedOut` flag distinguishes "the request took too long" (raise a
+// retryable TxRequestTimeoutError) from a genuine network failure, which
+// keeps its own message.
+
+/** Handle returned by {@link createRequestTimeout}. */
+export interface RequestTimeout {
+  signal: AbortSignal;
+  /** True once the configured timeout elapsed (as opposed to a fetch error). */
+  readonly timedOut: boolean;
+  /** Clears the underlying timer once the request has settled. */
+  clear(): void;
+}
+
+/**
+ * Creates an `AbortSignal` that aborts after `timeoutMs`, driven by a plain
+ * `setTimeout` so tests can advance it with fake timers.
+ */
+export function createRequestTimeout(timeoutMs: number): RequestTimeout {
+  const controller = new AbortController();
+  const state = { timedOut: false };
+  const timer = setTimeout(() => {
+    state.timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  return {
+    signal: controller.signal,
+    get timedOut() {
+      return state.timedOut;
+    },
+    clear() {
+      clearTimeout(timer);
+    },
+  };
+}
+
+/**
+ * Computes the hash of a signed transaction envelope locally, so a submit
+ * timeout (#825) can still tell the user which transaction to look up.
+ * Returns null when the XDR can't be decoded; the caller degrades gracefully.
+ */
+export function computeSignedTxHash(signedXdr: string): string | null {
+  try {
+    const bytes = new Transaction(signedXdr, NETWORK_PASSPHRASE).hash();
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return null;
+  }
+}
+
+/** Builds the submit-phase timeout error, including the local tx hash when available. */
+function buildSubmitTimeoutError(signedXdr: string): TxRequestTimeoutError {
+  const hash = computeSignedTxHash(signedXdr);
+  if (hash) {
+    return new TxRequestTimeoutError(
+      `We couldn't confirm whether your transaction was submitted. Your signed transaction's hash (computed locally) is ${hash} — check it on a Stellar explorer to see whether it went through before retrying.`
+    );
+  }
+  return new TxRequestTimeoutError(
+    "We couldn't confirm whether your transaction was submitted. Please check a Stellar explorer with your recent transactions before retrying."
+  );
 }
 
 // =============================================================================
@@ -158,6 +246,93 @@ export function extractSubmitTxHash(body: unknown): string {
       body.transactionHash
     ) ?? ""
   );
+}
+
+/**
+ * Extracts `sendTransaction`'s own status (`PENDING`, `DUPLICATE`, `ERROR`,
+ * `TRY_AGAIN_LATER`, ...) from a `/api/jobs/submit` success body, from either
+ * the `data` envelope or a flat top-level copy. A 200 response only means the
+ * backend queued the transaction with the network — this status (and, later,
+ * `getTransaction`) is what actually says whether it was accepted (#570).
+ */
+export function extractSubmitStatus(body: unknown): string | null {
+  if (!isRecord(body)) return null;
+
+  const data = isRecord(body.data) ? body.data : undefined;
+
+  return firstString(data?.status, body.status);
+}
+
+/** `sendTransaction` statuses that mean the network never queued the transaction. */
+const SUBMIT_FAILURE_STATUSES = new Set(["ERROR", "TRY_AGAIN_LATER"]);
+
+/**
+ * Polls `getTransaction` until the network reports the submitted transaction
+ * as applied (`SUCCESS`) or rejected (`FAILED`), or until `timeoutMs` elapses.
+ *
+ * A 200 from `/api/jobs/submit` only acknowledges that `sendTransaction`
+ * queued the transaction (`PENDING`); it can still fail once applied, e.g. on
+ * a resource fee shortfall, an auth failure, or a contract error (#570). This
+ * is the step that turns that queued status into a real outcome.
+ */
+async function waitForTransactionConfirmation(
+  txHash: string,
+  { timeoutMs = CONFIRMATION_POLL_TIMEOUT_MS }: { timeoutMs?: number } = {}
+): Promise<void> {
+  const [server, { Api }] = await Promise.all([
+    createRpcServer(),
+    import("@stellar/stellar-sdk/rpc"),
+  ]);
+
+  const deadline = Date.now() + timeoutMs;
+
+  while (true) {
+    const response = await server.getTransaction(txHash);
+
+    if (response.status === Api.GetTransactionStatus.SUCCESS) {
+      return;
+    }
+
+    if (response.status === Api.GetTransactionStatus.FAILED) {
+      const code = extractFailedResultCode(response);
+      throw new Error(
+        code
+          ? `Your transaction was rejected by the network (${code}).`
+          : "Your transaction was rejected by the network."
+      );
+    }
+
+    // Still NOT_FOUND (not yet ingested) — keep polling until the deadline.
+    if (Date.now() >= deadline) {
+      throw new Error(
+        "We could not confirm your transaction in time. It may still succeed; check the explorer before retrying."
+      );
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, CONFIRMATION_POLL_INTERVAL_MS));
+  }
+}
+
+/**
+ * Best-effort extraction of the ledger-level `TransactionResultCode` name
+ * (e.g. `"txFAILED"`, `"txINSUFFICIENT_FEE"`, `"txBAD_AUTH"`) from a FAILED
+ * `getTransaction` response's `resultXdr` union, so the error we surface
+ * names *why* the network rejected it rather than just that it did. Not the
+ * Soroban contract's own error code — that lives in diagnostic events, which
+ * `getTransaction` doesn't return — so this stays a coarser, but reliably
+ * decodable, signal. Guarded since XDR union shapes vary across SDK minor
+ * versions and this is best-effort, not load-bearing.
+ */
+function extractFailedResultCode(response: { resultXdr?: unknown }): string | null {
+  try {
+    const result = response.resultXdr as {
+      result?: () => { switch?: () => { name?: string } };
+    };
+    const name = result?.result?.()?.switch?.()?.name;
+    return typeof name === "string" ? name : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -242,16 +417,30 @@ export async function submitContractTransaction({
 }): Promise<string> {
   onPhase?.("building");
 
-  const buildTxRes = await fetch(`${BACKEND_URL}/api/jobs/build-tx`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contractId,
-      method,
-      args,
-      sourceAddress,
-    }),
-  });
+  // The build must not hang forever (#825): a stuck backend would leave the
+  // action in "Preparing..." with no way to retry without a reload.
+  const buildTimeout = createRequestTimeout(API_REQUEST_TIMEOUT_MS);
+  let buildTxRes: Response;
+  try {
+    buildTxRes = await fetch(`${BACKEND_URL}/api/jobs/build-tx`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contractId,
+        method,
+        args,
+        sourceAddress,
+      }),
+      signal: buildTimeout.signal,
+    });
+  } catch (err) {
+    if (buildTimeout.timedOut) {
+      throw new TxRequestTimeoutError("Preparing the transaction timed out. Please try again.");
+    }
+    throw err;
+  } finally {
+    buildTimeout.clear();
+  }
 
   if (!buildTxRes.ok) {
     const message = await parseErrorResponse(
@@ -313,11 +502,27 @@ export async function submitContractTransaction({
 
   onPhase?.("submitting");
 
-  const submitRes = await fetch(`${BACKEND_URL}/api/jobs/submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ signedXdr }),
-  });
+  // Longer bound than build-tx (#825): the backend waits for on-chain
+  // confirmation before answering. If it still doesn't answer, the signed
+  // transaction may already be out, so the error carries the locally
+  // computed hash for the user to check.
+  const submitTimeout = createRequestTimeout(SUBMIT_REQUEST_TIMEOUT_MS);
+  let submitRes: Response;
+  try {
+    submitRes = await fetch(`${BACKEND_URL}/api/jobs/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ signedXdr }),
+      signal: submitTimeout.signal,
+    });
+  } catch (err) {
+    if (submitTimeout.timedOut) {
+      throw buildSubmitTimeoutError(signedXdr);
+    }
+    throw err;
+  } finally {
+    submitTimeout.clear();
+  }
 
   if (!submitRes.ok) {
     const message = await parseErrorResponse(
@@ -335,6 +540,18 @@ export async function submitContractTransaction({
       "Your transaction was submitted but the backend did not return a transaction hash."
     );
   }
+
+  // A 200 here is only sendTransaction's acknowledgement that the network
+  // *queued* the transaction (PENDING) — ERROR / TRY_AGAIN_LATER mean it
+  // never queued at all, and even PENDING can still fail once applied, so
+  // neither is a real success yet (#570).
+  const submitStatus = extractSubmitStatus(result);
+  if (submitStatus && SUBMIT_FAILURE_STATUSES.has(submitStatus.toUpperCase())) {
+    throw new Error("Your transaction could not be submitted. Please try again.");
+  }
+
+  onPhase?.("confirming");
+  await waitForTransactionConfirmation(txHash);
 
   return txHash;
 }

@@ -125,3 +125,26 @@ describe("formatCreateEscrowError", () => {
     );
   });
 });
+
+// =============================================================================
+// #803 — every known contract error code must have a message
+// =============================================================================
+
+describe("ERROR_MESSAGES completeness (#803)", () => {
+  // The escrow contract's `Error` enum isn't importable from this frontend
+  // repo (no vendored Rust source or generated TS bindings were found), so
+  // this is the known full set of valid codes as of this fix. If the
+  // contract enum grows, this list — and ERROR_MESSAGES — needs a manual
+  // update; there is no automatic source of truth to check against.
+  const KNOWN_CONTRACT_ERROR_CODES = Array.from({ length: 55 }, (_, i) => i + 1);
+
+  it.each(KNOWN_CONTRACT_ERROR_CODES)("has a message for code %i", (code) => {
+    expect(ERROR_MESSAGES[code]).toBeTypeOf("string");
+    expect(ERROR_MESSAGES[code].length).toBeGreaterThan(0);
+  });
+
+  it("factory map covers AlreadyInitialized (2) and Unauthorized (3)", () => {
+    expect(FACTORY_ERROR_MESSAGES[2]).toBeTypeOf("string");
+    expect(FACTORY_ERROR_MESSAGES[3]).toBeTypeOf("string");
+  });
+});

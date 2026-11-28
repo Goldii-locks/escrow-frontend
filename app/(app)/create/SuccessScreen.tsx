@@ -12,7 +12,11 @@ export default function SuccessScreen({ txHash }: { txHash: string }) {
   return (
     <div className="min-h-screen bg-surface-page text-text-primary flex flex-col">
       <Navbar />
-      <main className="flex-1 overflow-y-auto flex items-center justify-center">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex-1 overflow-y-auto flex items-center justify-center"
+      >
         <div className="text-center px-4 py-12 animate-fade-in">
           <div className="text-success-soft text-5xl mb-4" aria-hidden="true">
             ✓

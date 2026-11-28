@@ -137,23 +137,43 @@ describe("JobSchema", () => {
 // ---------------------------------------------------------------------------
 
 describe("JobListResponseSchema", () => {
-  it("accepts a flat array in data", () => {
+  it("accepts the backend's by-wallet envelope { success: true, data: { jobs, total, page, limit } }", () => {
     const r = JobListResponseSchema.parse({
       success: true,
-      data: [{ id: "j1", funded: false }],
+      data: {
+        jobs: [
+          {
+            contract_id: "C123",
+            role: "client",
+            milestone_count: 4,
+            latest_event_type: "milestone_delivered",
+            latest_ledger: 100,
+            latest_timestamp: 1_700_000_000,
+          },
+        ],
+        total: 1,
+        page: 1,
+        limit: 10,
+      },
     });
-    expect(Array.isArray(r.data)).toBe(true);
+    expect(r.success).toBe(true);
   });
 
   it("accepts success:false with an error message", () => {
     const r = JobListResponseSchema.parse({ success: false, error: "oops" });
     expect(r.success).toBe(false);
-    expect(r.error).toBe("oops");
+    if (r.success === false) expect(r.error).toBe("oops");
   });
 
-  it("rejects an entirely unexpected shape", () => {
-    // A top-level string is not a valid response envelope
-    expect(() => JobListResponseSchema.parse("raw string")).toThrow();
+  it.each([
+    ["a flat data array", { success: true, data: [{ id: "j1", funded: false }] }],
+    ["a top-level jobs array", { success: true, jobs: [] }],
+    ["a bare array", []],
+    ["a top-level string", "raw string"],
+    ["a missing data envelope", { success: true }],
+    ["a data object without jobs", { success: true, data: { total: 0, page: 1, limit: 10 } }],
+  ])("rejects %s", (_label, body) => {
+    expect(() => JobListResponseSchema.parse(body)).toThrow();
   });
 });
 
@@ -209,26 +229,12 @@ describe("WhitelistResponseSchema", () => {
 // ---------------------------------------------------------------------------
 
 describe("AutoReleaseResponseSchema", () => {
-  it("accepts a deadline number", () => {
+  it("accepts the backend's time remaining envelope", () => {
     const r = AutoReleaseResponseSchema.parse({
       success: true,
-      data: { deadline: 1_700_000_000, eligible: false },
-    });
-    expect(r.data?.deadline).toBe(1_700_000_000);
-  });
-
-  it("accepts a deadline ISO string", () => {
-    const r = AutoReleaseResponseSchema.parse({
-      data: { autoReleaseAt: "2026-01-01T00:00:00Z" },
-    });
-    expect(typeof r.data?.autoReleaseAt).toBe("string");
-  });
-
-  it("accepts secondsRemaining without a deadline", () => {
-    const r = AutoReleaseResponseSchema.parse({
       data: { secondsRemaining: 3600 },
     });
-    expect(r.data?.secondsRemaining).toBe(3600);
+    expect(r.data.secondsRemaining).toBe(3600);
   });
 
   it("rejects a completely wrong shape", () => {

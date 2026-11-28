@@ -1,9 +1,11 @@
+import { Keypair } from "@stellar/stellar-sdk";
 import { describe, expect, it } from "vitest";
 import {
   checkSubmission,
   hasTokenIssue,
   nonBlank,
   summarizeMilestones,
+  validatePartyAddressCollisions,
   validateAccountAddress,
   validateDeadline,
   validateTokenAddress,
@@ -14,6 +16,7 @@ import {
 // Real StrKeys: validation checks the checksum, not just the shape (#579).
 const ACCOUNT = "GAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQDZ7H";
 const OTHER_ACCOUNT = "GABAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEJXA";
+const THIRD_ACCOUNT = Keypair.random().publicKey();
 const TOKEN = "CAAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQCAIBAEAQC526";
 // ACCOUNT with its last character changed: right shape, bad checksum.
 const BAD_CHECKSUM = ACCOUNT.slice(0, -1) + (ACCOUNT.endsWith("A") ? "B" : "A");
@@ -24,12 +27,22 @@ describe("validateAccountAddress", () => {
     expect(validateAccountAddress(ACCOUNT)).toBe("");
   });
 
-  it.each(["GABC", TOKEN, "g" + "a".repeat(55), ACCOUNT + "A", BAD_CHECKSUM])(
-    "rejects %s",
-    (value) => {
-      expect(validateAccountAddress(value)).toBe("Invalid Stellar public key format");
-    }
-  );
+  it("accepts a well-formed C… contract address (#834)", () => {
+    expect(validateAccountAddress(TOKEN)).toBe("");
+  });
+
+  it.each(["GABC", "g" + "a".repeat(55), ACCOUNT + "A", BAD_CHECKSUM])("rejects %s", (value) => {
+    expect(validateAccountAddress(value)).toBe(
+      "Invalid Stellar public key or contract address format"
+    );
+  });
+
+  it("rejects a C… address with a bad checksum (#834)", () => {
+    const badContractChecksum = TOKEN.slice(0, -1) + (TOKEN.endsWith("A") ? "B" : "A");
+    expect(validateAccountAddress(badContractChecksum)).toBe(
+      "Invalid Stellar public key or contract address format"
+    );
+  });
 });
 
 describe("validateTokenAddress", () => {
@@ -63,6 +76,58 @@ describe("validateDeadline", () => {
 describe("nonBlank", () => {
   it("drops empty and whitespace-only entries", () => {
     expect(nonBlank(["USDC", "", "  ", "XLM"])).toEqual(["USDC", "XLM"]);
+  });
+});
+
+describe("validatePartyAddressCollisions", () => {
+  it.each([
+    [
+      { client: ACCOUNT, freelancer: ACCOUNT, arbiter: OTHER_ACCOUNT },
+      "The freelancer can't be your own address.",
+      "",
+      "",
+    ],
+    [
+      { client: ACCOUNT, freelancer: THIRD_ACCOUNT, arbiter: ACCOUNT },
+      "",
+      "The arbiter can't be your own address.",
+      "",
+    ],
+    [
+      { client: THIRD_ACCOUNT, freelancer: ACCOUNT, arbiter: ACCOUNT },
+      "",
+      "The arbiter can't use the freelancer's address.",
+      "",
+    ],
+    [
+      { client: ACCOUNT, freelancer: THIRD_ACCOUNT, arbiter: OTHER_ACCOUNT, adminAddress: ACCOUNT },
+      "",
+      "",
+      "The client can't be the platform admin address.",
+    ],
+    [
+      { client: THIRD_ACCOUNT, freelancer: ACCOUNT, arbiter: OTHER_ACCOUNT, adminAddress: ACCOUNT },
+      "The freelancer can't be the platform admin address.",
+      "",
+      "",
+    ],
+    [
+      {
+        client: THIRD_ACCOUNT,
+        freelancer: ACCOUNT,
+        arbiter: OTHER_ACCOUNT,
+        adminAddress: OTHER_ACCOUNT,
+      },
+      "",
+      "The arbiter can't be the platform admin address.",
+      "",
+    ],
+  ])("rejects overlapping roles: %j", (input, freelancerError, arbiterError, clientError) => {
+    expect(validatePartyAddressCollisions(input)).toEqual({
+      clientError,
+      freelancerError,
+      arbiterError,
+    });
   });
 });
 
@@ -114,19 +179,44 @@ describe("hasTokenIssue", () => {
   it("is clear for a validated, confirmed non-whitelisted token", () => {
     expect(hasTokenIssue(base)).toBe(false);
   });
+
+  it("blocks any unlisted well-formed token when factory is configured (#833)", () => {
+    // Even a validated, confirmed token is blocked when the factory is configured.
+    expect(hasTokenIssue(base, true)).toBe(true);
+  });
+
+  it("is clear for a whitelisted token even when factory is configured", () => {
+    expect(hasTokenIssue({ ...base, whitelisted: true }, true)).toBe(false);
+  });
 });
 
 describe("checkSubmission", () => {
   const valid: SubmissionInput = {
+    client: THIRD_ACCOUNT,
     freelancer: ACCOUNT,
     arbiter: OTHER_ACCOUNT,
     autoReleaseDays: "7",
     milestones: summarizeMilestones([{ amount: "100" }]),
     token: { token: TOKEN, listed: true, validating: false, validation: null, confirmed: false },
+    factoryConfigured: false,
   };
 
   it("passes a complete form", () => {
     expect(checkSubmission(valid)).toEqual({ ok: true });
+  });
+
+  it.each([
+    [{ freelancer: valid.client }, "The freelancer can't be your own address."],
+    [{ arbiter: valid.client }, "The arbiter can't be your own address."],
+    [{ arbiter: valid.freelancer }, "The arbiter can't use the freelancer's address."],
+    [{ adminAddress: valid.client }, "The client can't be the platform admin address."],
+    [{ adminAddress: valid.freelancer }, "The freelancer can't be the platform admin address."],
+    [{ adminAddress: valid.arbiter }, "The arbiter can't be the platform admin address."],
+  ])("rejects colliding party addresses: %j", (overrides, message) => {
+    expect(checkSubmission({ ...valid, ...overrides })).toMatchObject({
+      ok: false,
+      message,
+    });
   });
 
   it("reports the deadline first, with its field error", () => {
@@ -182,6 +272,28 @@ describe("checkSubmission", () => {
       confirmed: true,
     };
     expect(checkSubmission({ ...valid, token })).toEqual({ ok: true });
+  });
+
+  it("blocks an unlisted token immediately when factory is configured (#833)", () => {
+    const token = { ...valid.token, listed: false };
+    expect(checkSubmission({ ...valid, token, factoryConfigured: true })).toMatchObject({
+      ok: false,
+      message: "This token isn't accepted for new escrows.",
+    });
+  });
+
+  it("does not reach the SEP-41/confirm checks when factory is configured", () => {
+    // Even a 'validated and confirmed' unlisted token is blocked with the factory.
+    const token = {
+      ...valid.token,
+      listed: false,
+      validation: { valid: true, symbol: "T", decimals: 7 },
+      confirmed: true,
+    };
+    expect(checkSubmission({ ...valid, token, factoryConfigured: true })).toMatchObject({
+      ok: false,
+      message: "This token isn't accepted for new escrows.",
+    });
   });
 
   it("marks missing and malformed addresses on their fields", () => {

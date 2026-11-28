@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { subscribeToWalletLoading } from "@/app/lib/wallet_state_context";
+import { subscribeToWalletLoading } from "@/app/lib/wallet_loader";
 import ButtonSpinner from "./ButtonSpinner";
 
 /**

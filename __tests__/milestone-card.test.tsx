@@ -248,7 +248,7 @@ describe("MilestoneCard", () => {
       );
 
       const input = screen.getByTestId("partial-amount-input");
-      fireEvent.change(input, { target: { value: "30000000" } });
+      fireEvent.change(input, { target: { value: "3" } });
       fireEvent.click(screen.getByRole("button", { name: /release partial amount/i }));
 
       expect(screen.getByRole("dialog", { name: /confirm partial release/i })).toBeInTheDocument();
@@ -280,7 +280,7 @@ describe("MilestoneCard", () => {
       );
 
       const input = screen.getByTestId("partial-amount-input");
-      fireEvent.change(input, { target: { value: "30000000" } });
+      fireEvent.change(input, { target: { value: "3" } });
       fireEvent.click(screen.getByRole("button", { name: /release partial amount/i }));
       fireEvent.click(screen.getByRole("button", { name: /release amount/i }));
 
@@ -311,7 +311,7 @@ describe("MilestoneCard", () => {
       );
 
       const input = screen.getByTestId("partial-amount-input");
-      fireEvent.change(input, { target: { value: "30000000" } });
+      fireEvent.change(input, { target: { value: "3" } });
       fireEvent.click(screen.getByRole("button", { name: /release partial amount/i }));
       fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
 

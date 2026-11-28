@@ -16,11 +16,17 @@ export const MAX_DEADLINE_DAYS = 365;
 export type Milestone = { amount: string };
 
 /**
- * Error for the freelancer field, or "" when it's empty or valid. Uses the
- * StrKey checksum (#579), so a mistyped character is caught before signing.
+ * Error for the freelancer field, or "" when it's empty or valid. Accepts
+ * both Ed25519 account keys (G…) and contract addresses (C…) so that smart
+ * wallets, multisig contracts, and passkey wallets can receive payment as the
+ * freelancer — the escrow contract treats the field as a Soroban Address and
+ * require_auth works for contract accounts (#834). Uses the StrKey checksum
+ * (#579), so a mistyped character is caught before signing.
  */
 export function validateAccountAddress(value: string): string {
-  return value && !StrKey.isValidEd25519PublicKey(value) ? "Invalid Stellar public key format" : "";
+  return value && !(StrKey.isValidEd25519PublicKey(value) || StrKey.isValidContract(value))
+    ? "Invalid Stellar public key or contract address format"
+    : "";
 }
 
 /** Error for the arbiter field: an account (G…) or a contract (C…) address. */
@@ -28,6 +34,55 @@ export function validateArbiterAddress(value: string): string {
   return value && !(StrKey.isValidEd25519PublicKey(value) || StrKey.isValidContract(value))
     ? "Invalid Stellar public key or contract address format"
     : "";
+}
+
+export interface PartyAddressInput {
+  client: string;
+  freelancer: string;
+  arbiter: string;
+  adminAddress?: string | null;
+}
+
+export interface PartyAddressErrors {
+  clientError: string;
+  freelancerError: string;
+  arbiterError: string;
+}
+
+/** Returns role-specific errors for party addresses that must be distinct. */
+export function validatePartyAddressCollisions({
+  client,
+  freelancer,
+  arbiter,
+  adminAddress,
+}: PartyAddressInput): PartyAddressErrors {
+  let clientError = "";
+  let freelancerError = "";
+  let arbiterError = "";
+
+  if (client && freelancer && client === freelancer) {
+    freelancerError = "The freelancer can't be your own address.";
+  }
+  if (client && arbiter && client === arbiter) {
+    arbiterError = "The arbiter can't be your own address.";
+  }
+  if (freelancer && arbiter && freelancer === arbiter) {
+    arbiterError = "The arbiter can't use the freelancer's address.";
+  }
+
+  if (adminAddress) {
+    if (client && client === adminAddress) {
+      clientError = "The client can't be the platform admin address.";
+    }
+    if (freelancer && freelancer === adminAddress) {
+      freelancerError = "The freelancer can't be the platform admin address.";
+    }
+    if (arbiter && arbiter === adminAddress) {
+      arbiterError = "The arbiter can't be the platform admin address.";
+    }
+  }
+
+  return { clientError, freelancerError, arbiterError };
 }
 
 /** Error for the token field, or "" when it's empty or valid. */
@@ -86,31 +141,40 @@ export interface TokenStatus {
 }
 
 /**
- * A well-formed token that isn't whitelisted blocks submission until it has
- * passed SEP-41 validation and been confirmed (#668).
+ * A well-formed token that isn't whitelisted blocks submission.
+ *
+ * When a factory is configured the factory's allowed-token list is
+ * authoritative: any unlisted token is an unconditional hard block because
+ * `create_escrow` will return `TokenNotAllowed` (#833).
+ *
+ * Without a factory the original SEP-41 confirmation path applies (#668):
+ * the token must have passed validation and the user must have confirmed it.
  */
-export function hasTokenIssue({
-  token,
-  whitelisted,
-  validating,
-  validation,
-  confirmed,
-}: TokenStatus): boolean {
+export function hasTokenIssue(
+  { token, whitelisted, validating, validation, confirmed }: TokenStatus,
+  factoryConfigured = false
+): boolean {
   if (!token || !TOKEN_CONTRACT_PATTERN.test(token) || whitelisted) return false;
+  // With a factory, any token not on the factory's list is blocked outright.
+  if (factoryConfigured) return true;
   if (validating) return true;
   if (validation && !validation.valid) return true;
   return !!validation?.valid && !confirmed;
 }
 
 export interface SubmissionInput {
+  client: string;
   freelancer: string;
   arbiter: string;
+  adminAddress?: string | null;
   autoReleaseDays: string;
   milestones: MilestoneSummary;
   token: Omit<TokenStatus, "whitelisted"> & {
     /** The token appears in the whitelist at all (regardless of load state). */
     listed: boolean;
   };
+  /** True when new escrows must go through the factory's allowed-token list (#833). */
+  factoryConfigured: boolean;
 }
 
 export type SubmissionCheck =
@@ -120,6 +184,7 @@ export type SubmissionCheck =
       /** Form-level message for the error alert. */
       message: string;
       deadlineError?: string;
+      clientError?: string;
       freelancerError?: string;
       arbiterError?: string;
     };
@@ -154,6 +219,13 @@ export function checkSubmission(input: SubmissionInput): SubmissionCheck {
     return { ok: false, message: "Select an accepted token before creating a job." };
   }
   if (!token.listed) {
+    if (input.factoryConfigured) {
+      // The factory will reject this token; block outright (#833).
+      return {
+        ok: false,
+        message: "This token isn't accepted for new escrows.",
+      };
+    }
     if (token.validating) {
       return { ok: false, message: "Token validation is still in progress. Please wait." };
     }
@@ -177,6 +249,19 @@ export function checkSubmission(input: SubmissionInput): SubmissionCheck {
       message: "Please fix the address fields before creating a job.",
       freelancerError: freelancer ? validateAccountAddress(freelancer) : "This field is required.",
       arbiterError: arbiter ? validateArbiterAddress(arbiter) : "This field is required.",
+    };
+  }
+
+  const partyErrors = validatePartyAddressCollisions(input);
+  if (partyErrors.clientError || partyErrors.freelancerError || partyErrors.arbiterError) {
+    return {
+      ok: false,
+      message:
+        partyErrors.clientError ||
+        partyErrors.freelancerError ||
+        partyErrors.arbiterError ||
+        "Each party must use a different address.",
+      ...partyErrors,
     };
   }
 

@@ -124,6 +124,61 @@ for (const { path, check } of routes) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Security headers on every response (#810) and templated connect-src (#811)
+// ---------------------------------------------------------------------------
+
+const SECURITY_HEADERS = [
+  "x-content-type-options",
+  "x-frame-options",
+  "referrer-policy",
+  "permissions-policy",
+  "strict-transport-security",
+  "content-security-policy",
+];
+
+test("security headers are present on /, /dashboard, /index.html and /_next/static/", async ({
+  request,
+}) => {
+  const home = await request.get("/");
+  const html = await home.text();
+  const chunk = html.match(/\/_next\/static\/[^"'\s]+\.js/)?.[0];
+  expect(chunk, "expected a /_next/static/ chunk in the home HTML").toBeTruthy();
+
+  for (const path of ["/", "/dashboard", "/index.html", chunk!]) {
+    const res = await request.get(path);
+    expect(res.status(), `${path} returned ${res.status()}`).toBe(200);
+    const headers = res.headers();
+    for (const header of SECURITY_HEADERS) {
+      expect(headers[header], `${header} missing on ${path}`).toBeTruthy();
+    }
+    expect(headers["x-content-type-options"], `nosniff missing on ${path}`).toBe("nosniff");
+  }
+});
+
+test("HTML responses are served with no-cache", async ({ request }) => {
+  for (const path of ["/", "/dashboard", "/index.html"]) {
+    const res = await request.get(path);
+    expect(res.headers()["cache-control"], `no-cache missing on ${path}`).toContain("no-cache");
+  }
+});
+
+test("connect-src names the configured RPC origin", async ({ request }) => {
+  const res = await request.get("/");
+  const csp = res.headers()["content-security-policy"] ?? "";
+  const connectSrc =
+    csp
+      .split(";")
+      .map((directive) => directive.trim())
+      .find((directive) => directive.startsWith("connect-src ")) ?? "";
+  const configured =
+    process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ?? "https://soroban-testnet.stellar.org";
+  const rpcOrigin = new URL(configured).origin;
+  expect(connectSrc, `connect-src must include ${rpcOrigin}`).toContain(rpcOrigin);
+  // Wallet kit origins must remain allowed under an enforced policy (#811).
+  expect(connectSrc).toContain("wss://relay.walletconnect.com");
+});
+
 test("/nonsense shows the branded 404 page", async ({ page }) => {
   await page.goto("/nonsense");
   await page.waitForLoadState("networkidle");
@@ -136,4 +191,39 @@ test("/nonsense shows the branded 404 page", async ({ page }) => {
     "/dashboard"
   );
   await expect(page.getByRole("link", { name: "Go to home" })).toHaveAttribute("href", "/");
+});
+
+// ---------------------------------------------------------------------------
+// OpenGraph / Twitter metadata checks (#Task4)
+// ---------------------------------------------------------------------------
+
+test("og:image is an absolute https:// PNG URL (not localhost or .svg)", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  const ogImage = await page.$eval(
+    'meta[property="og:image"]',
+    (el) => el.getAttribute("content") ?? ""
+  );
+
+  // Must be absolute https://, not localhost.
+  expect(ogImage).toMatch(/^https:\/\//);
+  // Must end in .png, never .svg.
+  expect(ogImage).toMatch(/\.png$/);
+  expect(ogImage).not.toMatch(/\.svg/);
+  // Must not resolve against localhost.
+  expect(ogImage).not.toContain("localhost");
+});
+
+test("og:url meta tag is present and is an absolute https:// URL", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  const ogUrl = await page.$eval(
+    'meta[property="og:url"]',
+    (el) => el.getAttribute("content") ?? ""
+  );
+
+  expect(ogUrl).toMatch(/^https:\/\//);
+  expect(ogUrl).not.toContain("localhost");
 });

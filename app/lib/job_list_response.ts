@@ -2,83 +2,111 @@
  * Normalisation of the backend's job list and job detail payloads into
  * `Job`s. Shared by the dashboard list and the "Needs your action" panel
  * (#888) so both read the same shapes the same way.
+ *
+ * The job *list* (`GET /api/jobs/by-wallet/:address`) and the job *detail*
+ * (`GET /api/jobs/:contractId`) are two different backend responses with two
+ * different field sets:
+ *
+ *  - List rows are snake_case summaries (`contract_id`, `milestone_count`,
+ *    `latest_event_type`, `latest_ledger`, `latest_timestamp`). They carry no
+ *    client/freelancer/funded/milestones; those come from the detail call.
+ *  - Detail rows are camelCase (`id`, `client`, `funded`, `milestones`).
+ *
+ * Each path validates its own shape against `api_schemas.ts`. There is no
+ * envelope guessing and no snake_case → camelCase alias table: the list schema
+ * matches `escrow-backend`'s `getJobsByWallet` exactly, and a row that fails
+ * validation is reported (not silently dropped) so contract drift fails a
+ * test instead of hiding rows from the user.
  */
-import { JobListResponseSchema, JobSchema, type Job } from "@/app/lib/api_schemas";
+import {
+  JobSchema,
+  JobSummarySchema,
+  type Job,
+  type JobListResponse,
+  type JobSummary,
+} from "@/app/lib/api_schemas";
+import { reportClientError } from "@/app/lib/errorReporter";
 
-/** snake_case fields the by-wallet summary sends, mapped to the Job schema (#638). */
-const SUMMARY_FIELD_ALIASES: Record<string, string> = {
-  contract_id: "id",
-  milestone_count: "milestoneCount",
-  released_count: "releasedCount",
-  latest_event_type: "latestEventType",
-  latest_event_at: "latestEventAt",
-  latest_ledger: "latestLedger",
-};
+/** Route template used when reporting unparseable list rows. */
+const BY_WALLET_ROUTE = "/api/jobs/by-wallet/:address";
 
 /**
- * Normalises raw (unknown-typed) data from the backend into a `Job`.
- * Uses Zod's `safeParse` so that a bad shape never silently produces
- * empty data — it returns `null` so the caller can show an error or fall
- * back gracefully.
+ * Maps one snake_case by-wallet summary row onto the camelCase `Job` the UI
+ * renders. This is the single translation point between the list's wire
+ * shape and the app's model — not an alias lookup, because the field sets
+ * differ and a missing/renamed field must fail loudly rather than fall
+ * through to a default.
+ */
+function summaryToJob(summary: JobSummary): Job {
+  return JobSchema.parse({
+    id: summary.contract_id,
+    role: summary.role,
+    milestoneCount: summary.milestone_count,
+    latestEventType: summary.latest_event_type,
+    latestEventAt: summary.latest_timestamp ?? undefined,
+    latestLedger: summary.latest_ledger,
+  });
+}
+
+/**
+ * Normalises a raw detail payload (`GET /api/jobs/:contractId`'s `data`) into
+ * a `Job`. Returns `null` when the shape does not match `JobSchema` so the
+ * caller can fall back to the contract rather than render partial data.
  */
 export function normalizeJob(item: unknown): Job | null {
-  let input = item;
-  if (typeof item === "object" && item !== null && !Array.isArray(item)) {
-    const mapped: Record<string, unknown> = { ...(item as Record<string, unknown>) };
-    for (const [from, to] of Object.entries(SUMMARY_FIELD_ALIASES)) {
-      if (mapped[to] === undefined && mapped[from] !== undefined) mapped[to] = mapped[from];
-    }
-    input = mapped;
-  }
-  const result = JobSchema.safeParse(input);
+  const result = JobSchema.safeParse(item);
   return result.success ? result.data : null;
 }
 
-/** Reads every known job-list envelope into one shape. */
-export function parsePageResponse(payload: ReturnType<typeof JobListResponseSchema.parse>): {
+/** The page envelope `parsePageResponse` extracts from a validated response. */
+export interface JobListPage {
   jobs: Job[];
   page: number;
   limit: number;
   total: number;
-} {
-  const fallback = { jobs: [] as Job[], page: 1, limit: 5, total: 0 };
+}
 
-  if (!payload || payload.success === false) {
-    return fallback;
-  }
+/**
+ * Reads the by-wallet list response into `Job`s using the single documented
+ * shape. `payload` is the already-validated `JobListResponse` from
+ * `validateResponse(JobListResponseSchema, raw, endpoint)`.
+ *
+ * Each row is validated against `JobSummarySchema`; a row that fails is
+ * reported via `reportClientError` and skipped so one bad row does not blank
+ * the whole list, while the failure is still visible to the error reporter.
+ */
+export function parsePageResponse(payload: JobListResponse): JobListPage {
+  const empty: JobListPage = { jobs: [], page: 1, limit: 5, total: 0 };
+  if (payload.success === false) return empty;
 
-  let rows: unknown[] = [];
-  let page = payload.page ?? payload.pagination?.page ?? 1;
-  let limit = payload.limit ?? payload.pagination?.limit ?? 5;
-  let total = payload.total ?? payload.totalItems ?? payload.pagination?.total ?? 0;
+  const jobs: Job[] = [];
+  const { jobs: rows, page, limit, total } = payload.data;
 
-  if (Array.isArray(payload.data)) {
-    rows = payload.data;
-  } else if (payload.data && typeof payload.data === "object") {
-    const embedded = payload.data as Record<string, unknown>;
-    if (Array.isArray(embedded.jobs)) {
-      rows = embedded.jobs;
-    } else if (Array.isArray(embedded.items)) {
-      rows = embedded.items;
-    } else if (typeof embedded.id === "string") {
-      rows = [embedded];
-      page = 1;
-      limit = 1;
-      total = 1;
+  for (const row of rows) {
+    const parsed = JobSummarySchema.safeParse(row);
+    if (!parsed.success) {
+      reportClientError({
+        source: "api",
+        message: `Unparseable job row in by-wallet response: ${parsed.error.issues
+          .slice(0, 3)
+          .map((i) => `${i.path.join(".")}: ${i.message}`)
+          .join("; ")}`,
+        route: BY_WALLET_ROUTE,
+      });
+      continue;
     }
-
-    if (typeof embedded.page === "number") page = embedded.page;
-    if (typeof embedded.limit === "number") limit = embedded.limit;
-    if (typeof embedded.total === "number") total = embedded.total;
-    if (typeof embedded.totalItems === "number") total = embedded.totalItems;
+    try {
+      jobs.push(summaryToJob(parsed.data));
+    } catch (err) {
+      reportClientError({
+        source: "api",
+        message: `Job row failed summary→Job mapping: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+        route: BY_WALLET_ROUTE,
+      });
+    }
   }
 
-  const jobs = rows.map(normalizeJob).filter((job): job is Job => job !== null);
-
-  return {
-    jobs,
-    page,
-    limit,
-    total: total || jobs.length,
-  };
+  return { jobs, page, limit, total };
 }

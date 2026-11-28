@@ -9,6 +9,7 @@ Sources in `Goldii-locks/escrow-backend`:
 
 | Fixture                                | Source                                                                                                             |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `by-wallet-success.json`               | `router.get("/by-wallet/:address")` → `sendSuccess(res, getJobsByWallet(...))` (`JobSummary` rows)                 |
 | `build-tx-success.json`                | `router.post("/build-tx")` → `res.json({ success: true, xdr })`                                                    |
 | `build-tx-error.json`                  | `sendError(res, 500, "Internal server error")`                                                                     |
 | `build-tx-validation-error.json`       | `validateWithFields` middleware (`details` + `fields`)                                                             |
@@ -24,3 +25,8 @@ Notes:
 - `/build-tx` is the exception: it returns `{ success: true, xdr }` inline.
 - Schema rejections are 400s shaped
   `{ success: false, error: "ValidationError", message, details, fields }`.
+- The by-wallet list wraps a `PaginatedJobs` page:
+  `{ success: true, data: { jobs: JobSummary[], total, page, limit } }`, where
+  each `JobSummary` row is snake_case (`contract_id`, `role`, `milestone_count`,
+  `latest_event_type`, `latest_ledger`, `latest_timestamp`). It carries no
+  client/freelancer/funded/milestones; those come from `GET /api/jobs/:contractId`.

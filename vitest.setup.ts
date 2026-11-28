@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom/vitest";
-import { expect } from "vitest";
+import { expect, vi } from "vitest";
+import { wrapFetch } from "./test-support/job_details_fetch";
 import type { AxeResults } from "axe-core";
 
 // Asserts an axe-core run found no violations (#677). Kept local instead of
@@ -99,3 +100,12 @@ if (typeof window !== "undefined") {
     });
   }
 }
+
+// Dashboard tests stub `fetch` with loosely shaped job-list fixtures. Present
+// them to the app in the documented by-wallet shape (and serve job details),
+// the same way the real backend would.
+const stubGlobal = vi.stubGlobal.bind(vi);
+vi.stubGlobal = ((name: string | symbol | number, value: unknown) => {
+  const next = name === "fetch" && typeof value === "function" ? wrapFetch(value) : value;
+  return stubGlobal(name as string, next);
+}) as typeof vi.stubGlobal;

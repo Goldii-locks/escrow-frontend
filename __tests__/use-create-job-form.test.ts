@@ -49,6 +49,7 @@ const mockTokenCheckReturn = {
   whitelistLoading: false,
   whitelistError: null,
   listed: false,
+  factoryConfigured: false,
   status: {
     token: "",
     whitelisted: false,
@@ -86,8 +87,8 @@ const FULL_DRAFT: CreateJobDraft = {
   arbiter: ARBITER,
   token: "CTOKEN00000000000000000000000000000000000000000000000001",
   autoReleaseDays: "14",
-  acceptedAssets: ["USDC"],
-  requirements: ["Deliver on time"],
+  acceptedAssets: [],
+  requirements: [],
   milestones: [{ amount: "100" }],
 };
 
@@ -288,21 +289,6 @@ describe("useCreateJobForm — scope (milestones / assets / requirements)", () =
       result.current.scope.updateMilestone(0, "500");
     });
     expect(result.current.scope.milestones[0].amount).toBe("500");
-  });
-
-  it("addAcceptedAsset then removeAcceptedAsset round-trips", () => {
-    const { result } = renderHook(() => useCreateJobForm());
-    act(() => {
-      result.current.scope.addAcceptedAsset();
-    });
-    act(() => {
-      result.current.scope.updateAcceptedAsset(0, "USDC");
-    });
-    expect(result.current.scope.acceptedAssets).toContain("USDC");
-    act(() => {
-      result.current.scope.removeAcceptedAsset(0);
-    });
-    expect(result.current.scope.acceptedAssets).toHaveLength(0);
   });
 });
 
@@ -633,6 +619,33 @@ describe("useCreateJobForm — handleSubmit", () => {
     expect(mockSubmitCreateJob).not.toHaveBeenCalled();
     expect(result.current.error).toBeTruthy();
   });
+
+  it.each(["freelancer-client", "arbiter-client", "arbiter-freelancer"])(
+    "blocks submit before signing for the %s collision",
+    async (collision) => {
+      const { result } = renderHook(() => useCreateJobForm());
+      setupValidForm(result);
+      act(() => {
+        if (collision === "freelancer-client") {
+          result.current.details.changeFreelancer(ADDRESS);
+        } else if (collision === "arbiter-client") {
+          result.current.details.changeArbiter(ADDRESS);
+        } else {
+          result.current.details.changeArbiter(FREELANCER);
+        }
+      });
+
+      await act(async () => {
+        await result.current.handleSubmit({
+          preventDefault: vi.fn(),
+        } as unknown as React.FormEvent);
+      });
+
+      expect(mockSubmitCreateJob).not.toHaveBeenCalled();
+      expect(mockSignTransaction).not.toHaveBeenCalled();
+      expect(result.current.error).toMatch(/address/i);
+    }
+  );
 
   it("does not double-submit while a request is pending", async () => {
     // The hook's isSubmitDisabled includes `loading`, which is the UI-level

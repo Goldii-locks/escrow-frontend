@@ -1,0 +1,34 @@
+{
+  "success": true,
+  "data": {
+    "jobs": [
+      {
+        "contract_id": "CCONTRACT1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "role": "client",
+        "milestone_count": 4,
+        "latest_event_type": "milestone_delivered",
+        "latest_ledger": 2215483,
+        "latest_timestamp": 1782360000
+      },
+      {
+        "contract_id": "CCONTRACT2BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+        "role": "freelancer",
+        "milestone_count": 1,
+        "latest_event_type": "msfund",
+        "latest_ledger": 2215480,
+        "latest_timestamp": 1782359000
+      },
+      {
+        "contract_id": "CCONTRACT3CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+        "role": "arbiter",
+        "milestone_count": 2,
+        "latest_event_type": "dispute_raised",
+        "latest_ledger": 2215470,
+        "latest_timestamp": null
+      }
+    ],
+    "total": 3,
+    "page": 1,
+    "limit": 20
+  }
+}

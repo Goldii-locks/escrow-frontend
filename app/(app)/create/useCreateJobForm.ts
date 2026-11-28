@@ -3,10 +3,11 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { useToast } from "@/app/context/ToastContext";
 import { useWallet } from "@/app/context/WalletContext";
+import { fetchAdminAddress } from "@/app/lib/admin";
 import { getDefaultArbiter } from "@/app/lib/default_arbiter";
 import { formatCreateEscrowError } from "@/app/lib/errors";
 import { isMilestoneCapReached } from "@/app/lib/milestone_limits";
-import type { TxPhase } from "@/app/lib/transactions";
+import { CONTRACT_ID, type TxPhase } from "@/app/lib/transactions";
 import {
   clearCreateJobDraft,
   CREATE_JOB_DRAFT_DEBOUNCE_MS,
@@ -21,11 +22,11 @@ import {
   checkSubmission,
   hasTokenIssue,
   type Milestone,
-  nonBlank,
   summarizeMilestones,
   validateAccountAddress,
   validateArbiterAddress,
   validateDeadline,
+  validatePartyAddressCollisions,
   validateTokenAddress,
 } from "./validation";
 
@@ -46,6 +47,8 @@ export function useCreateJobForm() {
   const { address, signTransaction, setSimulationResult } = useWallet();
   const { showToast } = useToast();
   const [activeSection, setActiveSection] = useState<WizardSection>("details");
+  const [adminAddress, setAdminAddress] = useState<string | null>(null);
+  const [adminAddressLoading, setAdminAddressLoading] = useState(!!CONTRACT_ID);
 
   const [freelancer, setFreelancer] = useState("");
   const [arbiter, setArbiter] = useState("");
@@ -60,8 +63,6 @@ export function useCreateJobForm() {
   const [tokenError, setTokenError] = useState("");
   const [autoReleaseDays, setAutoReleaseDays] = useState("7");
   const [deadlineError, setDeadlineError] = useState<string | null>(null);
-  const [acceptedAssets, setAcceptedAssets] = useState<string[]>([]);
-  const [requirements, setRequirements] = useState<string[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([{ amount: "" }]);
 
   const [loading, setLoading] = useState(false);
@@ -74,6 +75,21 @@ export function useCreateJobForm() {
 
   const tokenCheck = useTokenCheck(token);
 
+  useEffect(() => {
+    if (!CONTRACT_ID) return;
+
+    let active = true;
+    void fetchAdminAddress(CONTRACT_ID).then((result) => {
+      if (!active) return;
+      setAdminAddress(result);
+      setAdminAddressLoading(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // ── Draft persistence ─────────────────────────────────────────────────────
   const [draftRestored, setDraftRestored] = useState(false);
   // Address whose draft has been restored; saving waits for it so the empty
@@ -85,8 +101,6 @@ export function useCreateJobForm() {
     setArbiter(draft.arbiter);
     setToken(draft.token);
     setAutoReleaseDays(draft.autoReleaseDays);
-    setAcceptedAssets(draft.acceptedAssets);
-    setRequirements(draft.requirements);
     setMilestones(draft.milestones);
   };
 
@@ -110,24 +124,13 @@ export function useCreateJobForm() {
         arbiter,
         token,
         autoReleaseDays,
-        acceptedAssets,
-        requirements,
+        acceptedAssets: [],
+        requirements: [],
         milestones,
       });
     }, CREATE_JOB_DRAFT_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [
-    address,
-    draftAddress,
-    txHash,
-    freelancer,
-    arbiter,
-    token,
-    autoReleaseDays,
-    acceptedAssets,
-    requirements,
-    milestones,
-  ]);
+  }, [address, draftAddress, txHash, freelancer, arbiter, token, autoReleaseDays, milestones]);
 
   const discardDraft = () => {
     if (address) clearCreateJobDraft(address);
@@ -139,14 +142,16 @@ export function useCreateJobForm() {
   const changeFreelancer = (value: string) => {
     setFreelancer(value);
     setFreelancerError(validateAccountAddress(value));
+    setArbiterError(validateArbiterAddress(effectiveArbiter));
   };
   const changeArbiter = (value: string) => {
     setArbiter(value);
     setArbiterError(validateArbiterAddress(value));
+    setFreelancerError(validateAccountAddress(freelancer));
   };
   const chooseArbiterMode = (mode: "default" | "custom") => {
     setArbiterMode(mode);
-    if (mode === "default") setArbiterError("");
+    setArbiterError(mode === "default" ? "" : validateArbiterAddress(arbiter));
   };
   const changeToken = (value: string) => {
     setToken(value);
@@ -158,8 +163,6 @@ export function useCreateJobForm() {
     if (deadlineError) setDeadlineError(null);
   };
 
-  const assets = listActions<string>(setAcceptedAssets, "");
-  const reqs = listActions<string>(setRequirements, "");
   const milestoneList = listActions<Milestone>(setMilestones, { amount: "" });
   const addMilestone = () => {
     if (isMilestoneCapReached(milestones.length)) return;
@@ -169,32 +172,58 @@ export function useCreateJobForm() {
   // ── Derived state ─────────────────────────────────────────────────────────
   const milestoneSummary = summarizeMilestones(milestones);
   const { hasNoMilestones, hasPartialMilestones } = milestoneSummary;
-  const hasValidationErrors = !!freelancerError || !!arbiterError || !!tokenError;
+  const partyAddressErrors = validatePartyAddressCollisions({
+    client: address ?? "",
+    freelancer,
+    arbiter: effectiveArbiter,
+    adminAddress,
+  });
+  const hasValidationErrors =
+    !!freelancerError ||
+    !!arbiterError ||
+    !!partyAddressErrors.clientError ||
+    !!partyAddressErrors.freelancerError ||
+    !!partyAddressErrors.arbiterError ||
+    !!tokenError;
   const isSubmitDisabled =
     loading ||
+    adminAddressLoading ||
     !address ||
     hasNoMilestones ||
     hasPartialMilestones ||
     hasValidationErrors ||
-    hasTokenIssue(tokenCheck.status) ||
+    hasTokenIssue(tokenCheck.status, tokenCheck.factoryConfigured) ||
     !agreed;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!address) return;
+    if (adminAddressLoading) {
+      setError("Checking the platform admin address. Please wait.");
+      return;
+    }
 
-    const { listed, status } = tokenCheck;
+    const { listed, status, factoryConfigured } = tokenCheck;
     const check = checkSubmission({
+      client: address,
       freelancer,
       arbiter: effectiveArbiter,
+      adminAddress,
       autoReleaseDays,
       milestones: milestoneSummary,
       token: { ...status, listed },
+      factoryConfigured,
     });
     if (!check.ok) {
       if (check.deadlineError) setDeadlineError(check.deadlineError);
-      if (check.freelancerError !== undefined) setFreelancerError(check.freelancerError);
-      if (check.arbiterError !== undefined) setArbiterError(check.arbiterError);
+      if (check.freelancerError !== undefined) {
+        setFreelancerError(freelancer ? validateAccountAddress(freelancer) : check.freelancerError);
+      }
+      if (check.arbiterError !== undefined) {
+        setArbiterError(
+          effectiveArbiter ? validateArbiterAddress(effectiveArbiter) : check.arbiterError
+        );
+      }
       setError(check.message);
       return;
     }
@@ -241,12 +270,13 @@ export function useCreateJobForm() {
     draftRestored,
     discardDraft,
     details: {
+      clientError: partyAddressErrors.clientError,
       freelancer,
-      freelancerError,
+      freelancerError: partyAddressErrors.freelancerError || freelancerError,
       changeFreelancer,
       blurFreelancer: (value: string) => setFreelancerError(validateAccountAddress(value)),
       arbiter,
-      arbiterError,
+      arbiterError: partyAddressErrors.arbiterError || arbiterError,
       changeArbiter,
       blurArbiter: (value: string) => setArbiterError(validateArbiterAddress(value)),
       defaultArbiter,
@@ -263,14 +293,6 @@ export function useCreateJobForm() {
       blurDeadline: () => setDeadlineError(validateDeadline(autoReleaseDays)),
     },
     scope: {
-      acceptedAssets,
-      addAcceptedAsset: assets.add,
-      removeAcceptedAsset: assets.remove,
-      updateAcceptedAsset: assets.update,
-      requirements,
-      addRequirement: reqs.add,
-      removeRequirement: reqs.remove,
-      updateRequirement: reqs.update,
       milestones: milestoneSummary.milestones,
       milestoneCount: milestones.length,
       hasNoMilestones,
@@ -280,8 +302,6 @@ export function useCreateJobForm() {
       updateMilestone: (index: number, amount: string) => milestoneList.update(index, { amount }),
     },
     review: {
-      assetCount: nonBlank(acceptedAssets).length,
-      requirementCount: nonBlank(requirements).length,
       milestoneCount: milestoneSummary.milestones.length,
       autoReleaseDays,
       arbiter,

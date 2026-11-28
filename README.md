@@ -74,13 +74,16 @@ runtime override.
 All `NEXT_PUBLIC_*` variables are read at build time and inlined into the
 bundle.
 
-| Variable                                 | Default                                             | Purpose                                                                                                                                                                                                                                      |
-| ---------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_CONTRACT_ID`                | _(required)_                                        | Soroban contract ID the frontend talks to. In CI this comes from the `CONTRACT_ID` repo variable; the deploy workflow allows a manual override via the `contract_id` input.                                                                  |
-| `NEXT_PUBLIC_FACTORY_CONTRACT_ID`        | _(empty)_                                           | escrow-factory contract the create page calls (`create_escrow`); each escrow it creates is its own contract. In CI this comes from the `FACTORY_CONTRACT_ID` repo variable. Empty: the create page says escrow creation isn't available yet. |
-| `NEXT_PUBLIC_BACKEND_URL`                | `http://localhost:3001`                             | Base URL of the escrow backend API (used by `app/lib/transactions.ts`).                                                                                                                                                                      |
-| `NEXT_PUBLIC_SOROBAN_RPC_URL`            | `https://soroban-testnet.stellar.org`               | Soroban RPC endpoint used by `app/lib/contract.ts`.                                                                                                                                                                                          |
-| `NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE` | `Networks.TESTNET` (`Test SDF Future Network 2025`) | Network passphrase used by `app/lib/contract.ts`; set to `Networks.MAINNET` (`Public Global Stellar Network 2022`) for mainnet.                                                                                                              |
+| Variable                                 | Default                               | Purpose                                                                                                                                                                                                                                      |
+| ---------------------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_CONTRACT_ID`                | _(required)_                          | Soroban contract ID the frontend talks to. In CI this comes from the `CONTRACT_ID` repo variable; the deploy workflow allows a manual override via the `contract_id` input.                                                                  |
+| `NEXT_PUBLIC_FACTORY_CONTRACT_ID`        | _(empty)_                             | escrow-factory contract the create page calls (`create_escrow`); each escrow it creates is its own contract. In CI this comes from the `FACTORY_CONTRACT_ID` repo variable. Empty: the create page says escrow creation isn't available yet. |
+| `NEXT_PUBLIC_BACKEND_URL`                | `http://localhost:3001`               | Base URL of the escrow backend API (used by `app/lib/transactions.ts`).                                                                                                                                                                      |
+| `NEXT_PUBLIC_SOROBAN_RPC_URL`            | `https://soroban-testnet.stellar.org` | Soroban RPC endpoint used by `app/lib/config.ts`.                                                                                                                                                                                            |
+| `NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE` | `Test SDF Network ; September 2015`   | Network passphrase used by `app/lib/config.ts`; set to `Public Global Stellar Network ; September 2015` for mainnet.                                                                                                                         |
+| `NEXT_PUBLIC_DEFAULT_ARBITER`            | _(empty)_                             | Platform arbitration address offered as the recommended arbiter on the create form. Must be a valid Stellar `G…` or `C…` address. In CI set via the `DEFAULT_ARBITER` repo variable. Empty: only the custom arbiter option is shown.         |
+| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`   | _(empty)_                             | Enables WalletConnect mobile-wallet support. Obtain a project ID at [cloud.reown.com](https://cloud.reown.com/). In CI set via the `WALLETCONNECT_PROJECT_ID` repo variable. Empty: WalletConnect is not shown in the wallet list.           |
+| `NEXT_PUBLIC_CLIENT_ERROR_REPORTING`     | _(empty)_                             | Set to `"true"` to enable client-side error reporting to the backend's `POST /api/client-errors` endpoint. In CI set via the `CLIENT_ERROR_REPORTING` repo variable. Empty / any other value: reporting is off.                              |
 
 ## Backend URL (NEXT_PUBLIC_BACKEND_URL)
 
@@ -97,25 +100,34 @@ Accepted values:
 ```bash
 # Production (recommended): empty - same-origin /api
 docker build -t escrow-frontend \
-  --build-arg NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH \
+  --build-arg NEXT_PUBLIC_CONTRACT_ID=<your-contract-id> \
+  --build-arg NEXT_PUBLIC_FACTORY_CONTRACT_ID=<your-factory-id> \
+  --build-arg NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org \
+  --build-arg "NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=Test SDF Network ; September 2015" \
   .
 
 # HTTPS backend
 docker build -t escrow-frontend \
   --build-arg NEXT_PUBLIC_BACKEND_URL=https://api.example.com \
-  --build-arg NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH \
+  --build-arg NEXT_PUBLIC_CONTRACT_ID=<your-contract-id> \
+  --build-arg NEXT_PUBLIC_FACTORY_CONTRACT_ID=<your-factory-id> \
+  --build-arg NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org \
+  --build-arg "NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=Test SDF Network ; September 2015" \
   .
 
 # Local loopback
 docker build -t escrow-frontend \
   --build-arg NEXT_PUBLIC_BACKEND_URL=http://localhost:3001 \
-  --build-arg NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH \
+  --build-arg NEXT_PUBLIC_CONTRACT_ID=<your-contract-id> \
+  --build-arg NEXT_PUBLIC_FACTORY_CONTRACT_ID=<your-factory-id> \
+  --build-arg NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org \
+  --build-arg "NEXT_PUBLIC_SOROBAN_NETWORK_PASSPHRASE=Test SDF Network ; September 2015" \
   .
 
 # Rejected: plain HTTP remote (fails the build)
 docker build -t escrow-frontend \
   --build-arg NEXT_PUBLIC_BACKEND_URL=http://example.com \
-  --build-arg NEXT_PUBLIC_CONTRACT_ID=CDD5WKK3WT3QVKXMXTJNDIXE4T73FK6GGXDSD6UTJAH6YYZU52SQ4MUH \
+  --build-arg NEXT_PUBLIC_CONTRACT_ID=<your-contract-id> \
   .
 ```
 

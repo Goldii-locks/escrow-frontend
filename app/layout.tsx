@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "./context/ToastContext";
 import Toast from "./components/Toast";
+import { buildMetadata } from "./lib/site_metadata";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,24 +16,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "Milestone Escrow",
-    template: "%s · Milestone Escrow",
-  },
-  description: "Trustless milestone-based escrow on Stellar",
-  openGraph: {
-    type: "website",
-    siteName: "Milestone Escrow",
-    title: "Milestone Escrow",
-    description: "Trustless milestone-based escrow on Stellar",
-    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "Milestone Escrow" }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Milestone Escrow",
-    description: "Trustless milestone-based escrow on Stellar",
-    images: ["/og-image.svg"],
-  },
+  ...buildMetadata(),
+  icons: { apple: { url: "/icon-192.png", sizes: "192x192", type: "image/png" } },
+};
+
+export const viewport: Viewport = {
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 export default function RootLayout({
